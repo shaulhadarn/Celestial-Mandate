@@ -1,6 +1,8 @@
-/* Updated: Organized app hierarchy, moved to src/visuals folder, fixed imports and paths */
+/* Updated: Mobile optimized - no SpotLight shadow on mobile, reduced PointLight range, lower-poly drone geometry on mobile */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
+
+const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
 /**
  * Creates the 3D model for the player's exploration drone.
@@ -9,23 +11,28 @@ export function createDroneMesh() {
     const shipGroup = new THREE.Group();
     
     // Core Chassis
-    const chassisGeo = new THREE.OctahedronGeometry(1.2, 2);
-    const chassisMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.2, metalness: 0.9 });
+    const chassisGeo = new THREE.OctahedronGeometry(1.2, isMobileDevice ? 1 : 2);
+    const chassisMat = isMobileDevice
+        ? new THREE.MeshLambertMaterial({ color: 0x222222 })
+        : new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.2, metalness: 0.9 });
     const chassis = new THREE.Mesh(chassisGeo, chassisMat);
     chassis.position.y = 2;
-    chassis.castShadow = true;
+    chassis.castShadow = !isMobileDevice;
     shipGroup.add(chassis);
 
     // Upper Shell
-    const shellGeo = new THREE.SphereGeometry(1.4, 8, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-    const shellMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.1, metalness: 0.8 });
+    const shellSeg = isMobileDevice ? 6 : 8;
+    const shellGeo = new THREE.SphereGeometry(1.4, shellSeg, shellSeg, 0, Math.PI * 2, 0, Math.PI / 2);
+    const shellMat = isMobileDevice
+        ? new THREE.MeshLambertMaterial({ color: 0xdddddd })
+        : new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.1, metalness: 0.8 });
     const shell = new THREE.Mesh(shellGeo, shellMat);
     shell.position.y = 2.1;
-    shell.castShadow = true;
+    shell.castShadow = !isMobileDevice;
     shipGroup.add(shell);
 
     // Sensor "Eye"
-    const eyeGeo = new THREE.SphereGeometry(0.3, 16, 16);
+    const eyeGeo = new THREE.SphereGeometry(0.3, isMobileDevice ? 8 : 16, isMobileDevice ? 8 : 16);
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff });
     const eye = new THREE.Mesh(eyeGeo, eyeMat);
     eye.position.set(0, 2.3, 1.1);
@@ -55,7 +62,8 @@ export function createDroneMesh() {
         shipGroup.add(padContainer);
     }
     
-    const engineLight = new THREE.PointLight(0x00f2ff, 8, 12);
+    // Mobile: smaller range PointLight — fewer fragments lit per frame
+    const engineLight = new THREE.PointLight(0x00f2ff, isMobileDevice ? 5 : 8, isMobileDevice ? 8 : 12);
     engineLight.position.set(0, 0.5, 0);
     shipGroup.add(engineLight);
 
@@ -72,12 +80,19 @@ export function createDroneMesh() {
     shipGroup.add(flare);
     shipGroup.userData.flare = flare;
 
-    const spotLight = new THREE.SpotLight(0xffffff, 20);
+    // Mobile: SpotLight with castShadow=true is the single most expensive draw call
+    // On mobile we keep the light but disable shadow casting entirely
+    const spotLight = new THREE.SpotLight(0xffffff, isMobileDevice ? 12 : 20);
     spotLight.position.set(0, 5, 0);
     spotLight.target.position.set(0, 0, -10);
     spotLight.angle = 0.5;
     spotLight.penumbra = 0.5;
-    spotLight.castShadow = true;
+    spotLight.castShadow = !isMobileDevice;
+    if (!isMobileDevice) {
+        spotLight.shadow.mapSize.set(512, 512);
+        spotLight.shadow.camera.near = 1;
+        spotLight.shadow.camera.far = 30;
+    }
     shipGroup.add(spotLight);
     shipGroup.add(spotLight.target);
 

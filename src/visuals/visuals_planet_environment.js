@@ -1,6 +1,8 @@
-/* Updated: Fixed sky colors for Ice/Arctic (was near-white, invisible), improved prop colors per type */
+/* Updated: Mobile optimized - MeshLambertMaterial for props/creatures, no per-crystal PointLights on mobile, reduced prop count on mobile */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
+
+const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
 export function getSkyColor(type) {
     switch(type) {
@@ -39,13 +41,16 @@ export function getPropColor(type) {
 export function createPlanetProps(planetType, group, heightFn) {
     const props = [];
     const propColor = getPropColor(planetType);
-    const propMat = new THREE.MeshStandardMaterial({ color: propColor, roughness: 0.9 });
-    const crystalMat = new THREE.MeshStandardMaterial({ 
-        color: 0x00f2ff, emissive: 0x0044aa, emissiveIntensity: 0.5,
-        transparent: true, opacity: 0.8 
-    });
+    // Mobile: MeshLambertMaterial — no PBR cost, same vertex-lit look
+    const propMat = isMobileDevice
+        ? new THREE.MeshLambertMaterial({ color: propColor })
+        : new THREE.MeshStandardMaterial({ color: propColor, roughness: 0.9 });
+    const crystalMat = isMobileDevice
+        ? new THREE.MeshLambertMaterial({ color: 0x00f2ff, emissive: 0x0044aa, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 })
+        : new THREE.MeshStandardMaterial({ color: 0x00f2ff, emissive: 0x0044aa, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 });
 
-    const propCount = 150;
+    // Mobile: 80 props instead of 150 — halves draw calls
+    const propCount = isMobileDevice ? 80 : 150;
     const propGeo = new THREE.DodecahedronGeometry(1, 0);
     const crystalGeo = new THREE.ConeGeometry(0.5, 3, 4);
 
@@ -72,7 +77,8 @@ export function createPlanetProps(planetType, group, heightFn) {
 
         props.push({ x, z, r: (isCrystal ? 1 : 1.5) * scale, topY: meshY + halfHeight });
 
-        if (isCrystal) {
+        // Mobile: skip per-crystal PointLights — each light is a full shader pass on mobile
+        if (isCrystal && !isMobileDevice) {
             const light = new THREE.PointLight(0x00f2ff, 2, 8);
             light.position.set(0, -1, 0);
             mesh.add(light);
@@ -84,9 +90,12 @@ export function createPlanetProps(planetType, group, heightFn) {
 export function createCreatures(type, group, heightFn) {
     if (['Barren', 'Molten', 'Tomb'].includes(type)) return [];
     const creatures = [];
-    const count = 10;
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff44aa });
-    const bodyGeo = new THREE.SphereGeometry(1, 8, 8);
+    // Mobile: 5 creatures instead of 10, lower-poly sphere
+    const count = isMobileDevice ? 5 : 10;
+    const bodyMat = isMobileDevice
+        ? new THREE.MeshLambertMaterial({ color: 0xff44aa })
+        : new THREE.MeshStandardMaterial({ color: 0xff44aa });
+    const bodyGeo = new THREE.SphereGeometry(1, isMobileDevice ? 5 : 8, isMobileDevice ? 5 : 8);
     const legGeo = new THREE.BoxGeometry(0.2, 2, 0.2);
 
     for (let i = 0; i < count; i++) {

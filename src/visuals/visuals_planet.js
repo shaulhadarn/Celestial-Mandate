@@ -1,4 +1,4 @@
-/* Updated: Fixed shadow disappearing at distance - sunLight now follows drone every frame, keeping shadow frustum centred on player */
+/* Updated: Mobile optimized - no shadow casting on mobile (sunLight + SpotLight), 60 particles vs 200, sunLight follows drone every frame */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState, events } from '../core/state.js';
@@ -209,9 +209,9 @@ export function createPlanetVisuals(planetData, group) {
     // 4. Props
     planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
 
-    // 5. Particles
+    // 5. Particles — mobile: 60 instead of 200 (fewer point sprites = fewer overdraw passes)
     const particleGeo = new THREE.BufferGeometry();
-    const pCount = 200;
+    const pCount = isMobileDevice ? 60 : 200;
     const pPos = new Float32Array(pCount * 3);
     for(let i=0; i<pCount*3; i++) pPos[i] = (Math.random() - 0.5) * 200;
     particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
@@ -234,15 +234,18 @@ export function createPlanetVisuals(planetData, group) {
     const sunColor = isDark ? 0xffbb88 : 0xffffff;
     sunLight = new THREE.DirectionalLight(sunColor, 2.5);
     sunLight.position.set(100, 200, 100);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(2048, 2048);
-    sunLight.shadow.camera.near = 1;
-    sunLight.shadow.camera.far = 500;
-    sunLight.shadow.camera.left = -80;
-    sunLight.shadow.camera.right = 80;
-    sunLight.shadow.camera.top = 80;
-    sunLight.shadow.camera.bottom = -80;
-    sunLight.shadow.bias = -0.0005;
+    // Mobile: castShadow=false — shadow map is the #1 GPU cost in exploration view
+    sunLight.castShadow = !isMobileDevice;
+    if (!isMobileDevice) {
+        sunLight.shadow.mapSize.set(2048, 2048);
+        sunLight.shadow.camera.near = 1;
+        sunLight.shadow.camera.far = 500;
+        sunLight.shadow.camera.left = -80;
+        sunLight.shadow.camera.right = 80;
+        sunLight.shadow.camera.top = 80;
+        sunLight.shadow.camera.bottom = -80;
+        sunLight.shadow.bias = -0.0005;
+    }
     group.add(sunLight);
     group.add(sunLight.target);
     

@@ -1,4 +1,4 @@
-/* Updated: Star/planet name labels now pure white and font size increased to 17px for better readability in galaxy view */
+/* Updated: Mobile optimized - 16-seg planet spheres on mobile, MeshBasicMaterial colony aura on mobile (no ShaderMaterial), reduced orbit ring segments */
 import * as THREE from "three";
 import { textures } from "../core/assets.js";
 import { gameState } from "../core/state.js";
@@ -265,72 +265,83 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
           emissiveIntensity = 0.15;
       }
       
-      const pGeo = new THREE.SphereGeometry(size, 32, 32); // Higher poly count for better lighting
-      
-      // Use MeshStandardMaterial for high quality PBR lighting
-      const pMat = new THREE.MeshStandardMaterial({
-        map: tex,
-        color: matColor,
-        emissive: emissiveColor,
-        emissiveIntensity: emissiveIntensity,
-        roughness: p.type === "Ocean" || p.type === "Terran" ? 0.6 : 0.8,
-        metalness: p.type === "Ocean" ? 0.5 : 0.2,
-      });
+      // Mobile: 16 segments vs 32 — 4x fewer triangles per planet, still looks smooth at galaxy zoom
+      const pSegs = isMobileDevice ? 16 : 32;
+      const pGeo = new THREE.SphereGeometry(size, pSegs, pSegs);
+
+      const pMat = isMobileDevice
+        ? new THREE.MeshLambertMaterial({
+            map: tex, color: matColor,
+            emissive: new THREE.Color(emissiveColor), emissiveIntensity,
+          })
+        : new THREE.MeshStandardMaterial({
+            map: tex, color: matColor,
+            emissive: new THREE.Color(emissiveColor), emissiveIntensity,
+            roughness: p.type === "Ocean" || p.type === "Terran" ? 0.6 : 0.8,
+            metalness: p.type === "Ocean" ? 0.5 : 0.2,
+          });
       const pMesh = new THREE.Mesh(pGeo, pMat);
 
-      // Add a subtle rim light / atmosphere effect using a slightly larger sphere with additive blending
-      if (p.type === "Terran" || p.type === "Continental" || p.type === "Ocean" || p.type === "Gas Giant") {
-        const atmoGeo = new THREE.SphereGeometry(size * 1.05, 32, 32);
+      // Atmosphere rim — skip on mobile for additive blending cost
+      if (!isMobileDevice && (p.type === "Terran" || p.type === "Continental" || p.type === "Ocean" || p.type === "Gas Giant")) {
+        const atmoGeo = new THREE.SphereGeometry(size * 1.05, 16, 16);
         const atmoMat = new THREE.MeshBasicMaterial({
           color: p.type === "Gas Giant" ? 0xffaa55 : 0x55aaff,
-          transparent: true,
-          opacity: 0.3, // Increased from 0.15
+          transparent: true, opacity: 0.3,
           blending: THREE.AdditiveBlending,
-          side: THREE.BackSide // Render on the back to create a rim effect
+          side: THREE.BackSide
         });
-        const atmoMesh = new THREE.Mesh(atmoGeo, atmoMat);
-        pMesh.add(atmoMesh);
+        pMesh.add(new THREE.Mesh(atmoGeo, atmoMat));
       }
 
-      // If it's a colony, add a distinct glowing holographic aura instead of just a ring
+      // Colony aura — ShaderMaterial on desktop, cheap MeshBasicMaterial sprite on mobile
       if (hasColony) {
-        const auraGeo = new THREE.SphereGeometry(size * 1.3, 32, 32);
-        
-        // Custom shader for a pulsing, rim-lit holographic aura
-        const auraMat = new THREE.ShaderMaterial({
-          uniforms: {
-            color: { value: new THREE.Color(0x00f2ff) },
-            time: { value: 0 }
-          },
-          vertexShader: `
-            varying vec3 vNormal;
-            varying vec3 vPositionNormal;
-            void main() {
-              vNormal = normalize(normalMatrix * normal);
-              vPositionNormal = normalize((modelViewMatrix * vec4(position, 1.0)).xyz);
-              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-          `,
-          fragmentShader: `
-            uniform vec3 color;
-            uniform float time;
-            varying vec3 vNormal;
-            varying vec3 vPositionNormal;
-            void main() {
-              float intensity = pow(0.65 - dot(vNormal, vPositionNormal), 3.0);
-              intensity *= 0.5 + 0.5 * sin(time * 2.0); // Pulse effect
-              gl_FragColor = vec4(color, intensity * 0.8);
-            }
-          `,
-          transparent: true,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          side: THREE.FrontSide
-        });
-        
-        const aura = new THREE.Mesh(auraGeo, auraMat);
-        aura.userData.isColonyAura = true;
-        pMesh.add(aura);
+        if (isMobileDevice) {
+          // Simple additive ring sprite — zero shader compilation cost
+          const auraSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: 0x00f2ff,
+            transparent: true, opacity: 0.5,
+            blending: THREE.AdditiveBlending, depthWrite: false
+          }));
+          auraSprite.scale.set(size * 4, size * 4, 1);
+          auraSprite.userData.isColonyAura = true;
+          pMesh.add(auraSprite);
+        } else {
+          const auraGeo = new THREE.SphereGeometry(size * 1.3, 16, 16);
+          const auraMat = new THREE.ShaderMaterial({
+            uniforms: {
+              color: { value: new THREE.Color(0x00f2ff) },
+              time: { value: 0 }
+            },
+            vertexShader: `
+              varying vec3 vNormal;
+              varying vec3 vPositionNormal;
+              void main() {
+                vNormal = normalize(normalMatrix * normal);
+                vPositionNormal = normalize((modelViewMatrix * vec4(position, 1.0)).xyz);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform vec3 color;
+              uniform float time;
+              varying vec3 vNormal;
+              varying vec3 vPositionNormal;
+              void main() {
+                float intensity = pow(0.65 - dot(vNormal, vPositionNormal), 3.0);
+                intensity *= 0.5 + 0.5 * sin(time * 2.0);
+                gl_FragColor = vec4(color, intensity * 0.8);
+              }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            side: THREE.FrontSide
+          });
+          const aura = new THREE.Mesh(auraGeo, auraMat);
+          aura.userData.isColonyAura = true;
+          pMesh.add(aura);
+        }
       }
 
       const angle = Math.random() * Math.PI * 2;
@@ -355,11 +366,11 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
       group.add(pMesh);
       galaxyPlanetMeshes.push(pMesh);
 
-      // Orbit Path
+      // Orbit Path — 32 segments on mobile vs 64 desktop
       const orbitGeo = new THREE.RingGeometry(
         orbitDist - 0.03,
         orbitDist + 0.03,
-        64,
+        isMobileDevice ? 32 : 64,
       );
       const orbitMat = new THREE.MeshBasicMaterial({
         color: hasColony ? 0x00f2ff : 0x888888,
