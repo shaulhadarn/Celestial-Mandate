@@ -1,4 +1,4 @@
-/* Updated: Premium top bar redesign - uniform sizing, consistent resource pills, matching action buttons */
+/* Updated: Added star list section to system panel - scrollable list of all galaxy stars with color dots, planet count, colony indicator, and click-to-navigate */
 
 /* ── TOP BAR SHELL ──────────────────────────────────────────────────────────── */
 #top-bar {
@@ -943,4 +943,85 @@
 @keyframes slideIn {
     from { transform: translateX(100px); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
+}
+
+/* ── Star List in System Panel ───────────────────────────────────────────── */
+.star-list-section {
+    margin-top: 16px;
+    border-top: 1px solid rgba(0,242,255,0.1);
+    padding-top: 12px;
+}
+
+.star-list-header {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: rgba(0,242,255,0.5);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    padding-left: 2px;
+}
+
+#star-list {
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,242,255,0.2) transparent;
+}
+
+#star-list::-webkit-scrollbar { width: 4px; }
+#star-list::-webkit-scrollbar-track { background: transparent; }
+#star-list::-webkit-scrollbar-thumb { background: rgba(0,242,255,0.2); border-radius: 2px; }
+
+.star-list-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.star-list-item:hover {
+    background: rgba(0,242,255,0.07);
+    border-color: rgba(0,242,255,0.2);
+}
+
+.star-list-item.active {
+    background: rgba(0,242,255,0.1);
+    border-color: rgba(0,242,255,0.35);
+}
+
+.star-list-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.star-list-name {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+    color: #c0dff0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.star-list-item.active .star-list-name {
+    color: var(--color-primary);
+}
+
+.star-list-meta {
+    font-size: 10px;
+    color: rgba(0,242,255,0.4);
+    flex-shrink: 0;
+    font-weight: 600;
+    letter-spacing: 0.5px;
 }

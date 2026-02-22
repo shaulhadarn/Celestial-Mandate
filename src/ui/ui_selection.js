@@ -1,6 +1,7 @@
-/* Updated: Organized app hierarchy, moved to src/ui folder, fixed imports and paths */
-import { gameState, getSystem, getPlanet, SURVEY_COST } from '../core/state.js';
+/* Updated: Added star list to system panel - all galaxy stars listed with click-to-navigate */
+import { gameState, getSystem, getPlanet, SURVEY_COST, selectSystem } from '../core/state.js';
 import { renderColonyView } from './ui_colony.js';
+import { enterSystemView } from '../visuals/renderer.js';
 
 /**
  * Updates the System and Planet selection panels based on the current game state.
@@ -32,6 +33,7 @@ export function updateSelectionPanel() {
             surveyBtn.style.cursor = 'pointer';
         }
         sysPanel.classList.remove('hidden');
+        renderStarList(sys.id);
     }
 
     if (gameState.selectedPlanetId !== null && gameState.viewMode === 'SYSTEM') {
@@ -105,6 +107,32 @@ export function updateSelectionPanel() {
     } else {
         planetPanel.classList.add('hidden');
     }
+}
+
+function renderStarList(activeSystemId) {
+    const container = document.getElementById('star-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const systems = gameState.systems || [];
+    systems.forEach(sys => {
+        const isActive = sys.id === activeSystemId;
+        const hasColony = sys.planets.some(p => gameState.colonies[p.id]);
+        const colorHex = '#' + sys.color.toString(16).padStart(6, '0');
+
+        const row = document.createElement('div');
+        row.className = `star-list-item${isActive ? ' active' : ''}`;
+        row.innerHTML = `
+            <span class="star-list-dot" style="background:${colorHex};box-shadow:0 0 5px ${colorHex};"></span>
+            <span class="star-list-name">${sys.name}</span>
+            <span class="star-list-meta">${sys.planets.length}p${hasColony ? ' 🏛' : ''}</span>
+        `;
+        row.addEventListener('click', () => {
+            selectSystem(sys.id);
+            enterSystemView(sys.id);
+        });
+        container.appendChild(row);
+    });
 }
 
 function getStarClass(type) {
