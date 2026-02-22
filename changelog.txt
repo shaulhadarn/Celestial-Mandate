@@ -1,6 +1,11 @@
 Changelog - Stellaris Imperium
 ================================
 
+2026-02-22: Research times increased x4; Star list added to system panel; Machine Intelligence SVG animated
+- `src/core/research_data.js`: Multiplied all tech costs x4 (T1: 320-400, T2: 600-800, T3: 1200-1600, T4: 2800-3600)
+- `index.html` + `src/ui/ui_selection.js` + `styles/styles_ui.css`: Added scrollable star list to Capital System panel showing all galaxy stars with color dots, planet count, colony indicator, click-to-navigate
+- `src/ui/ui_creation_society.js`: Fixed Machine Intelligence SVG to use animated arch-svg classes (outer spin, inner reverse spin, core pulse, node pulse, ray flash)
+
 2026-02-22: Fix mobile galaxy drag flicker, square flashes, and light-ray artifacts
 - Root cause 1: duplicate post-processing render path in R3F loop + renderer loop caused unstable composer output on mobile during drag
 - Root cause 2: oversized additive nebula sprites in galaxy/system backgrounds overdraw mobile framebuffers and produced full-screen colored flashes
