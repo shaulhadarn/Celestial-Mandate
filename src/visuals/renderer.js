@@ -1,4 +1,4 @@
-/* Updated: Save OrbitControls state before planet landing, restore with controls.reset() on return to flush internal spherical/delta state */
+/* Updated: Fixed mobile black screen on view switch - frameloop demand + _forceFrames after enterSystemView and returnToGalaxyView */
 import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
 import { loadAssets, playSound } from '../core/assets.js';
@@ -174,6 +174,9 @@ export function enterSystemView(systemId, instant = false) {
         // Animate camera
         animateCamera(targetPos, 50, 40);
     }
+
+    // Force R3F to render frames immediately — fixes mobile black screen on view switch
+    _forceFrames(6);
 }
 
 export function returnToGalaxyView() {
@@ -211,6 +214,17 @@ export function returnToGalaxyView() {
     }
     controls.minDistance = 20;
     controls.maxDistance = 400;
+
+    // Force R3F to render frames immediately — fixes mobile black screen on return
+    // (frameloop:"demand" won't auto-render until invalidate is called)
+    _forceFrames(6);
+}
+
+function _forceFrames(count) {
+    if (count <= 0) return;
+    if (window.__r3fInvalidate) window.__r3fInvalidate();
+    if (renderer && scene && camera) renderer.render(scene, camera);
+    requestAnimationFrame(() => _forceFrames(count - 1));
 }
 
 export function enterPlanetView(planetData) {

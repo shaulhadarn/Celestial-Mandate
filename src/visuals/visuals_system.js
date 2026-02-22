@@ -1,4 +1,4 @@
-/* Updated: Upgraded system view background - dense starfield with size variation, Milky Way band, 8 rich nebula clouds, 5 accent wisps, 60 bright foreground star clusters */
+/* Updated: Fixed mobile planet glitches - MeshLambertMaterial on mobile (no metalness/specular), removed all additive glow sprites on mobile, reduced point light intensity on mobile */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
@@ -26,27 +26,28 @@ export function createSystemVisuals(system, group) {
     const star = new THREE.Mesh(starGeo, starMat);
     group.add(star);
 
-    // Glow — kept small to prevent overbright bloom on mobile
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ 
-        map: textures.glow, 
-        color: system.color, 
-        transparent: true,
-        opacity: isMobileDevice ? 0.4 : 0.7,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        depthTest: true
-    }));
-    const systemStarGlowScale = isMobileDevice ? 7 : 12;
-    glow.scale.set(systemStarGlowScale, systemStarGlowScale, systemStarGlowScale);
-    glow.renderOrder = 1; 
-    group.add(glow);
+    // Glow sprite — desktop only, additive sprites cause light-ray artifacts on mobile GPUs
+    if (!isMobileDevice) {
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow,
+            color: system.color,
+            transparent: true,
+            opacity: 0.7,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: true
+        }));
+        glow.scale.set(12, 12, 12);
+        glow.renderOrder = 1;
+        group.add(glow);
+    }
 
-    // Light — low intensity so bloom doesn't amplify it into a white wash
-    const pointLight = new THREE.PointLight(system.color, 80, 60);
+    // Light — reduced on mobile to prevent bloom/light-ray artifacts
+    const pointLight = new THREE.PointLight(system.color, isMobileDevice ? 20 : 80, isMobileDevice ? 80 : 60);
     group.add(pointLight);
 
-    // Ambient light — brightens the dark side of all planets so they aren't pitch black
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    // Ambient light — higher on mobile since we lose specular highlights
+    const ambientLight = new THREE.AmbientLight(0xffffff, isMobileDevice ? 2.0 : 1.2);
     group.add(ambientLight);
 
     // Planets
@@ -121,30 +122,39 @@ export function createSystemVisuals(system, group) {
         }
 
         const pGeo = new THREE.SphereGeometry(p.size * 2 * scale, 32, 32);
-        const pMat = new THREE.MeshStandardMaterial({ 
-            map: tex, color: matColor, roughness: 0.7, metalness: 0.2,
-            emissive: new THREE.Color(emissiveColor), emissiveIntensity
-        });
+        const pMat = isMobileDevice
+            ? new THREE.MeshLambertMaterial({
+                map: tex, color: matColor,
+                emissive: new THREE.Color(emissiveColor), emissiveIntensity
+              })
+            : new THREE.MeshStandardMaterial({
+                map: tex, color: matColor, roughness: 0.7, metalness: 0.2,
+                emissive: new THREE.Color(emissiveColor), emissiveIntensity
+              });
         const mesh = new THREE.Mesh(pGeo, pMat);
 
         if (atmosphereColor !== null) {
             const atmoGeo = new THREE.SphereGeometry(p.size * 2.1 * scale, 32, 32);
             const atmoMat = new THREE.MeshBasicMaterial({
-                color: atmosphereColor, transparent: true, opacity: 0.1,
-                blending: THREE.AdditiveBlending, side: THREE.BackSide, depthWrite: false
+                color: atmosphereColor, transparent: true,
+                opacity: isMobileDevice ? 0.12 : 0.1,
+                blending: isMobileDevice ? THREE.NormalBlending : THREE.AdditiveBlending,
+                side: THREE.BackSide, depthWrite: false
             });
             mesh.add(new THREE.Mesh(atmoGeo, atmoMat));
-            
-            const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-                map: textures.glow,
-                color: atmosphereColor,
-                transparent: true,
-                opacity: isMobileDevice ? 0.15 : 0.3,
-                blending: THREE.AdditiveBlending, depthWrite: false
-            }));
-            const planetGlowScaleMultiplier = isMobileDevice ? 3 : 5;
-            glowSprite.scale.set(p.size * planetGlowScaleMultiplier * scale, p.size * planetGlowScaleMultiplier * scale, 1);
-            mesh.add(glowSprite);
+
+            // Skip glow sprite entirely on mobile — additive sprites cause light-ray artifacts
+            if (!isMobileDevice) {
+                const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+                    map: textures.glow,
+                    color: atmosphereColor,
+                    transparent: true,
+                    opacity: 0.3,
+                    blending: THREE.AdditiveBlending, depthWrite: false
+                }));
+                glowSprite.scale.set(p.size * 5 * scale, p.size * 5 * scale, 1);
+                mesh.add(glowSprite);
+            }
         }
         
         mesh.position.set(Math.cos(p.angle) * p.distance, 0, Math.sin(p.angle) * p.distance);

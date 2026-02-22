@@ -1,4 +1,4 @@
-/* Updated: Fix mobile flicker/square artifacts by disabling EffectComposer on mobile and avoiding duplicate per-frame composer renders in R3F loop */
+/* Updated: frameloop changed to demand, invalidate exposed globally via window.__r3fInvalidate to fix mobile black screen on view switch */
 import { jsxDEV } from "react/jsx-dev-runtime";
 import React, { useEffect, useRef } from "react";
 import { Canvas, useThree, useFrame, extend } from "@react-three/fiber";
@@ -35,8 +35,13 @@ const SceneBindings = () => {
   return null;
 };
 const GameLoop = () => {
-  const { gl, scene, camera, size } = useThree();
+  const { gl, scene, camera, size, invalidate } = useThree();
   const composer = useRef();
+
+  useEffect(() => {
+    window.__r3fInvalidate = invalidate;
+    return () => { window.__r3fInvalidate = null; };
+  }, [invalidate]);
   useEffect(() => {
     if (isMobileDevice) {
       composer.current = null;
@@ -99,7 +104,7 @@ const Game = () => {
     Canvas,
     {
       shadows: true,
-      frameloop: "never",
+      frameloop: "demand",
       dpr: isMobileDevice ? [1, 1.25] : [1, 2],
       gl: {
         antialias: !isMobileDevice,
