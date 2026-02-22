@@ -1,4 +1,4 @@
-/* Updated: Fix mobile flicker/square artifacts by reducing additive glows and skipping heavy nebula sprites on mobile */
+/* Updated: Upgraded system view background - dense starfield with size variation, Milky Way band, 8 rich nebula clouds, 5 accent wisps, 60 bright foreground star clusters */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
@@ -214,8 +214,8 @@ export function updateSystemAnimations(time) {
 
 function createTextSprite(text) {
     const PIXEL_SCALE = 2;
-    const fontSize = 16;
-    const font = `500 ${fontSize * PIXEL_SCALE}px "Rajdhani", sans-serif`;
+    const fontSize = 20;
+    const font = `600 ${fontSize * PIXEL_SCALE}px "Rajdhani", sans-serif`;
 
     const measure = document.createElement('canvas').getContext('2d');
     measure.font = font;
@@ -250,8 +250,8 @@ function createTextSprite(text) {
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
     ctx.strokeText(text, cx, cy);
 
-    // Slightly dimmed fill — not harsh white
-    ctx.fillStyle = 'rgba(210, 235, 255, 0.88)';
+    // Pure white fill for maximum readability
+    ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
     ctx.fillText(text, cx, cy);
 
     const tex = new THREE.CanvasTexture(canvas);
@@ -265,49 +265,110 @@ function createTextSprite(text) {
     return sprite;
 }
 
+function _makeNebulaTexture(r, g, b, size) {
+    const s = size || 256;
+    const c = document.createElement('canvas');
+    c.width = s; c.height = s;
+    const ctx = c.getContext('2d');
+    const cx = s / 2, cy = s / 2;
+
+    // Outer soft cloud
+    const g1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.5);
+    g1.addColorStop(0,   `rgba(${r},${g},${b},0.55)`);
+    g1.addColorStop(0.3, `rgba(${r},${g},${b},0.28)`);
+    g1.addColorStop(0.6, `rgba(${r},${g},${b},0.10)`);
+    g1.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = g1;
+    ctx.fillRect(0, 0, s, s);
+
+    // Inner bright core
+    const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.18);
+    g2.addColorStop(0,   `rgba(${Math.min(r+60,255)},${Math.min(g+60,255)},${Math.min(b+60,255)},0.5)`);
+    g2.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, 0, s, s);
+
+    return new THREE.CanvasTexture(c);
+}
+
+function _makeGalaxyBandTexture() {
+    const w = 512, h = 128;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0,    'rgba(180,200,255,0)');
+    g.addColorStop(0.25, 'rgba(180,200,255,0.07)');
+    g.addColorStop(0.5,  'rgba(220,230,255,0.13)');
+    g.addColorStop(0.75, 'rgba(180,200,255,0.07)');
+    g.addColorStop(1,    'rgba(180,200,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    // Add some star-cluster blobs along the band
+    for (let i = 0; i < 40; i++) {
+        const x = Math.random() * w;
+        const y = h * 0.3 + Math.random() * h * 0.4;
+        const r = 4 + Math.random() * 18;
+        const bg = ctx.createRadialGradient(x, y, 0, x, y, r);
+        bg.addColorStop(0, 'rgba(255,255,255,0.18)');
+        bg.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    return new THREE.CanvasTexture(c);
+}
+
 function createSystemBackground(group) {
-    // 1. Distant Starfield
-    const starGeo = new THREE.BufferGeometry();
-    const starCount = 2000;
+    // ── 1. Dense layered starfield ────────────────────────────────────────────
+    const starCount = isMobileDevice ? 2500 : 5000;
     const posArray = new Float32Array(starCount * 3);
     const colArray = new Float32Array(starCount * 3);
+    const sizeArray = new Float32Array(starCount);
     const color = new THREE.Color();
 
-    for(let i=0; i<starCount; i++) {
-        const r = 400 + Math.random() * 400; // Distance
+    for (let i = 0; i < starCount; i++) {
+        const r = 350 + Math.random() * 450;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
-
-        posArray[i*3] = r * Math.sin(phi) * Math.cos(theta);
+        posArray[i*3]   = r * Math.sin(phi) * Math.cos(theta);
         posArray[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
         posArray[i*3+2] = r * Math.cos(phi);
 
-        // Color variation
         const hue = Math.random();
-        if (hue > 0.9) color.setHex(0xffffff); // White
-        else if (hue > 0.7) color.setHex(0xffddaa); // Warm
-        else if (hue > 0.5) color.setHex(0xaaddff); // Cool
-        else color.setHex(0x8888aa); // Dim
+        if      (hue > 0.96) color.setHex(0xffffff);  // pure white bright
+        else if (hue > 0.88) color.setHex(0xffeedd);  // warm yellow
+        else if (hue > 0.78) color.setHex(0xaaccff);  // blue-white
+        else if (hue > 0.65) color.setHex(0xffccaa);  // orange
+        else if (hue > 0.50) color.setHex(0xddddff);  // pale blue
+        else                 color.setHex(0x7788aa);  // dim blue-grey
 
-        colArray[i*3] = color.r;
+        colArray[i*3]   = color.r;
         colArray[i*3+1] = color.g;
         colArray[i*3+2] = color.b;
+
+        // Size variation: most tiny, a few large
+        const sz = Math.random();
+        sizeArray[i] = sz > 0.97 ? 3.5 : sz > 0.90 ? 2.2 : sz > 0.70 ? 1.5 : 0.9;
     }
 
+    const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    starGeo.setAttribute('color', new THREE.BufferAttribute(colArray, 3));
+    starGeo.setAttribute('color',    new THREE.BufferAttribute(colArray, 3));
+    starGeo.setAttribute('size',     new THREE.BufferAttribute(sizeArray, 1));
 
-    // Use ShaderMaterial with highp precision to prevent square point artifacts on mobile
     const starMat = new THREE.ShaderMaterial({
         uniforms: {},
         vertexShader: `
             precision highp float;
             attribute vec3 color;
+            attribute float size;
             varying vec3 vColor;
             void main() {
                 vColor = color;
                 vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = 1.8 * (300.0 / -mvPosition.z);
+                gl_PointSize = size * (320.0 / -mvPosition.z);
                 gl_Position = projectionMatrix * mvPosition;
             }
         `,
@@ -318,7 +379,7 @@ function createSystemBackground(group) {
                 vec2 coord = gl_PointCoord - vec2(0.5);
                 float d = length(coord);
                 if (d > 0.5) discard;
-                float alpha = (1.0 - d * 2.0) * 0.85;
+                float alpha = (1.0 - d * 2.0) * 0.95;
                 gl_FragColor = vec4(vColor, alpha);
             }
         `,
@@ -328,38 +389,135 @@ function createSystemBackground(group) {
         vertexColors: true,
     });
 
-    const stars = new THREE.Points(starGeo, starMat);
-    group.add(stars);
+    group.add(new THREE.Points(starGeo, starMat));
 
-    // 2. Background Nebulae (desktop only)
-    // Large additive sprites are a known source of flashing/square artifacts on mobile GPUs.
-    if (!isMobileDevice) {
-        const nebulaColors = [0x112233, 0x331122, 0x113322, 0x221133];
+    if (isMobileDevice) return; // skip heavy layers on mobile
 
-        for(let i=0; i<12; i++) {
-            const mat = new THREE.SpriteMaterial({
-                map: textures.glow,
-                color: nebulaColors[Math.floor(Math.random() * nebulaColors.length)],
-                transparent: true,
-                opacity: 0.06 + Math.random() * 0.04,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
+    // ── 2. Galaxy band (Milky Way streak) ────────────────────────────────────
+    const bandTex = _makeGalaxyBandTexture();
+    const bandMat = new THREE.SpriteMaterial({
+        map: bandTex, transparent: true, opacity: 0.55,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const band = new THREE.Sprite(bandMat);
+    band.position.set(0, 0, -480);
+    band.scale.set(1400, 320, 1);
+    band.rotation = 0.35;
+    group.add(band);
 
-            const sprite = new THREE.Sprite(mat);
-            const r = 300 + Math.random() * 200;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.random() * Math.PI;
+    // Second band at a slight angle for depth
+    const bandMat2 = new THREE.SpriteMaterial({
+        map: bandTex, transparent: true, opacity: 0.25,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const band2 = new THREE.Sprite(bandMat2);
+    band2.position.set(60, 80, -460);
+    band2.scale.set(1100, 200, 1);
+    group.add(band2);
 
-            sprite.position.set(
-                r * Math.sin(phi) * Math.cos(theta),
-                r * Math.sin(phi) * Math.sin(theta),
-                r * Math.cos(phi)
-            );
+    // ── 3. Rich layered nebulae ───────────────────────────────────────────────
+    const nebulaDefs = [
+        // [r, g, b, x, y, z, scale, opacity]
+        [  30,  60, 160,  200, 120, -400, 420, 0.22 ],  // deep blue
+        [ 120,  20, 180, -180,  80, -380, 380, 0.20 ],  // purple
+        [  20, 120,  80,  -60,-160, -420, 340, 0.18 ],  // teal green
+        [ 180,  40,  20,  160,-100, -390, 300, 0.16 ],  // red-orange
+        [  60,  30, 140, -220,-120, -410, 360, 0.14 ],  // indigo
+        [  20,  80, 160,  100, 200, -430, 280, 0.17 ],  // cyan
+        [ 140,  80,  20, -100, 180, -400, 320, 0.13 ],  // amber
+        [  80, 160,  60,  240, -60, -370, 260, 0.12 ],  // lime
+    ];
 
-            const scale = 150 + Math.random() * 150;
-            sprite.scale.set(scale, scale, 1);
-            group.add(sprite);
-        }
+    nebulaDefs.forEach(([r, g, b, x, y, z, scale, opacity]) => {
+        const tex = _makeNebulaTexture(r, g, b, 256);
+        const mat = new THREE.SpriteMaterial({
+            map: tex, transparent: true, opacity,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const sprite = new THREE.Sprite(mat);
+        sprite.position.set(x, y, z);
+        sprite.scale.set(scale, scale, 1);
+        group.add(sprite);
+    });
+
+    // ── 4. Accent nebula wisps (smaller, brighter) ───────────────────────────
+    const wispDefs = [
+        [  80, 140, 255,  280,  60, -350, 160, 0.28 ],
+        [ 255,  80, 120, -260, -80, -360, 140, 0.24 ],
+        [  80, 255, 200,  -40, 260, -340, 130, 0.22 ],
+        [ 255, 180,  60,  180,-220, -355, 120, 0.20 ],
+        [ 160,  80, 255, -200, 200, -345, 150, 0.22 ],
+    ];
+
+    wispDefs.forEach(([r, g, b, x, y, z, scale, opacity]) => {
+        const tex = _makeNebulaTexture(r, g, b, 128);
+        const mat = new THREE.SpriteMaterial({
+            map: tex, transparent: true, opacity,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const sprite = new THREE.Sprite(mat);
+        sprite.position.set(x, y, z);
+        sprite.scale.set(scale, scale, 1);
+        group.add(sprite);
+    });
+
+    // ── 5. Bright foreground star clusters ───────────────────────────────────
+    const clusterCount = 60;
+    const cPosArray  = new Float32Array(clusterCount * 3);
+    const cColArray  = new Float32Array(clusterCount * 3);
+    const cSizeArray = new Float32Array(clusterCount);
+    const clusterColors = [0xffffff, 0xffeebb, 0xaaddff, 0xffccaa, 0xccddff];
+
+    for (let i = 0; i < clusterCount; i++) {
+        const r = 200 + Math.random() * 180;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        cPosArray[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+        cPosArray[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+        cPosArray[i*3+2] = r * Math.cos(phi);
+        const c = new THREE.Color(clusterColors[Math.floor(Math.random() * clusterColors.length)]);
+        cColArray[i*3]   = c.r;
+        cColArray[i*3+1] = c.g;
+        cColArray[i*3+2] = c.b;
+        cSizeArray[i] = 2.5 + Math.random() * 4.0;
     }
+
+    const clusterGeo = new THREE.BufferGeometry();
+    clusterGeo.setAttribute('position', new THREE.BufferAttribute(cPosArray, 3));
+    clusterGeo.setAttribute('color',    new THREE.BufferAttribute(cColArray, 3));
+    clusterGeo.setAttribute('size',     new THREE.BufferAttribute(cSizeArray, 1));
+
+    const clusterMat = new THREE.ShaderMaterial({
+        uniforms: {},
+        vertexShader: `
+            precision highp float;
+            attribute vec3 color;
+            attribute float size;
+            varying vec3 vColor;
+            void main() {
+                vColor = color;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * (300.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `,
+        fragmentShader: `
+            precision highp float;
+            varying vec3 vColor;
+            void main() {
+                vec2 coord = gl_PointCoord - vec2(0.5);
+                float d = length(coord);
+                if (d > 0.5) discard;
+                float core = smoothstep(0.5, 0.0, d);
+                float halo = smoothstep(0.5, 0.1, d) * 0.4;
+                gl_FragColor = vec4(vColor, core + halo);
+            }
+        `,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        vertexColors: true,
+    });
+
+    group.add(new THREE.Points(clusterGeo, clusterMat));
 }

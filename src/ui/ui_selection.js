@@ -1,5 +1,5 @@
-/* Updated: Added star list to system panel - all galaxy stars listed with click-to-navigate */
-import { gameState, getSystem, getPlanet, SURVEY_COST, selectSystem } from '../core/state.js';
+/* Updated: System panel now shows planets of the current system (not all galaxy stars) with type, size, colony indicator, and click-to-select */
+import { gameState, getSystem, getPlanet, SURVEY_COST, selectSystem, selectPlanet } from '../core/state.js';
 import { renderColonyView } from './ui_colony.js';
 import { enterSystemView } from '../visuals/renderer.js';
 
@@ -114,22 +114,34 @@ function renderStarList(activeSystemId) {
     if (!container) return;
     container.innerHTML = '';
 
-    const systems = gameState.systems || [];
-    systems.forEach(sys => {
-        const isActive = sys.id === activeSystemId;
-        const hasColony = sys.planets.some(p => gameState.colonies[p.id]);
-        const colorHex = '#' + sys.color.toString(16).padStart(6, '0');
+    const sys = getSystem(activeSystemId);
+    if (!sys) return;
+
+    const planets = sys.planets || [];
+    planets.forEach(planet => {
+        const hasColony = !!gameState.colonies[planet.id];
+        const isSelected = gameState.selectedPlanetId === planet.id;
+        const isSurveyed = sys.surveyed;
+
+        const typeLabel = (isSurveyed || hasColony) ? planet.type : 'Unknown';
+        const sizeLabel = (isSurveyed || hasColony) ? Math.floor(planet.size * 10) : '?';
+
+        const PLANET_COLORS = {
+            'Terran': '#4a9eff', 'Continental': '#5bc8af', 'Ocean': '#2277cc',
+            'Desert': '#e8a44a', 'Arctic': '#aaddff', 'Barren': '#888888',
+            'Molten': '#ff5522', 'Gas Giant': '#cc8844', 'Tomb': '#667766',
+        };
+        const dotColor = PLANET_COLORS[planet.type] || '#aaaaaa';
 
         const row = document.createElement('div');
-        row.className = `star-list-item${isActive ? ' active' : ''}`;
+        row.className = `star-list-item${isSelected ? ' active' : ''}`;
         row.innerHTML = `
-            <span class="star-list-dot" style="background:${colorHex};box-shadow:0 0 5px ${colorHex};"></span>
-            <span class="star-list-name">${sys.name}</span>
-            <span class="star-list-meta">${sys.planets.length}p${hasColony ? ' 🏛' : ''}</span>
+            <span class="star-list-dot" style="background:${dotColor};box-shadow:0 0 5px ${dotColor};"></span>
+            <span class="star-list-name">${planet.name}</span>
+            <span class="star-list-meta">${typeLabel} · ${sizeLabel}${hasColony ? ' 🏛' : ''}</span>
         `;
         row.addEventListener('click', () => {
-            selectSystem(sys.id);
-            enterSystemView(sys.id);
+            selectPlanet(planet.id);
         });
         container.appendChild(row);
     });

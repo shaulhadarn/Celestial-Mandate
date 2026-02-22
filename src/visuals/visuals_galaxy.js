@@ -1,4 +1,4 @@
-/* Updated: Fix mobile flicker/square artifacts by limiting additive glows and disabling heavy nebula sprites on mobile */
+/* Updated: Star/planet name labels now pure white and font size increased to 17px for better readability in galaxy view */
 import * as THREE from "three";
 import { textures } from "../core/assets.js";
 import { gameState } from "../core/state.js";
@@ -724,8 +724,8 @@ function createStarTexture(colorInt) {
 
 function createTextSprite(text) {
   const PIXEL_SCALE = 2;
-  const fontSize = 13;
-  const font = `500 ${fontSize * PIXEL_SCALE}px "Rajdhani", sans-serif`;
+  const fontSize = 17;
+  const font = `600 ${fontSize * PIXEL_SCALE}px "Rajdhani", sans-serif`;
 
   // Measure on a temp canvas first
   const measure = document.createElement("canvas").getContext("2d");
@@ -764,8 +764,8 @@ function createTextSprite(text) {
   ctx.strokeStyle = "rgba(0, 0, 0, 0.65)";
   ctx.strokeText(text, cx, cy);
 
-  // Main fill — slightly dimmed, not pure white
-  ctx.fillStyle = "rgba(210, 235, 255, 0.88)";
+  // Pure white fill for maximum readability
+  ctx.fillStyle = "rgba(255, 255, 255, 1.0)";
   ctx.fillText(text, cx, cy);
 
   const tex = new THREE.CanvasTexture(canvas);
