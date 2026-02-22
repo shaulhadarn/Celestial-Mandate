@@ -1,4 +1,4 @@
-/* Updated: Fixed mobile touch - separated joystick zone (left 42%) from camera drag zone (right 58%), added pinch-to-zoom */
+/* Updated: Fixed shadow disappearing at distance - sunLight now follows drone every frame, keeping shadow frustum centred on player */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState, events } from '../core/state.js';
@@ -15,6 +15,7 @@ let planetProps = [];
 let colonyBuildingsGroup = null;
 let currentPlanetData = null;
 let explorationGroup = null;
+let sunLight = null;
 const creatures = [];
 const keyState = {};
 const joystickInput = { x: 0, y: 0 };
@@ -231,18 +232,19 @@ export function createPlanetVisuals(planetData, group) {
 
     // 8. Lights
     const sunColor = isDark ? 0xffbb88 : 0xffffff;
-    const sunLight = new THREE.DirectionalLight(sunColor, 2.5); // Increased from 2.0
+    sunLight = new THREE.DirectionalLight(sunColor, 2.5);
     sunLight.position.set(100, 200, 100);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(4096, 4096); // Better shadow resolution
-    sunLight.shadow.camera.near = 10;
-    sunLight.shadow.camera.far = 400;
-    sunLight.shadow.camera.left = -200;
-    sunLight.shadow.camera.right = 200;
-    sunLight.shadow.camera.top = 200;
-    sunLight.shadow.camera.bottom = -200;
-    sunLight.shadow.bias = -0.0005; // Reduce shadow acne
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.camera.near = 1;
+    sunLight.shadow.camera.far = 500;
+    sunLight.shadow.camera.left = -80;
+    sunLight.shadow.camera.right = 80;
+    sunLight.shadow.camera.top = 80;
+    sunLight.shadow.camera.bottom = -80;
+    sunLight.shadow.bias = -0.0005;
     group.add(sunLight);
+    group.add(sunLight.target);
     
     // Softer ambient/hemisphere light to contrast with the bright sun
     const hemiIntensity = isDark ? 0.3 : 0.7; // Darker planets have darker shadows
@@ -381,6 +383,16 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         const dist = playerMesh.position.y - groundH;
         sm.scale.setScalar(1.2 + (dist * 0.12));
         sm.material.opacity = Math.max(0, 0.7 - (dist * 0.08));
+    }
+
+    // --- 7b. Sun light follows drone — keeps shadow frustum centred on player ---
+    if (sunLight) {
+        const dx = playerMesh.position.x;
+        const dz = playerMesh.position.z;
+        sunLight.position.set(dx + 100, 200, dz + 100);
+        sunLight.target.position.set(dx, 0, dz);
+        sunLight.target.updateMatrixWorld();
+        sunLight.shadow.camera.updateProjectionMatrix();
     }
 
     // --- 8. Dust & Creatures ---

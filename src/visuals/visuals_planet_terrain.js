@@ -1,6 +1,8 @@
-/* Updated: Per-type vertex colors, roughness/metalness/emissive tuned per planet type, fixes white-on-white Ice/Arctic terrain */
+/* Updated: Mobile optimized - 96-segment terrain, MeshLambertMaterial on mobile, no micro-noise jitter on mobile */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
+
+const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
 /**
  * Procedural terrain height math.
@@ -45,7 +47,8 @@ export function getTerrainHeight(x, z) {
  */
 export function createTerrainMesh(planetType) {
     const groundSize = 1000;
-    const groundSegments = 256; 
+    // Mobile: 96 segments = ~37k verts vs 256 = ~263k verts — 7x fewer triangles
+    const groundSegments = isMobileDevice ? 96 : 256;
     const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize, groundSegments, groundSegments);
     
     const pos = groundGeo.attributes.position;
@@ -54,9 +57,10 @@ export function createTerrainMesh(planetType) {
         const y = pos.getY(i); 
         let z = getTerrainHeight(x, y);
         
-        // Add micro-noise to vertices to simulate rocks/boulders
-        const noise = (Math.random() - 0.5) * 0.8;
-        z += noise; 
+        // Micro-noise: skip on mobile (saves per-vertex Math.random calls)
+        if (!isMobileDevice) {
+            z += (Math.random() - 0.5) * 0.8;
+        }
         
         pos.setZ(i, z);
     }
@@ -113,15 +117,24 @@ export function createTerrainMesh(planetType) {
         groundTex.repeat.set(40, 40);
     }
 
-    const groundMat = new THREE.MeshStandardMaterial({
-        map: groundTex || null,
-        vertexColors: true,          // vertex colors carry all the visual detail
-        roughness: typeConf.roughness,
-        metalness: typeConf.metalness,
-        flatShading: true,
-        emissive: new THREE.Color(typeConf.emissive),
-        emissiveIntensity: typeConf.emissiveIntensity,
-    });
+    // Mobile: MeshLambertMaterial — no PBR roughness/metalness shader cost, vertex colors still apply
+    const groundMat = isMobileDevice
+        ? new THREE.MeshLambertMaterial({
+            map: groundTex || null,
+            vertexColors: true,
+            flatShading: true,
+            emissive: new THREE.Color(typeConf.emissive),
+            emissiveIntensity: typeConf.emissiveIntensity,
+          })
+        : new THREE.MeshStandardMaterial({
+            map: groundTex || null,
+            vertexColors: true,
+            roughness: typeConf.roughness,
+            metalness: typeConf.metalness,
+            flatShading: true,
+            emissive: new THREE.Color(typeConf.emissive),
+            emissiveIntensity: typeConf.emissiveIntensity,
+          });
 
     const terrain = new THREE.Mesh(groundGeo, groundMat);
     terrain.rotation.x = -Math.PI / 2;

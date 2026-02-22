@@ -1,4 +1,4 @@
-/* Updated: Fixed mobile planet glitches - MeshLambertMaterial on mobile (no metalness/specular), removed all additive glow sprites on mobile, reduced point light intensity on mobile */
+/* Updated: Desktop planets upgraded to MeshPhysicalMaterial with per-type clearcoat/roughness, 64-segment geometry, inner atmosphere rim layer */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
@@ -121,38 +121,67 @@ export function createSystemVisuals(system, group) {
                 emissiveIntensity = 0.1;
         }
 
-        const pGeo = new THREE.SphereGeometry(p.size * 2 * scale, 32, 32);
+        // Higher resolution geometry on desktop
+        const segments = isMobileDevice ? 32 : 64;
+        const pGeo = new THREE.SphereGeometry(p.size * 2 * scale, segments, segments);
+
+        // Per-type physical material properties
+        let roughness = 0.75, metalness = 0.0, clearcoat = 0.0, clearcoatRoughness = 0.3;
+        switch (p.type) {
+            case 'Ocean':       roughness = 0.15; clearcoat = 0.8; clearcoatRoughness = 0.1; break;
+            case 'Terran':
+            case 'Continental': roughness = 0.65; clearcoat = 0.2; clearcoatRoughness = 0.4; break;
+            case 'Gas Giant':   roughness = 0.4;  clearcoat = 0.5; clearcoatRoughness = 0.2; break;
+            case 'Ice':
+            case 'Arctic':      roughness = 0.2;  clearcoat = 0.9; clearcoatRoughness = 0.05; metalness = 0.1; break;
+            case 'Molten':      roughness = 0.9;  metalness = 0.3; break;
+            case 'Desert':      roughness = 0.95; break;
+            case 'Tomb':        roughness = 0.85; metalness = 0.05; break;
+            default:            roughness = 0.85; break;
+        }
+
         const pMat = isMobileDevice
             ? new THREE.MeshLambertMaterial({
                 map: tex, color: matColor,
                 emissive: new THREE.Color(emissiveColor), emissiveIntensity
               })
-            : new THREE.MeshStandardMaterial({
-                map: tex, color: matColor, roughness: 0.7, metalness: 0.2,
-                emissive: new THREE.Color(emissiveColor), emissiveIntensity
+            : new THREE.MeshPhysicalMaterial({
+                map: tex, color: matColor,
+                roughness, metalness, clearcoat, clearcoatRoughness,
+                emissive: new THREE.Color(emissiveColor), emissiveIntensity,
+                envMapIntensity: 0.6
               });
         const mesh = new THREE.Mesh(pGeo, pMat);
 
         if (atmosphereColor !== null) {
-            const atmoGeo = new THREE.SphereGeometry(p.size * 2.1 * scale, 32, 32);
+            // Outer atmosphere shell
+            const atmoGeo = new THREE.SphereGeometry(p.size * 2.15 * scale, segments, segments);
             const atmoMat = new THREE.MeshBasicMaterial({
                 color: atmosphereColor, transparent: true,
-                opacity: isMobileDevice ? 0.12 : 0.1,
+                opacity: isMobileDevice ? 0.12 : 0.08,
                 blending: isMobileDevice ? THREE.NormalBlending : THREE.AdditiveBlending,
                 side: THREE.BackSide, depthWrite: false
             });
             mesh.add(new THREE.Mesh(atmoGeo, atmoMat));
 
-            // Skip glow sprite entirely on mobile — additive sprites cause light-ray artifacts
+            // Inner atmosphere rim (desktop only) — adds a bright limb glow
             if (!isMobileDevice) {
+                const rimGeo = new THREE.SphereGeometry(p.size * 2.05 * scale, segments, segments);
+                const rimMat = new THREE.MeshBasicMaterial({
+                    color: atmosphereColor, transparent: true, opacity: 0.06,
+                    blending: THREE.AdditiveBlending, side: THREE.FrontSide, depthWrite: false
+                });
+                mesh.add(new THREE.Mesh(rimGeo, rimMat));
+
+                // Outer glow halo sprite
                 const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
                     map: textures.glow,
                     color: atmosphereColor,
                     transparent: true,
-                    opacity: 0.3,
+                    opacity: 0.28,
                     blending: THREE.AdditiveBlending, depthWrite: false
                 }));
-                glowSprite.scale.set(p.size * 5 * scale, p.size * 5 * scale, 1);
+                glowSprite.scale.set(p.size * 5.5 * scale, p.size * 5.5 * scale, 1);
                 mesh.add(glowSprite);
             }
         }
