@@ -1,0 +1,438 @@
+/* Created: Race intro cinematic slide styles */
+
+/* ── Overlay shell ───────────────────────────────────────────────────────────── */
+#race-intro-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    overflow: hidden;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+#race-intro-overlay.intro-visible {
+    opacity: 1;
+}
+
+#race-intro-overlay.intro-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── Animated star background ────────────────────────────────────────────────── */
+.intro-bg-stars {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at 20% 30%, rgba(var(--intro-accent-rgb, 0,200,255), 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 70%, rgba(80, 0, 120, 0.15) 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 50%, rgba(0, 0, 30, 1) 0%, #000 100%);
+    animation: intro-bg-breathe 8s ease-in-out infinite alternate;
+}
+
+.intro-bg-stars::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 25% 40%, rgba(255,255,255,0.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 40% 10%, rgba(255,255,255,0.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 55% 60%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 70% 25%, rgba(255,255,255,0.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 85% 80%, rgba(255,255,255,0.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 15% 75%, rgba(255,255,255,0.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 45%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 33% 88%, rgba(255,255,255,0.5) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 62% 5%,  rgba(255,255,255,0.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 78% 55%, rgba(255,255,255,0.35) 0%, transparent 100%),
+        radial-gradient(1px 1px at 48% 33%, rgba(255,255,255,0.45) 0%, transparent 100%);
+    animation: intro-stars-twinkle 4s ease-in-out infinite alternate;
+}
+
+/* Glowing horizontal scan line */
+.intro-bg-stars::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    top: 50%;
+    background: linear-gradient(90deg, transparent 0%, var(--intro-accent) 30%, transparent 70%);
+    opacity: 0.12;
+    animation: intro-scan 12s linear infinite;
+}
+
+@keyframes intro-bg-breathe {
+    from { opacity: 0.8; }
+    to   { opacity: 1.0; }
+}
+
+@keyframes intro-stars-twinkle {
+    from { opacity: 0.6; }
+    to   { opacity: 1.0; }
+}
+
+@keyframes intro-scan {
+    from { top: -2%; }
+    to   { top: 102%; }
+}
+
+/* ── Content wrapper ─────────────────────────────────────────────────────────── */
+.intro-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    width: min(780px, 94vw);
+    min-height: min(580px, 90vh);
+    padding: 50px 60px 45px;
+    box-sizing: border-box;
+    background: linear-gradient(145deg,
+        rgba(2, 6, 12, 0.94) 0%,
+        rgba(8, 16, 28, 0.98) 100%
+    );
+    border: 1px solid rgba(255,255,255,0.04);
+    border-top: 2px solid var(--intro-accent);
+    border-bottom: 2px solid color-mix(in srgb, var(--intro-accent) 20%, transparent);
+    box-shadow:
+        0 40px 100px rgba(0,0,0,0.95),
+        0 0 40px rgba(0,0,0,0.8),
+        inset 0 0 80px rgba(0,0,0,0.6),
+        0 0 40px color-mix(in srgb, var(--intro-accent) 12%, transparent);
+    clip-path: polygon(
+        20px 0, 
+        100% 0, 
+        100% calc(100% - 20px), 
+        calc(100% - 20px) 100%, 
+        0 100%, 
+        0 20px
+    );
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+
+/* Corner accent marks */
+.intro-content::before,
+.intro-content::after {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-color: var(--intro-accent);
+    border-style: solid;
+    opacity: 0.6;
+    filter: drop-shadow(0 0 8px var(--intro-accent));
+}
+
+.intro-content::before {
+    bottom: 12px;
+    left: 12px;
+    border-width: 0 0 2px 2px;
+}
+
+.intro-content::after {
+    top: 12px;
+    right: 12px;
+    border-width: 2px 2px 0 0;
+}
+
+/* ── Empire name header ───────────────────────────────────────────────────────── */
+.intro-empire-name {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--intro-accent);
+    text-shadow: 0 0 20px var(--intro-accent), 0 0 10px rgba(255,255,255,0.5);
+    align-self: flex-start;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--intro-accent) 30%, transparent);
+    width: 100%;
+}
+
+/* ── Slide area ──────────────────────────────────────────────────────────────── */
+.intro-slide-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px 0;
+    gap: 20px;
+    width: 100%;
+}
+
+/* Slide transition animations */
+.intro-slide-area.slide-out {
+    animation: intro-slide-out 0.28s ease forwards;
+}
+
+.intro-slide-area.slide-in {
+    animation: intro-slide-in 0.38s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+@keyframes intro-slide-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(-18px) scale(0.97); }
+}
+
+@keyframes intro-slide-in {
+    from { opacity: 0; transform: translateY(22px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Tag line ────────────────────────────────────────────────────────────────── */
+.intro-tag-line {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #ffffff;
+    padding: 4px 16px;
+    border: 1px solid var(--intro-accent);
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--intro-accent) 15%, transparent);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--intro-accent) 30%, transparent);
+    text-shadow: 0 0 8px var(--intro-accent);
+}
+
+/* ── Icon ────────────────────────────────────────────────────────────────────── */
+.intro-icon {
+    font-size: 64px;
+    line-height: 1;
+    margin: 10px 0;
+    filter: drop-shadow(0 0 25px var(--intro-accent)) drop-shadow(0 0 10px rgba(255,255,255,0.4));
+    animation: intro-icon-float 4s ease-in-out infinite;
+}
+
+@keyframes intro-icon-float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50%       { transform: translateY(-8px) scale(1.05); }
+}
+
+/* ── Animated SVG Icons ──────────────────────────────────────────────────────── */
+.intro-svg-icon {
+    width: 80px;
+    height: 80px;
+    margin: 10px 0;
+    filter: drop-shadow(0 0 25px var(--intro-accent)) drop-shadow(0 0 10px rgba(255,255,255,0.4));
+}
+
+.intro-svg-icon * {
+    vector-effect: non-scaling-stroke;
+}
+
+/* Reusable SVG animations */
+@keyframes svg-spin { 100% { transform: rotate(360deg); } }
+@keyframes svg-spin-reverse { 100% { transform: rotate(-360deg); } }
+@keyframes svg-pulse { 0%, 100% { opacity: 0.4; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }
+@keyframes svg-orbit { 0% { transform: rotate(0deg) translateX(15%) rotate(0deg); } 100% { transform: rotate(360deg) translateX(15%) rotate(-360deg); } }
+@keyframes svg-draw { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: 0; } }
+@keyframes svg-float-y { 0%, 100% { transform: translateY(-5%); } 50% { transform: translateY(5%); } }
+@keyframes svg-glitch { 0%, 100% { transform: translate(0); opacity: 1; } 92% { transform: translate(2px, -2px); opacity: 0.8; } 94% { transform: translate(-2px, 2px); opacity: 1; } 96% { transform: translate(2px, 2px); opacity: 0.9; } }
+
+.anim-spin { animation: svg-spin 8s linear infinite; transform-origin: center; }
+.anim-spin-fast { animation: svg-spin 3s linear infinite; transform-origin: center; }
+.anim-spin-reverse { animation: svg-spin-reverse 12s linear infinite; transform-origin: center; }
+.anim-pulse { animation: svg-pulse 3s ease-in-out infinite; transform-origin: center; }
+.anim-pulse-fast { animation: svg-pulse 1.5s ease-in-out infinite; transform-origin: center; }
+.anim-orbit { animation: svg-orbit 6s linear infinite; transform-origin: center; }
+.anim-float { animation: svg-float-y 4s ease-in-out infinite; transform-origin: center; }
+.anim-glitch { animation: svg-glitch 4s infinite; }
+.anim-draw { stroke-dasharray: 100; animation: svg-draw 4s linear infinite; }
+
+/* ── Title ───────────────────────────────────────────────────────────────────── */
+.intro-title {
+    margin: 0;
+    font-size: clamp(26px, 4vw, 36px);
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #ffffff;
+    text-shadow:
+        0 0 25px var(--intro-accent),
+        0 0 50px color-mix(in srgb, var(--intro-accent) 50%, transparent);
+    line-height: 1.2;
+}
+
+/* ── Body text ───────────────────────────────────────────────────────────────── */
+.intro-body {
+    margin: 0;
+    font-size: clamp(15px, 2vw, 18px);
+    font-weight: 400;
+    line-height: 1.8;
+    color: rgba(220, 235, 255, 0.9);
+    max-width: 600px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────────── */
+.intro-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    gap: 16px;
+}
+
+/* ── Progress dots ───────────────────────────────────────────────────────────── */
+.intro-dots {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.intro-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    flex-shrink: 0;
+    position: relative;
+}
+
+.intro-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid var(--intro-accent);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.4s ease;
+}
+
+.intro-dot.active {
+    background: var(--intro-accent);
+    border-color: var(--intro-accent);
+    box-shadow: 0 0 15px var(--intro-accent);
+    transform: scale(1.2);
+}
+
+.intro-dot.active::after {
+    opacity: 0.6;
+    transform: scale(1);
+}
+
+.intro-dot.done {
+    background: color-mix(in srgb, var(--intro-accent) 30%, transparent);
+    border-color: color-mix(in srgb, var(--intro-accent) 40%, transparent);
+}
+
+/* ── Next / Finish button ────────────────────────────────────────────────────── */
+.intro-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 48px;
+    padding: 0 32px;
+    background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(20,30,40,0.8) 100%);
+    border: 1px solid color-mix(in srgb, var(--intro-accent) 40%, transparent);
+    border-bottom: 2px solid var(--intro-accent);
+    color: var(--intro-accent);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+    white-space: nowrap;
+    text-shadow: 0 0 10px color-mix(in srgb, var(--intro-accent) 50%, transparent);
+}
+
+.intro-btn:hover {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--intro-accent) 20%, transparent) 0%, color-mix(in srgb, var(--intro-accent) 40%, rgba(0,0,0,0.8)) 100%);
+    border-color: var(--intro-accent);
+    box-shadow: 0 5px 25px color-mix(in srgb, var(--intro-accent) 40%, transparent);
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+/* Final slide button — more prominent */
+.intro-btn-final {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--intro-accent) 25%, rgba(0,0,0,0.6)) 0%, color-mix(in srgb, var(--intro-accent) 45%, rgba(0,0,0,0.8)) 100%);
+    border-color: var(--intro-accent);
+    color: #ffffff;
+    box-shadow:
+        0 0 30px color-mix(in srgb, var(--intro-accent) 40%, transparent),
+        inset 0 1px 0 color-mix(in srgb, var(--intro-accent) 50%, transparent);
+    font-size: 15px;
+    height: 52px;
+    padding: 0 42px;
+    animation: intro-btn-pulse 2s ease-in-out infinite;
+}
+
+.intro-btn-final:hover {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--intro-accent) 40%, rgba(0,0,0,0.6)) 0%, color-mix(in srgb, var(--intro-accent) 60%, rgba(0,0,0,0.8)) 100%);
+    box-shadow: 0 8px 40px color-mix(in srgb, var(--intro-accent) 60%, transparent);
+    transform: translateY(-3px);
+}
+
+@keyframes intro-btn-pulse {
+    0%, 100% { box-shadow: 0 0 24px color-mix(in srgb, var(--intro-accent) 35%, transparent), inset 0 1px 0 color-mix(in srgb, var(--intro-accent) 30%, transparent); }
+    50%       { box-shadow: 0 0 40px color-mix(in srgb, var(--intro-accent) 55%, transparent), inset 0 1px 0 color-mix(in srgb, var(--intro-accent) 40%, transparent); }
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .intro-content {
+        padding: 30px 24px 24px;
+        min-height: 85vh;
+        clip-path: none;
+        border-radius: 16px 16px 0 0;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .intro-icon {
+        font-size: 48px;
+    }
+
+    .intro-title {
+        font-size: 24px;
+    }
+
+    .intro-body {
+        font-size: 15px;
+        line-height: 1.7;
+    }
+
+    .intro-btn {
+        height: 44px;
+        padding: 0 24px;
+        font-size: 13px;
+        clip-path: none;
+        border-radius: 6px;
+    }
+
+    .intro-btn-final {
+        height: 48px;
+        padding: 0 28px;
+        font-size: 14px;
+    }
+
+    .intro-empire-name {
+        font-size: 11px;
+        letter-spacing: 5px;
+    }
+}

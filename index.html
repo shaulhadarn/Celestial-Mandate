@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Celestial Mandate</title>
+    <link rel="stylesheet" href="styles/styles_core.css">
+    <link rel="stylesheet" href="styles/styles_ui.css">
+    <link rel="stylesheet" href="styles/styles_colony.css">
+    <link rel="stylesheet" href="styles/styles_creation.css">
+    <link rel="stylesheet" href="styles/styles_mobile.css">
+    <link rel="stylesheet" href="styles/styles_research.css">
+    <link rel="stylesheet" href="styles/styles_intro.css">
+    <link rel="stylesheet" href="styles/styles_fleets.css">
+    <!-- styles.css is deprecated -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://esm.sh/three@0.168.0",
+                "three/addons/": "https://esm.sh/three@0.168.0/examples/jsm/",
+                "react": "https://esm.sh/react@18.2.0",
+                "react-dom": "https://esm.sh/react-dom@18.2.0",
+                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+                "react/jsx-dev-runtime": "https://esm.sh/react@18.2.0/jsx-dev-runtime",
+                "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.17.6?external=react,react-dom,three",
+                "@react-three/drei": "https://esm.sh/@react-three/drei@9.112.0?external=react,react-dom,three,@react-three/fiber",
+                "nipplejs": "https://esm.sh/nipplejs"
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="game-container"></div>
+    <div id="joystick-container"></div>
+    <div id="exploration-look-zone"></div>
+    
+    <!-- Global UI Panels (Outside UI Layer for Z-Index independence) -->
+    <div id="settings-panel" class="hidden">
+        <div class="sett-header">
+            <div class="sett-title">
+                <span class="sett-title-icon">⚙</span>
+                <span class="sett-title-text">SETTINGS</span>
+            </div>
+            <button id="btn-close-settings" class="sett-close-btn" title="Close (Esc)">✕</button>
+        </div>
+
+        <div class="sett-body">
+
+            <!-- AUDIO -->
+            <div class="sett-section">
+                <div class="sett-section-label">🔊 Audio</div>
+                <div class="sett-row">
+                    <span class="sett-row-label">Master Volume</span>
+                    <div class="sett-slider-wrap">
+                        <span class="sett-slider-icon">🔈</span>
+                        <input type="range" id="vol-slider" min="0" max="100" value="80" class="sett-slider">
+                        <span class="sett-slider-icon">🔊</span>
+                        <span class="sett-slider-val" id="vol-display">80%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRAPHICS PRESET -->
+            <div class="sett-section">
+                <div class="sett-section-label">🖥 Graphics Preset</div>
+                <div class="sett-preset-grid">
+                    <button id="gfx-ultra" class="sett-preset-btn">
+                        <span class="sett-preset-icon">✨</span>
+                        <span class="sett-preset-name">Ultra Sharp</span>
+                        <span class="sett-preset-desc">2× supersampling</span>
+                    </button>
+                    <button id="gfx-high" class="sett-preset-btn active">
+                        <span class="sett-preset-icon">⚡</span>
+                        <span class="sett-preset-name">High</span>
+                        <span class="sett-preset-desc">Bloom + shadows</span>
+                    </button>
+                    <button id="gfx-low" class="sett-preset-btn">
+                        <span class="sett-preset-icon">🚀</span>
+                        <span class="sett-preset-name">Performance</span>
+                        <span class="sett-preset-desc">Max framerate</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ADVANCED GRAPHICS -->
+            <div class="sett-section" id="advanced-graphics">
+                <div class="sett-section-label">🎨 Advanced Graphics</div>
+
+                <div class="sett-row">
+                    <span class="sett-row-label">Bloom</span>
+                    <div class="sett-toggle-group">
+                        <button id="gfx-bloom-on" class="sett-toggle active">On</button>
+                        <button id="gfx-bloom-off" class="sett-toggle">Off</button>
+                    </div>
+                </div>
+
+                <div class="sett-row">
+                    <span class="sett-row-label">Shadows</span>
+                    <div class="sett-toggle-group">
+                        <button id="gfx-shadow-high" class="sett-toggle active">High</button>
+                        <button id="gfx-shadow-low" class="sett-toggle">Low</button>
+                        <button id="gfx-shadow-off" class="sett-toggle">Off</button>
+                    </div>
+                </div>
+
+                <div class="sett-row">
+                    <span class="sett-row-label">Resolution</span>
+                    <div class="sett-toggle-group">
+                        <button id="gfx-res-native" class="sett-toggle active">Native</button>
+                        <button id="gfx-res-1440" class="sett-toggle">1440p</button>
+                        <button id="gfx-res-1080" class="sett-toggle">1080p</button>
+                        <button id="gfx-res-720" class="sett-toggle">720p</button>
+                    </div>
+                </div>
+
+                <div class="sett-row">
+                    <span class="sett-row-label">Render Scale</span>
+                    <div class="sett-toggle-group">
+                        <button id="gfx-scale-200" class="sett-toggle">200%</button>
+                        <button id="gfx-scale-150" class="sett-toggle">150%</button>
+                        <button id="gfx-scale-100" class="sett-toggle active">100%</button>
+                        <button id="gfx-scale-75" class="sett-toggle">75%</button>
+                        <button id="gfx-scale-50" class="sett-toggle">50%</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EMPIRE ACTIONS -->
+            <div class="sett-section">
+                <div class="sett-section-label">💾 Empire</div>
+                <div class="sett-actions">
+                    <button id="btn-save-game" class="sett-action-btn sett-save-btn">
+                        <span>💾</span> Save Empire
+                    </button>
+                    <button id="btn-reset-game" class="sett-action-btn sett-reset-btn">
+                        <span>⚠</span> Reset Empire
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div class="splash-bg"></div>
+        <div id="splash-planet-container"></div>
+        <div class="splash-content">
+            <div class="logo-container">
+                <h1 class="game-logo">CELESTIAL<span class="logo-accent">MANDATE</span></h1>
+                <p class="game-tagline">Forge your destiny among the stars</p>
+            </div>
+            <div class="splash-menu">
+                <div class="splash-menu-bg"></div>
+                <button id="splash-start" class="menu-btn primary">New Game</button>
+                <button id="splash-load" class="menu-btn">Load Empire</button>
+                <button id="splash-settings" class="menu-btn">Settings</button>
+            </div>
+        </div>
+        <div class="splash-footer">v1.2.0 • Built By SH Games</div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="hidden">
+        <div class="loader-content">
+            <div class="loader-spinner"></div>
+            <div class="loader-text">Initializing Galactic Core...</div>
+            <div class="loader-bar-container">
+                <div id="loader-progress" class="loader-bar-fill"></div>
+            </div>
+            <div id="loader-subtext" class="loader-subtext">Mapping hyperlane networks...</div>
+        </div>
+    </div>
+
+    <!-- Creation Screen -->
+    <div id="creation-screen" class="hidden">
+        <div class="creation-header">
+            <h1>Species Design</h1>
+            <p>Define your civilization's biology and society</p>
+        </div>
+        <div class="creation-content">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+    
+    <!-- UI Overlay -->
+    <div id="ui-layer" class="hidden">
+        <div id="top-bar">
+            <div class="header-left">
+                <div class="date-display">
+                    <span class="date-label">STARDATE</span>
+                    <span class="date-value">2200.01</span>
+                </div>
+            </div>
+
+            <div class="header-center">
+                <div class="resource-pill" title="Energy Credits">
+                    <span class="res-icon">⚡</span>
+                    <div class="res-data">
+                        <span class="res-label">ENERGY</span>
+                        <span id="res-energy" class="res-value">0</span>
+                        <span id="rate-energy" class="res-rate">+0</span>
+                    </div>
+                </div>
+                <div class="res-divider"></div>
+                <div class="resource-pill" title="Minerals">
+                    <span class="res-icon">💎</span>
+                    <div class="res-data">
+                        <span class="res-label">MINERALS</span>
+                        <span id="res-minerals" class="res-value">0</span>
+                        <span id="rate-minerals" class="res-rate">+0</span>
+                    </div>
+                </div>
+                <div class="res-divider"></div>
+                <div class="resource-pill" title="Food">
+                    <span class="res-icon">🍏</span>
+                    <div class="res-data">
+                        <span class="res-label">FOOD</span>
+                        <span id="res-food" class="res-value">0</span>
+                        <span id="rate-food" class="res-rate">+0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <button id="btn-colonies" class="hdr-btn">
+                    <span class="hdr-btn-icon">🌍</span>
+                    <span class="hdr-btn-label">Colonies</span>
+                </button>
+                <button id="btn-fleets" class="hdr-btn">
+                    <span class="hdr-btn-icon">🚀</span>
+                    <span class="hdr-btn-label">Fleets</span>
+                </button>
+                <button id="btn-research" class="hdr-btn">
+                    <span class="hdr-btn-icon">🔬</span>
+                    <span class="hdr-btn-label">Research</span>
+                </button>
+                <button id="btn-settings" class="hdr-btn hdr-btn-icon-only" title="Settings">
+                    <span class="hdr-btn-icon">⚙</span>
+                </button>
+            </div>
+        </div>
+
+
+
+        <div id="system-panel" class="panel hidden">
+            <div class="panel-header">
+                <h2 id="sys-name">System Name</h2>
+                <button id="btn-close-system">Close</button>
+            </div>
+            <div class="panel-content">
+                <div id="sys-details">
+                    <p>Class: <span id="sys-class">G-Type</span></p>
+                    <p>Planets: <span id="sys-planets">0</span></p>
+                </div>
+                <div class="action-buttons">
+                    <button id="btn-survey" class="action-btn">Survey System</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="planet-panel" class="panel hidden">
+            <div class="panel-header">
+                <h2 id="planet-name">Planet Name</h2>
+                <button id="btn-close-planet">Close</button>
+            </div>
+            <div class="panel-content">
+                <div class="planet-controls" style="margin-bottom: 15px;">
+                     <button id="btn-land" class="action-btn" style="width: 100%; border-color: var(--color-secondary); color: var(--color-secondary);">Land & Explore</button>
+                </div>
+                <div class="planet-stats">
+                    <div class="stat">Size: <span id="planet-size">16</span></div>
+                    <div class="stat">Type: <span id="planet-class">Terran</span></div>
+                </div>
+                
+                <!-- Pre-Colonial Actions -->
+                <div id="planet-actions-pre">
+                    <div class="cost-preview">Cost: <span class="icon">💎</span>300 <span class="icon">🍏</span>100</div>
+                    <button class="action-btn" id="btn-colonize">Colonize Planet</button>
+                </div>
+
+                <!-- Colony View -->
+                <div id="planet-colony-view" class="hidden">
+                    <div class="colony-header-stats">
+                        <div class="stat-box">Pop: <span id="col-pop">1</span></div>
+                        <div class="stat-box">Buildings: <span id="col-buildings-count">0/5</span></div>
+                    </div>
+
+                    <div class="colony-section">
+                        <h3>Infrastructure</h3>
+                        <div id="colony-building-list" class="building-grid">
+                            <!-- Buildings go here -->
+                        </div>
+                    </div>
+
+                    <div class="colony-section">
+                        <h3>Construction</h3>
+                        <div id="colony-construction-list" class="construction-list">
+                            <!-- Build options go here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="notifications">
+            <!-- Dynamic notifications go here -->
+        </div>
+
+        <!-- Colonies Overview Panel -->
+        <div id="colonies-panel" class="fullscreen-panel hidden">
+            <div class="fullscreen-panel-header">
+                <h2>🌍 Empire Colonies</h2>
+                <button id="btn-close-colonies" class="panel-close-btn">✕ Close</button>
+            </div>
+            <div id="colonies-panel-content" class="fullscreen-panel-content"></div>
+        </div>
+
+        <!-- Fleets Panel -->
+        <div id="fleets-panel" class="fullscreen-panel hidden">
+            <div class="fullscreen-panel-header">
+                <h2>🚀 Imperial Fleets</h2>
+                <button id="btn-close-fleets" class="panel-close-btn">✕ Close</button>
+            </div>
+            <div id="fleets-panel-content" class="fullscreen-panel-content"></div>
+        </div>
+
+        <!-- Research Panel -->
+        <div id="research-panel" class="fullscreen-panel hidden">
+            <div class="fullscreen-panel-header">
+                <h2>🔬 Research & Technology</h2>
+                <button id="btn-close-research" class="panel-close-btn">✕ Close</button>
+            </div>
+            <div id="research-panel-content" class="fullscreen-panel-content"></div>
+        </div>
+
+        <div id="controls-hint">
+            <div id="hint-text">Left Click: Select | Right Click/Drag: Pan/Rotate | Scroll: Zoom</div>
+            <div id="exploration-controls" class="hidden">
+                <div>WASD / Arrows to Move • Mouse to Look</div>
+                <button id="btn-exit-planet" class="action-btn" style="margin-top:10px; border-color: #ffaa00; color: #ffaa00;">Return to Orbit</button>
+            </div>
+            <div class="bottom-actions">
+                <button id="btn-empire-hub" class="mobile-only"><span>Empire Hub</span></button>
+                <button id="btn-view-toggle">Switch View</button>
+            </div>
+        </div>
+
+        <div id="empire-panel" class="panel hidden">
+            <div class="panel-header">
+                <h2>Empire Management</h2>
+                <button id="btn-close-empire">Close</button>
+            </div>
+            <div class="panel-content">
+                <div class="hub-grid">
+                    <button class="hub-item" id="hub-colonies">
+                        <span class="hub-icon">🪐</span>
+                        <span class="hub-label">Colonies</span>
+                    </button>
+                    <button class="hub-item" id="hub-research">
+                        <span class="hub-icon">🧪</span>
+                        <span class="hub-label">Research</span>
+                    </button>
+                    <button class="hub-item" id="hub-diplomacy">
+                        <span class="hub-icon">🤝</span>
+                        <span class="hub-label">Diplomacy</span>
+                    </button>
+                    <button class="hub-item" id="hub-fleets">
+                        <span class="hub-icon">🚀</span>
+                        <span class="hub-label">Fleets</span>
+                    </button>
+                </div>
+                <div id="hub-dynamic-content" class="hub-details hidden">
+                    <!-- Dynamic colony list or research info goes here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

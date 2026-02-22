@@ -1,0 +1,18 @@
+/* Updated: Organized app hierarchy, moved to ./styles folder, fixed imports and paths */
+/*
+ * This file is deprecated.
+ * Styles have been split into modular files:
+ * - styles_core.css (Base vars, layout)
+ * - styles_ui.css (Common UI elements)
+ * - styles_creation.css (Species creator)
+ * - styles_colony.css (Colony management)
+ * - styles_mobile.css (Media queries)
+ */
+
+/* removed :root {} */
+/* removed body, html {} */
+/* removed #game-container {} */
+/* removed #top-bar {} */
+/* removed .panel {} */
+/* removed .creation-screen {} */
+/* removed @media (max-width: 768px) {} */

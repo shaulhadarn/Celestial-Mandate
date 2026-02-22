@@ -1,0 +1,335 @@
+/* Updated: Added Research and Colonies Overview panels wired to top bar buttons */
+import * as THREE from 'three';
+import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlanet, getPlanet, surveySystem, SURVEY_COST, loadGame } from '../core/state.js';
+import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet } from '../visuals/renderer.js';
+import { setJoystickInput } from '../visuals/visuals_planet.js';
+import { groups, controls, scene } from '../core/scene_config.js';
+import { renderColonyView, updateColonyDynamicState } from './ui_colony.js';
+import { renderColonyList, initEmpireHub } from './ui_empire.js';
+import { initSettingsUI } from './ui_settings.js';
+import { updateSelectionPanel } from './ui_selection.js';
+import { showNotification } from './ui_notifications.js';
+import { initResearchUI } from './ui_research.js';
+import { initColoniesOverview } from './ui_colonies_overview.js';
+import { initFleetsUI } from './ui_fleets.js';
+
+// Re-export for other modules to use
+export { showNotification };
+
+let activeJoystick = null;
+
+/**
+ * Main UI Hub. Sets up tickers and general interface listeners.
+ */
+export function initUI() {
+    // Setup Tickers
+    setInterval(updateTopBar, 100); // 10fps UI update
+
+    // Initialize Sub-modules
+    initEmpireHub();
+    initSettingsUI();
+    initResearchUI();
+    initColoniesOverview();
+    initFleetsUI();
+
+    // Splash Screen Listeners
+    const splashStart = document.getElementById('splash-start');
+    const splashLoad = document.getElementById('splash-load');
+    const splashSettings = document.getElementById('splash-settings');
+
+    if (splashStart) {
+        splashStart.addEventListener('click', () => {
+            document.getElementById('settings-panel').classList.add('hidden');
+            showLoadingScreen(() => {
+                document.getElementById('splash-screen').classList.add('hidden');
+                document.getElementById('creation-screen').classList.remove('hidden');
+            });
+        });
+    }
+
+    if (splashSettings) {
+        splashSettings.addEventListener('click', () => {
+            const panel = document.getElementById('settings-panel');
+            panel.classList.remove('hidden');
+            // Ensure high Z-index in case applied dynamically
+            panel.style.zIndex = '2100';
+        });
+    }
+
+    if (splashLoad) {
+        splashLoad.addEventListener('click', () => {
+            document.getElementById('settings-panel').classList.add('hidden');
+            if (loadGame()) {
+                showLoadingScreen(() => {
+                    events.dispatchEvent(new CustomEvent('game-load'));
+                });
+            } else {
+                showNotification("No saved empires found in local sector.", "alert");
+            }
+        });
+    }
+
+    // Event Listeners
+    events.addEventListener('selection-changed', updateSelectionPanel);
+    
+    document.getElementById('btn-close-system').addEventListener('click', () => {
+        document.getElementById('system-panel').classList.add('hidden');
+    });
+
+    document.getElementById('btn-close-planet').addEventListener('click', () => {
+        selectPlanet(null);
+        if (window.innerWidth <= 768 && gameState.selectedSystemId) {
+            document.getElementById('system-panel').classList.remove('hidden');
+        }
+    });
+
+    const empirePanel = document.getElementById('empire-panel');
+    const hubBtn = document.getElementById('btn-empire-hub');
+    if (hubBtn) {
+        hubBtn.addEventListener('click', () => {
+            empirePanel.classList.toggle('hidden');
+            if (!empirePanel.classList.contains('hidden')) renderColonyList();
+        });
+    }
+
+    document.getElementById('btn-view-toggle').addEventListener('click', () => {
+        document.getElementById('empire-panel').classList.add('hidden');
+        
+        if (gameState.viewMode === 'SYSTEM') {
+            returnToGalaxyView();
+            document.getElementById('system-panel').classList.add('hidden');
+            document.getElementById('planet-panel').classList.add('hidden');
+        } else if (gameState.viewMode === 'EXPLORATION') {
+            returnToSystemViewFromPlanet();
+        } else {
+            if (gameState.selectedSystemId) {
+                selectSystem(null);
+                document.getElementById('system-panel').classList.add('hidden');
+            }
+        }
+    });
+
+    document.getElementById('btn-land').addEventListener('click', async () => {
+        if (!gameState.selectedPlanetId) return;
+
+        const planet = getPlanet(gameState.selectedPlanetId);
+        if (!planet) return;
+
+        if (planet.type === 'Gas Giant') {
+            showNotification("Cannot land on Gas Giant", 'alert');
+            return;
+        }
+
+        try {
+            document.getElementById('ui-layer').classList.add('hidden-during-exploration');
+            document.getElementById('exploration-controls').classList.remove('hidden');
+            document.getElementById('hint-text').classList.add('hidden');
+            document.getElementById('planet-panel').classList.add('hidden');
+            document.getElementById('system-panel').classList.add('hidden');
+            document.getElementById('btn-view-toggle').classList.add('hidden');
+            document.getElementById('btn-empire-hub').classList.add('hidden');
+            
+            enterPlanetView(planet);
+            showNotification(`Landed on ${planet.name}`, 'success');
+
+            if (window.innerWidth <= 768) {
+                // Show look-zone hint
+                const lookZone = document.getElementById('exploration-look-zone');
+                if (lookZone) lookZone.classList.add('visible');
+
+                // Dynamic import for mobile controls
+                try {
+                    const nipplejs = (await import('nipplejs')).default;
+                    const container = document.getElementById('joystick-container');
+                    container.classList.add('visible');
+                    
+                    if (activeJoystick) {
+                        activeJoystick.destroy();
+                    }
+
+                    // Joystick fills the container zone (left 42% of screen)
+                    activeJoystick = nipplejs.create({
+                        zone: container,
+                        mode: 'static',
+                        position: { left: '50%', top: '50%' },
+                        color: 'rgba(0,242,255,0.8)',
+                        size: Math.min(120, container.offsetWidth * 0.8)
+                    });
+
+                    activeJoystick.on('move', (evt, data) => {
+                        if (data.vector) {
+                            setJoystickInput(data.vector.x, data.vector.y);
+                        }
+                    });
+
+                    activeJoystick.on('end', () => {
+                        setJoystickInput(0, 0);
+                    });
+                } catch (e) {
+                    console.error("Failed to load joystick controls", e);
+                }
+            }
+        } catch (err) {
+            console.error("Landing failed", err);
+            showNotification("Landing Sequence Failed", "alert");
+            // Attempt recovery
+            document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
+            document.getElementById('exploration-controls').classList.add('hidden');
+        }
+    });
+
+    document.getElementById('btn-exit-planet').addEventListener('click', () => returnToSystemViewFromPlanet());
+
+    document.getElementById('btn-survey').addEventListener('click', () => {
+        if (gameState.selectedSystemId) {
+            if (surveySystem(gameState.selectedSystemId)) {
+                showNotification("System Surveyed: Data Available", "success");
+            } else {
+                showNotification("Cannot Survey: Insufficient Energy", "alert");
+            }
+        }
+    });
+
+    document.getElementById('btn-colonize').addEventListener('click', () => {
+        if(gameState.selectedPlanetId) {
+            if(colonizePlanet(gameState.selectedPlanetId)) {
+                showNotification("Colony Established Successfully", "success");
+                updateSelectionPanel(); 
+            } else {
+                showNotification("Insufficient Resources", "alert");
+            }
+        }
+    });
+
+    events.addEventListener('resources-updated', () => {
+        updateTopBar();
+        if (gameState.selectedPlanetId && gameState.colonies[gameState.selectedPlanetId]) {
+            renderColonyView(gameState.selectedPlanetId);
+        }
+    });
+}
+
+function updateTopBar() {
+    document.getElementById('res-energy').innerText = Math.floor(gameState.resources.energy);
+    document.getElementById('res-minerals').innerText = Math.floor(gameState.resources.minerals);
+    document.getElementById('res-food').innerText = Math.floor(gameState.resources.food);
+    
+    const formatRate = (val) => val >= 0 ? `+${val}` : `${val}`;
+    document.getElementById('rate-energy').innerText = formatRate(gameState.rates.energy);
+    document.getElementById('rate-minerals').innerText = formatRate(gameState.rates.minerals);
+    document.getElementById('rate-food').innerText = formatRate(gameState.rates.food);
+
+    const d = gameState.date;
+    const dateEl = document.getElementById('top-bar').querySelector('.date-value');
+    if (dateEl) dateEl.innerText = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+
+    const toggleBtn = document.getElementById('btn-view-toggle');
+    const hubBtn = document.getElementById('btn-empire-hub');
+    const topBar = document.getElementById('top-bar');
+
+    if (gameState.viewMode === 'EXPLORATION') {
+        topBar.classList.add('hidden'); // Hide top bar in exploration
+        return; // Skip other button logic
+    } else {
+        topBar.classList.remove('hidden');
+    }
+
+    if (gameState.viewMode === 'SYSTEM') {
+        toggleBtn.innerText = "Return to Galaxy";
+        toggleBtn.classList.remove('hidden');
+        hubBtn.classList.add('hidden');
+    } else {
+        toggleBtn.classList.add('hidden');
+        hubBtn.classList.remove('hidden');
+    }
+
+    // Dynamic Colony Update
+    if (gameState.selectedPlanetId && gameState.colonies[gameState.selectedPlanetId]) {
+        const panel = document.getElementById('planet-panel');
+        // Only update if panel is visible and active
+        if (panel && !panel.classList.contains('hidden') && gameState.viewMode === 'SYSTEM') {
+            updateColonyDynamicState(gameState.selectedPlanetId);
+        }
+    }
+}
+
+function showLoadingScreen(onComplete) {
+    const screen = document.getElementById('loading-screen');
+    const bar = document.getElementById('loader-progress');
+    const subtext = document.getElementById('loader-subtext');
+    
+    screen.classList.remove('hidden');
+    bar.style.width = '0%';
+    
+    const steps = [
+        "Analyzing stellar configurations...",
+        "Generating orbital mechanics...",
+        "Calculating species genetic markers...",
+        "Syncing hyperlane node array...",
+        "Finalizing galactic simulation..."
+    ];
+
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 100) progress = 100;
+        
+        bar.style.width = `${progress}%`;
+        const stepIdx = Math.floor((progress / 100) * (steps.length - 1));
+        subtext.innerText = steps[stepIdx];
+
+        if (progress >= 100) {
+            clearInterval(interval);
+            setTimeout(() => {
+                screen.classList.add('hidden');
+                if (onComplete) onComplete();
+            }, 500);
+        }
+    }, 150);
+}
+
+function returnToSystemViewFromPlanet() {
+    gameState.viewMode = 'SYSTEM';
+    groups.planet.visible = false;
+    groups.system.visible = true;
+
+    // Reset scene background and fog back to deep-space system view defaults
+    // (planet landing sets its own sky color/fog which must be cleared on return)
+    if (scene) {
+        scene.background = new THREE.Color(0x020408);
+        scene.fog = new THREE.FogExp2(0x020408, 0.0015);
+    }
+
+    // Clear planet group so terrain/sky/props don't linger in memory
+    while (groups.planet.children.length > 0) {
+        groups.planet.remove(groups.planet.children[0]);
+    }
+
+    // Remove Joystick
+    if (activeJoystick) {
+        activeJoystick.destroy();
+        activeJoystick = null;
+    }
+    const container = document.getElementById('joystick-container');
+    if (container) container.classList.remove('visible');
+    const lookZone = document.getElementById('exploration-look-zone');
+    if (lookZone) lookZone.classList.remove('visible');
+    setJoystickInput(0, 0);
+
+    // UI Restore
+    document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
+    document.getElementById('exploration-controls').classList.add('hidden');
+    document.getElementById('hint-text').classList.remove('hidden');
+    document.getElementById('btn-view-toggle').classList.remove('hidden');
+    document.getElementById('btn-empire-hub').classList.add('hidden'); 
+
+    // Fully restore OrbitControls to pre-landing state (flushes internal spherical/delta)
+    restoreControlsAfterPlanet();
+    
+    updateSelectionPanel();
+}
+
+// removed function updateSelectionPanel() {} (moved to ui_selection.js)
+// removed function getStarClass() {} (moved to ui_selection.js)
+// removed function initSettingsUI() {} (moved to ui_settings.js)
+// removed function showNotification() {} (moved to ui_notifications.js)

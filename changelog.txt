@@ -1,0 +1,159 @@
+Changelog - Stellaris Imperium
+================================
+
+2026-02-22: Fix mobile galaxy drag flicker, square flashes, and light-ray artifacts
+- Root cause 1: duplicate post-processing render path in R3F loop + renderer loop caused unstable composer output on mobile during drag
+- Root cause 2: oversized additive nebula sprites in galaxy/system backgrounds overdraw mobile framebuffers and produced full-screen colored flashes
+- `src/Game.js`:
+  - Disabled EffectComposer on mobile and set global composer to null on mobile
+  - Removed per-frame composer render from R3F `useFrame` loop to avoid duplicate render pipeline
+  - Reduced mobile canvas load (`dpr` capped to `[1, 1.25]`, antialias disabled on mobile)
+- `src/visuals/visuals_galaxy.js`:
+  - Added mobile detection
+  - Reduced outer star halo opacity/size/pulse amplitude on mobile
+  - Disabled heavy additive nebula sprite layers on mobile (desktop unchanged)
+  - Disabled nebula sprite scale animation on mobile
+- `src/visuals/visuals_system.js`:
+  - Added mobile detection
+  - Reduced system star glow opacity/scale on mobile
+  - Reduced planet glow sprite opacity/scale multiplier on mobile
+  - Disabled heavy additive background nebula sprites on mobile (desktop unchanged)
+
+2026-02-22: Fix mobile white square / unrendered area glitches in 3D view
+- Root cause: EffectComposer uses HalfFloat internal render targets which mobile GPUs don't support cleanly
+- Fix: on mobile (userAgent or width<=768), composer is set to null — no EffectComposer created at all
+- Render loop already has fallback: when composer===null it calls renderer.render(scene,camera) directly
+- renderer.outputColorSpace = SRGBColorSpace is set directly on the renderer for correct colors without OutputPass
+- applyGraphicsConfig() and resize handler both guarded with !isMobile && composer checks
+- Desktop bloom/OutputPass pipeline unchanged
+
+2026-02-22: Upgrade Species Design creation flow with animated SVGs and split steps
+- Expanded from 4 to 6 steps: Species, Homeworld, Biological Traits, Archetype+Ethics, Civics, Summary
+- Step 3 (Biological Traits) is now a full dedicated slide with large animated SVG icons per trait
+- Step 4 (Archetype+Ethics) and Step 5 (Civics) split from old single society step
+- All trait cards: full-width horizontal layout with 64px animated SVG, name, desc, cost, checkmark
+- All archetype cards: grid layout with 56px animated SVG, name, mechanic tag, desc, checkmark
+- All civic cards: reuse trait-card layout with unique animated SVG per civic
+- Animated SVGs: spinning hexagons, pulsing cores, orbiting nodes, floating ships, drawing charts, tendril waves
+- Counter bar with glowing pip indicators for traits and civics selection (max 2 each)
+- Section labels with gradient underline rule
+- Added all styles to styles_creation.css: trait-card, archetype-card, traits-counter-bar, traits-full-grid, all SVG animation keyframes
+
+2026-02-22: Add Fleets system with race-specific ships and Shipyard functionality
+- Added Fleets button to top-right header bar (between Colonies and Research)
+- Created fullscreen Fleets panel showing active fleet grouped by system and shipyard build queues
+- Added 3 unique ships per race (24 total): Humanoid, Insectoid, Avian, Fungal, Crystalline, Aquatic, Energy-based, Synthetic
+- Shipyard building now functional: queues ships, ticks progress each game tick, completes into gameState.fleets
+- Ship build queue shown in both the planet colony panel (when shipyard is built) and the Fleets panel
+- Cancel ship build with 50% resource refund
+- Ships track systemId, systemName, power rating, icon, and name
+- Created styles/styles_fleets.css with full panel, queue, and ship card styles
+
+2026-02-22: Improve planet lighting visibility
+- Added ambient lighting to both system view (0.6 intensity) and galaxy view (0.4 intensity)
+- This prevents the dark sides of planets from being pitch black and makes them much easier to see
+
+2026-02-22: Upgrade race intros with animated SVG icons
+- Replaced all 32 static emoji icons across the 8 race intros with custom, unique SVG line-art icons
+- Added reusable CSS keyframe animations: spin, reverse-spin, pulse, orbit, draw (line drawing), float, and glitch
+- SVGs inherit the race's specific neon accent colour via currentColor and drop-shadows
+- Icons feature abstract geometric representations of origins, history, ascension, and destiny per race
+
+2026-02-22: Redesign race intro cinematic to be premium
+- Expanded container size and added stronger glassmorphism (blur(24px))
+- Added bold corner accent marks that match the race accent colour
+- Improved typography: larger titles, heavier weights, increased letter spacing
+- Added glowing animated ring effect around the active progress dot
+- Enhanced button hover states with stronger gradient shifts and translateY lifts
+- Increased shadow depths and text-shadow intensity for a more vibrant, neon sci-fi feel
+- Files changed: styles/styles_intro.css
+
+2026-02-22: Add unique 4-slide race intro cinematic
+- Created src/ui/ui_intro.js with 4 unique story slides per race (humanoid, insectoid, avian, fungal, crystalline, aquatic, energy, synthetic)
+- Each race has its own accent colour, icon, tag, title, and lore body text
+- Cinematic overlay: animated starfield bg, floating icon, slide-in/out transitions, progress dots, chamfered sci-fi button
+- Final slide button pulses and reads "Begin Your Reign"
+- Keyboard support: Enter/Space to advance, Escape to skip
+- Mobile responsive: bottom-sheet layout on small screens
+- Created styles/styles_intro.css with full cinematic styling
+- Wired into main.js: shows after creation screen, before game starts
+- Files changed: src/ui/ui_intro.js (new), styles/styles_intro.css (new), src/main.js, index.html
+
+2026-02-22: Fix hyperlane rendering
+- Removed duplicate dark-blue bgLines (was rendering two lines per connection)
+- Replaced QuadraticBezierCurve3 with direct straight start→end lines (no slant/curve)
+- Single clean cyan material (0x00c8e0, opacity 0.35)
+- Files changed: visuals_galaxy.js
+
+2026-02-22: Fix text glow quality on galaxy/system labels
+- Replaced ctx.shadowBlur (box-blur, pixelated) with 6 layered stroke passes
+- Each pass: decreasing lineWidth + decreasing alpha = smooth gaussian glow approximation
+- Added GLOW_PAD canvas padding so outermost glow stroke is never clipped
+- Files changed: visuals_galaxy.js, visuals_system.js
+
+2026-02-22: Fix low-quality star glow edges on galaxy map
+- Upgraded createGlowTexture() from 128px gradient to 512px power-curve pixel falloff
+- Added createSoftHaloTexture() - gaussian ring formula, smooth outer diffuse halo
+- 4-layer glow stack per star: outer halo (glowSoft), mid glow, core, white-hot center
+- Upgraded createStarTexture() from 128px to 256px
+- Files changed: assets.js, visuals_galaxy.js
+
+2026-02-22: Premium top bar redesign
+- Uniform 56px height, all elements exactly 40px tall
+- Resource pills with ENERGY/MINERALS/FOOD micro-labels, value+rate grid layout
+- All action buttons (.hdr-btn) same size/shape/clip-path - Colonies, Research, Settings
+- Date block with STARDATE micro-label above value
+- Mobile: labels hidden, pills shrink, buttons collapse to icon-only 36px squares
+- Files changed: index.html, styles_ui.css, styles_mobile.css, ui.js
+
+2026-02-22: Fix OrbitControls state after planet landing
+- Save full controls state (target, position, zoom, limits) before entering planet view
+- On return: controls.reset() flushes internal spherical/delta state, then restore snapshot
+- Eliminates changed drag/rotate feel after returning from planet exploration
+- Files changed: renderer.js, ui.js
+
+2026-02-22: Fix mobile planet exploration controls
+- Separated joystick zone (left 42%) from camera drag zone (right 58%) by touch identifier
+- Added pinch-to-zoom: 2-finger distance delta applied to cameraDistance
+- Joystick container resized to cover full left 42% zone matching JS ratio
+- Added exploration-look-zone hint div for right side
+- Files changed: visuals_planet.js, styles_mobile.css, index.html, ui.js
+
+2026-02-22: Fix OrbitControls feel after planet return
+- Files changed: renderer.js, ui.js
+
+2026-02-22: Research and Colonies UI
+- Created core/research_data.js with 25+ techs across 4 tiers, archetype-specific
+- Extended state.js with research state, tickResearch, applyTechBonus, unlockResearchBuilding
+- Created ui/ui_research.js - tech tree panel with progress bar, bonuses, start/cancel
+- Created ui/ui_colonies_overview.js - all colonies panel with stats and navigation
+- Added Colonies + Research buttons to top bar, panel divs to index.html
+- Created styles/styles_research.css for all new panel styles
+- Files changed: state.js, ui.js, ui_research.js, ui_colonies_overview.js, index.html, styles_research.css
+
+2026-02-22: Fix camera controls in planet exploration
+- Mouse wheel zoom: cameraDistance clamped between CAMERA_DISTANCE_MIN/MAX
+- Camera pitch expanded to full range (-PI/2 to PI/2)
+- Files changed: visuals_planet.js
+
+2026-02-22: Fix Cloudflare MIME type deployment error
+- Renamed Game.jsx → Game.js, main.jsx → main.js
+- Updated all imports and index.html script reference
+- Created _headers file for Cloudflare Pages MIME type enforcement
+- Files changed: Game.js, main.js, index.html, _headers
+
+2026-02-20: Fix camera target in exploration mode
+- Drone (playerMesh) now spawns at (25, 10, 25) offset from colony hub at origin (0, y, 0)
+- Camera correctly follows the drone instead of centering on the colony hub
+- Files changed: visuals_planet.js, renderer.js
+
+2026-02-20: Organized file hierarchy
+- Created folder structure: src/core, src/ui, src/visuals, assets, styles
+- Moved all JS/JSX files into appropriate src/ subdirectories
+- Moved all CSS files into styles/
+- Moved all images and audio into assets/
+- Updated all import paths in JS/JSX files
+- Updated asset paths in assets.js and civilization_data.js
+- Updated CSS and script references in index.html
+- Added comments to all modified files
+- Created server.js for local development

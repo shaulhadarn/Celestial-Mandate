@@ -1,0 +1,545 @@
+/* Research and Colonies Overview panel styles */
+
+/* ── Header Action Buttons ─────────────────────────────────────────────────── */
+.header-action-btn {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(0, 242, 255, 0.4);
+    color: var(--color-primary);
+    font-family: var(--font-main);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    margin-right: 8px;
+    pointer-events: auto;
+}
+
+.header-action-btn:hover {
+    background: rgba(0, 242, 255, 0.15);
+    border-color: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(0, 242, 255, 0.3);
+}
+
+/* ── Fullscreen Overlay Panels ─────────────────────────────────────────────── */
+.fullscreen-panel {
+    position: fixed;
+    top: 65px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(2, 6, 12, 0.97);
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid rgba(0, 242, 255, 0.3);
+    backdrop-filter: blur(10px);
+    pointer-events: auto;
+}
+
+.fullscreen-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 30px;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.15);
+    background: rgba(0, 0, 0, 0.4);
+    flex-shrink: 0;
+}
+
+.fullscreen-panel-header h2 {
+    margin: 0;
+    font-size: 1.4em;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    text-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+}
+
+.panel-close-btn {
+    background: rgba(255, 50, 50, 0.1);
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    color: #ff8080;
+    font-family: var(--font-main);
+    font-size: 13px;
+    padding: 6px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.panel-close-btn:hover {
+    background: rgba(255, 50, 50, 0.25);
+    border-color: #ff5050;
+    color: #fff;
+}
+
+.fullscreen-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 30px;
+}
+
+/* ── Research Panel ─────────────────────────────────────────────────────────── */
+
+.research-current-bar {
+    margin-bottom: 16px;
+}
+
+.research-active {
+    background: rgba(0, 242, 255, 0.05);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    padding: 14px 18px;
+    border-radius: 4px;
+}
+
+.research-active-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.research-active-icon { font-size: 1.4em; }
+
+.research-active-name {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex: 1;
+}
+
+.research-active-pct {
+    color: var(--color-primary);
+    font-weight: 700;
+    font-size: 1.1em;
+    min-width: 40px;
+    text-align: right;
+}
+
+.research-cancel-btn {
+    background: rgba(255, 80, 80, 0.1);
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    color: #ff8080;
+    font-family: var(--font-main);
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.research-cancel-btn:hover {
+    background: rgba(255, 80, 80, 0.25);
+    color: #fff;
+}
+
+.research-progress-track {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.research-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), #00aaff);
+    box-shadow: 0 0 8px rgba(0, 242, 255, 0.6);
+    transition: width 0.5s ease;
+    border-radius: 4px;
+}
+
+.research-active-sub {
+    font-size: 11px;
+    color: var(--color-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.research-no-lab, .research-idle {
+    padding: 12px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text-dim);
+    font-size: 14px;
+    background: rgba(0,0,0,0.3);
+}
+
+.research-no-lab strong { color: var(--color-secondary); }
+
+/* Bonuses Bar */
+.research-bonuses-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 16px;
+}
+
+.research-bonuses-label {
+    font-size: 11px;
+    color: var(--color-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-right: 4px;
+}
+
+.research-bonus-chip {
+    background: rgba(0, 242, 255, 0.08);
+    border: 1px solid rgba(0, 242, 255, 0.25);
+    color: var(--color-primary);
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-weight: 600;
+}
+
+/* Tier Sections */
+.research-tier-section {
+    margin-bottom: 24px;
+}
+
+.research-tier-label {
+    font-size: 12px;
+    color: var(--color-secondary);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-weight: 700;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 170, 0, 0.2);
+    margin-bottom: 12px;
+}
+
+.research-tier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+/* Tech Cards */
+.research-card {
+    background: rgba(5, 12, 20, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.research-card.available {
+    border-color: rgba(0, 242, 255, 0.25);
+    cursor: default;
+}
+
+.research-card.available:hover {
+    border-color: rgba(0, 242, 255, 0.6);
+    background: rgba(0, 242, 255, 0.05);
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
+}
+
+.research-card.completed {
+    border-color: rgba(255, 170, 0, 0.3);
+    background: rgba(255, 170, 0, 0.04);
+    opacity: 0.8;
+}
+
+.research-card.active {
+    border-color: var(--color-primary);
+    background: rgba(0, 242, 255, 0.08);
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
+    animation: researchPulse 2s ease-in-out infinite;
+}
+
+@keyframes researchPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(0, 242, 255, 0.15); }
+    50% { box-shadow: 0 0 30px rgba(0, 242, 255, 0.3); }
+}
+
+.research-card.locked {
+    opacity: 0.4;
+    filter: grayscale(0.5);
+}
+
+.research-card-icon {
+    font-size: 1.8em;
+    line-height: 1;
+}
+
+.research-card-body { flex: 1; }
+
+.research-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.research-card-desc {
+    font-size: 12px;
+    color: var(--color-text-dim);
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+
+.research-card-bonus {
+    font-size: 11px;
+    color: #64ff96;
+    font-weight: 600;
+}
+
+.research-card-unlock {
+    font-size: 11px;
+    color: var(--color-secondary);
+    margin-top: 2px;
+}
+
+.research-card-prereq {
+    font-size: 10px;
+    color: rgba(255,255,255,0.3);
+    margin-top: 2px;
+}
+
+.research-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-top: 8px;
+    margin-top: 4px;
+}
+
+.research-card-cost {
+    font-size: 12px;
+    color: var(--color-text-dim);
+    font-weight: 600;
+}
+
+.research-card-status {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-weight: 600;
+}
+
+.research-card-status.done {
+    background: rgba(255, 170, 0, 0.15);
+    color: var(--color-secondary);
+    border: 1px solid rgba(255, 170, 0, 0.3);
+}
+
+.research-card-status.researching {
+    background: rgba(0, 242, 255, 0.1);
+    color: var(--color-primary);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+}
+
+.research-card-status.locked-txt {
+    color: rgba(255,255,255,0.3);
+}
+
+.research-card-status.no-lab, .research-card-status.busy {
+    color: rgba(255,255,255,0.3);
+    font-size: 10px;
+}
+
+.research-start-btn {
+    background: rgba(0, 242, 255, 0.1);
+    border: 1px solid rgba(0, 242, 255, 0.5);
+    color: var(--color-primary);
+    font-family: var(--font-main);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+}
+
+.research-start-btn:hover {
+    background: rgba(0, 242, 255, 0.25);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);
+}
+
+/* ── Colonies Overview Panel ────────────────────────────────────────────────── */
+
+.colonies-summary {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(0, 242, 255, 0.15);
+    margin-bottom: 20px;
+}
+
+.colonies-summary-stat {
+    font-size: 14px;
+    color: var(--color-text-dim);
+}
+
+.colonies-summary-stat strong {
+    color: #fff;
+    font-size: 16px;
+}
+
+.colonies-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--color-text-dim);
+    font-size: 16px;
+    border: 1px dashed rgba(255,255,255,0.1);
+}
+
+.colonies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.colony-overview-card {
+    background: rgba(5, 12, 20, 0.9);
+    border: 1px solid rgba(0, 242, 255, 0.15);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s;
+}
+
+.colony-overview-card:hover {
+    border-color: rgba(0, 242, 255, 0.4);
+}
+
+.colony-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 8px;
+}
+
+.colony-card-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.colony-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.colony-card-type {
+    font-size: 11px;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.colony-card-system {
+    font-size: 11px;
+    color: var(--color-text-dim);
+    text-align: right;
+}
+
+.colony-card-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.colony-stat-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.colony-stat {
+    font-size: 12px;
+    color: var(--color-text-dim);
+}
+
+.colony-stat strong { color: #fff; }
+.colony-stat.pos { color: #64ff96; }
+.colony-stat.neg { color: #ff6464; }
+
+.colony-card-buildings {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.colony-building-icon {
+    font-size: 1.3em;
+    cursor: default;
+}
+
+.colony-building-slot-empty {
+    font-size: 14px;
+    color: rgba(255,255,255,0.15);
+}
+
+.colony-constructing {
+    font-size: 1.1em;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.colony-goto-btn {
+    background: rgba(0, 242, 255, 0.08);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    color: var(--color-primary);
+    font-family: var(--font-main);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.colony-goto-btn:hover {
+    background: rgba(0, 242, 255, 0.2);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+}
+
+/* ── Scrollbar styling for panels ───────────────────────────────────────────── */
+.fullscreen-panel-content::-webkit-scrollbar { width: 6px; }
+.fullscreen-panel-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+.fullscreen-panel-content::-webkit-scrollbar-thumb { background: rgba(0, 242, 255, 0.3); border-radius: 3px; }
+.fullscreen-panel-content::-webkit-scrollbar-thumb:hover { background: rgba(0, 242, 255, 0.6); }
+
+@media (max-width: 768px) {
+    .research-tier-grid { grid-template-columns: 1fr; }
+    .colonies-grid { grid-template-columns: 1fr; }
+    .fullscreen-panel-content { padding: 12px 16px; }
+    .header-action-btn { font-size: 11px; padding: 5px 10px; }
+}

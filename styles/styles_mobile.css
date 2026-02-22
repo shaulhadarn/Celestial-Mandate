@@ -1,0 +1,651 @@
+/* Updated: Mobile header overhaul - compact 48px bar, icon-only pills, tighter spacing */
+/* --- MOBILE OPTIMIZATION --- */
+@media (max-width: 768px) {
+    /* Layout Adjustments */
+    #top-bar {
+        height: 48px;
+        padding: 0 8px;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        background: rgba(3, 8, 16, 0.92);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(0, 242, 255, 0.15);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        overflow: visible;
+        pointer-events: none;
+        gap: 4px;
+        z-index: 50;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        pointer-events: auto;
+        min-width: 0;
+        flex-shrink: 0;
+    }
+
+    .header-center {
+        display: flex;
+        align-items: center;
+        pointer-events: auto;
+        height: 100%;
+        border: none !important;
+        background: none !important;
+        padding: 0 4px !important;
+        gap: 3px !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        mask-image: linear-gradient(to right, transparent, black 6px, black calc(100% - 6px), transparent);
+        scrollbar-width: none;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .header-center::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .header-right {
+        display: flex;
+        align-items: center;
+        pointer-events: auto;
+        min-width: 0;
+        flex-shrink: 0;
+        gap: 3px;
+    }
+    
+    /* Compact pill: icon + value + rate, no label, no fixed width */
+    .resource-pill {
+        width: auto;
+        min-width: 0;
+        height: 32px;
+        padding: 0 7px;
+        gap: 4px;
+        clip-path: none;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
+
+    .res-divider {
+        display: none;
+    }
+
+    .res-label {
+        display: none;
+    }
+
+    /* Stack value + rate side by side in one row */
+    .res-data {
+        display: flex;
+        flex-direction: row;
+        align-items: baseline;
+        gap: 2px;
+    }
+
+    .res-value {
+        font-size: 13px;
+        letter-spacing: 0;
+    }
+
+    .res-rate {
+        font-size: 9px;
+        letter-spacing: 0;
+    }
+
+    .res-icon {
+        font-size: 13px;
+    }
+
+    .hdr-btn-label {
+        display: none;
+    }
+
+    .hdr-btn {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        clip-path: none;
+        border-radius: 3px;
+        gap: 0;
+    }
+
+    .hdr-btn-icon {
+        font-size: 14px;
+    }
+
+    .hdr-btn-icon-only {
+        width: 32px;
+    }
+
+    .date-display {
+        height: 32px;
+        padding: 0 8px;
+        clip-path: none;
+        border-radius: 3px;
+        gap: 0;
+    }
+
+    .date-label {
+        display: none;
+    }
+
+    .date-value {
+        font-size: 13px;
+        letter-spacing: 1px;
+    }
+
+    #settings-panel {
+        width: 92% !important;
+        max-width: 420px;
+        max-height: 88vh;
+        clip-path: none !important;
+    }
+
+    #settings-panel.hidden {
+        transform: translate(-50%, -48%) scale(0.94) !important;
+        opacity: 0;
+    }
+
+    .sett-preset-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .sett-toggle-group {
+        flex-wrap: wrap;
+    }
+
+    .sett-toggle {
+        font-size: 10px;
+        padding: 0 8px;
+    }
+
+    /* Bottom Sheets for Panels */
+    #system-panel, #planet-panel {
+        position: fixed;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        min-width: 0;
+        max-width: none;
+        transform: translateY(0);
+        clip-path: none;
+        border-left: none;
+        border-top: 2px solid var(--color-primary);
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+        padding-bottom: calc(30px + env(safe-area-inset-bottom)); /* Safe area for modern phones */
+    }
+
+    #system-panel {
+        z-index: 90;
+        height: auto;
+        min-height: 120px;
+        max-height: 35vh;
+    }
+
+    #planet-panel {
+        z-index: 100;
+        height: 50vh;
+        transform-origin: bottom center;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #planet-panel .panel-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 12px;
+    }
+
+    #system-panel.hidden, #planet-panel.hidden {
+        transform: translateY(110%) !important;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    /* Touch targets — keep reasonable but not oversized for game UI */
+    .action-btn {
+        min-height: 40px;
+        font-size: 14px;
+        padding: 8px 14px;
+    }
+
+    /* Creation screen buttons stay larger for usability */
+    .nav-btn, .option-btn {
+        min-height: 44px;
+        font-size: 14px;
+    }
+
+    .planet-grid {
+        grid-template-columns: 1fr; /* Single column for planet cards */
+    }
+    
+    .race-grid {
+        grid-template-columns: repeat(2, 1fr); /* Two columns for races */
+    }
+
+    .race-card {
+        min-height: 160px;
+    }
+
+    /* Creation Screen */
+    #creation-screen .creation-header {
+        display: none; /* Hide main header on mobile to save space */
+    }
+
+    .creation-content {
+        padding: 0; /* Remove padding from container to use full width */
+    }
+    
+    .step-view {
+        padding: 10px 15px 40px 15px !important; 
+    }
+
+    .creation-header-mini h2 {
+        font-size: 1.4em;
+        margin: 0 0 5px 0;
+        color: var(--color-primary);
+    }
+
+    .creation-header-mini p {
+        font-size: 0.9em;
+        margin: 0;
+        color: #aaa;
+    }
+
+    .step-indicator-container {
+        padding: 10px 0;
+        margin-bottom: 5px;
+    }
+
+    .step-footer {
+        padding: 10px 15px;
+        background: rgba(0,10,20,0.98);
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .race-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .society-grid-layout {
+        grid-template-columns: 1fr;
+        gap: 25px;
+    }
+    
+    .ethics-track input[type="range"] {
+        height: 20px;
+    }
+    
+    .ethics-row {
+        padding: 15px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 8px;
+    }
+    
+    .civics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .civic-card {
+        padding: 15px;
+        min-height: auto;
+    }
+    
+    .civic-icon {
+        font-size: 28px !important;
+        width: 50px !important;
+    }
+
+    .planet-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding-bottom: 20px;
+    }
+
+    .planet-card {
+        flex-direction: row;
+        min-height: 100px;
+        align-items: center;
+    }
+
+    .planet-card .planet-preview {
+        width: 100px;
+        height: 100px;
+        flex-shrink: 0;
+        border-bottom: none;
+        border-right: 1px solid rgba(0, 242, 255, 0.1);
+    }
+
+    .planet-card .planet-info {
+        padding: 10px;
+    }
+
+    .planet-card .planet-desc, .planet-card .planet-stats-row {
+        display: none; /* Simplify for mobile selection list */
+    }
+
+    .planet-card .planet-name {
+        font-size: 16px;
+    }
+
+    .race-card, .planet-card {
+        min-height: 0;
+    }
+
+    .race-info, .planet-info {
+        padding: 8px;
+    }
+
+    .race-name, .planet-name {
+        font-size: 13px;
+    }
+
+    /* Controls hint area — compact bottom-right stack */
+    #controls-hint {
+        bottom: 16px;
+        right: 12px;
+        gap: 6px;
+    }
+
+    /* Hide the left-click hint text entirely on mobile — not relevant for touch */
+    #hint-text {
+        display: none !important;
+    }
+
+    /* View toggle — compact */
+    #btn-view-toggle {
+        height: 34px;
+        padding: 0 14px;
+        font-size: 10px;
+        letter-spacing: 1px;
+        clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+    }
+
+    /* Empire hub button — mobile optimized */
+    #btn-empire-hub {
+        height: 34px;
+        padding: 0 12px 0 9px;
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        gap: 6px;
+        clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    }
+
+    #btn-empire-hub::before {
+        font-size: 14px;
+    }
+
+    .mobile-only {
+        display: flex;
+    }
+
+    #empire-panel {
+        z-index: 110;
+        height: auto !important;
+        max-height: 70vh !important;
+    }
+
+    .hub-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 5px;
+    }
+
+    .hub-item {
+        padding: 10px 5px;
+    }
+
+    .hub-icon {
+        font-size: 18px;
+    }
+
+    .hub-label {
+        font-size: 10px;
+    }
+
+    /* Colony View Adjustments */
+    .building-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 5px;
+    }
+
+    .build-option {
+        padding: 6px;
+    }
+
+    .build-title {
+        font-size: 12px;
+    }
+
+    .btn-build-action {
+        padding: 6px 4px;
+        font-size: 12px;
+        min-height: 36px;
+    }
+    
+    .building-slot {
+        padding: 2px;
+    }
+    
+    .building-icon {
+        font-size: 18px;
+    }
+    
+    .building-traits {
+        display: none;
+    }
+
+    /* Panel headers smaller on mobile */
+    .panel-header {
+        padding: 8px 12px;
+    }
+
+    .panel-header h2 {
+        font-size: 14px;
+        letter-spacing: 1px;
+    }
+
+    .panel-header button {
+        font-size: 11px;
+        padding: 4px 8px;
+        min-height: 28px;
+    }
+
+    /* Splash Screen Mobile Optimizations */
+    #splash-screen .splash-content {
+        width: 100%;
+        height: 100%;
+        padding: 20px;
+        box-sizing: border-box;
+        gap: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 2010;
+    }
+
+    #splash-screen .game-logo {
+        font-size: 12vw;
+        letter-spacing: 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        line-height: 0.9;
+        margin-bottom: 20px;
+        text-shadow: 0 0 20px rgba(0, 242, 255, 0.5);
+        flex-shrink: 0;
+    }
+    
+    #splash-screen .logo-accent {
+        font-size: 13vw;
+        margin-top: 5px;
+        display: block;
+    }
+
+    #splash-screen .game-tagline {
+        font-size: 1rem;
+        letter-spacing: 2px;
+        margin-top: 10px;
+        margin-bottom: 40px;
+        opacity: 0.9;
+        text-align: center;
+        flex-shrink: 0;
+    }
+
+    #splash-screen .splash-menu {
+        width: 85%;
+        max-width: 340px;
+        gap: 12px;
+        padding: 25px 20px;
+        background: rgba(5, 12, 18, 0.85);
+        border: 1px solid rgba(0, 242, 255, 0.2);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border-radius: 12px;
+        flex-shrink: 0;
+    }
+
+    #splash-screen .menu-btn {
+        padding: 14px 20px !important;
+        font-size: 16px !important;
+        width: 100%;
+        background: rgba(20, 30, 40, 0.8) !important;
+        backdrop-filter: blur(8px);
+        margin: 0;
+        border-radius: 4px;
+    }
+    
+    #splash-screen .splash-footer {
+        padding-bottom: 20px;
+        opacity: 0.6;
+    }
+
+    #notifications {
+        top: auto;
+        bottom: 70%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        right: auto;
+    }
+
+    #joystick-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        /* Covers the left 42% of screen - matches JOYSTICK_ZONE_WIDTH_RATIO */
+        width: 42vw;
+        height: 42vw;
+        max-width: 200px;
+        max-height: 200px;
+        z-index: 1000;
+        pointer-events: auto;
+        display: none;
+        /* Visual hint for the joystick zone */
+        background: radial-gradient(circle at center, rgba(0,242,255,0.04) 0%, transparent 70%);
+        border-right: 1px solid rgba(0,242,255,0.08);
+        border-top: 1px solid rgba(0,242,255,0.08);
+        border-radius: 0 16px 0 0;
+    }
+
+    #joystick-container.visible {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Right-side camera drag zone hint */
+    #exploration-look-zone {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 58vw;
+        height: 42vw;
+        max-height: 200px;
+        z-index: 999;
+        pointer-events: none;
+        display: none;
+        align-items: flex-end;
+        justify-content: flex-end;
+        padding: 12px;
+        box-sizing: border-box;
+    }
+
+    #exploration-look-zone.visible {
+        display: flex;
+    }
+
+    #exploration-look-zone::before {
+        content: '👁 Look';
+        font-size: 11px;
+        color: rgba(255,255,255,0.2);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-family: 'Rajdhani', sans-serif;
+    }
+}
+
+/* ── EXTRA SMALL PHONES (≤390px — iPhone SE, small Androids) ─────────────── */
+@media (max-width: 390px) {
+    #top-bar {
+        height: 44px;
+        padding: 0 6px;
+        gap: 3px;
+    }
+
+    .resource-pill {
+        height: 28px;
+        padding: 0 5px;
+        gap: 3px;
+    }
+
+    .res-icon {
+        font-size: 11px;
+    }
+
+    .res-value {
+        font-size: 11px;
+    }
+
+    .res-rate {
+        font-size: 8px;
+    }
+
+    .date-display {
+        height: 28px;
+        padding: 0 6px;
+    }
+
+    .date-value {
+        font-size: 11px;
+        letter-spacing: 0.5px;
+    }
+
+    .hdr-btn {
+        width: 28px;
+        height: 28px;
+    }
+
+    .hdr-btn-icon {
+        font-size: 12px;
+    }
+
+    .hdr-btn-icon-only {
+        width: 28px;
+    }
+
+    #planet-panel {
+        height: 55vh;
+    }
+
+    #system-panel {
+        max-height: 30vh;
+    }
+}

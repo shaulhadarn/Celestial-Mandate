@@ -1,0 +1,319 @@
+/* Created: Fleets panel styles - shipyard build queues, race ship cards, active fleet display */
+
+/* ── Section layout ──────────────────────────────────────────────────────────── */
+.fleets-section {
+    margin-bottom: 28px;
+}
+
+.fleets-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #00c8ff;
+    border-bottom: 1px solid rgba(0, 200, 255, 0.2);
+    padding-bottom: 8px;
+    margin: 0 0 16px 0;
+}
+
+.fleets-empty {
+    color: #556677;
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+    border: 1px dashed rgba(0,200,255,0.15);
+    border-radius: 6px;
+}
+
+/* ── Shipyard Card ───────────────────────────────────────────────────────────── */
+.fleet-shipyard-card {
+    background: rgba(0, 20, 40, 0.6);
+    border: 1px solid rgba(0, 200, 255, 0.2);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 16px;
+}
+
+.fleet-yard-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.fleet-yard-icon {
+    font-size: 22px;
+}
+
+.fleet-yard-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e0f4ff;
+}
+
+.fleet-yard-system {
+    font-size: 11px;
+    color: #557799;
+    letter-spacing: 1px;
+}
+
+/* ── Build Queue ─────────────────────────────────────────────────────────────── */
+.fleet-queue {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 170, 0, 0.2);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 12px;
+}
+
+.fleet-queue-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #ffaa00;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.fleet-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.fleet-queue-item:last-child {
+    border-bottom: none;
+}
+
+.fq-icon {
+    font-size: 18px;
+    min-width: 24px;
+    text-align: center;
+}
+
+.fq-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.fq-name {
+    font-size: 12px;
+    color: #cce8ff;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fq-bar-wrap {
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.fq-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ffaa00, #ffdd44);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.fq-pct {
+    font-size: 11px;
+    color: #ffaa00;
+    min-width: 32px;
+    text-align: right;
+}
+
+.fq-cancel {
+    background: none;
+    border: 1px solid rgba(255, 60, 60, 0.4);
+    color: #ff6666;
+    border-radius: 4px;
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.fq-cancel:hover {
+    background: rgba(255, 60, 60, 0.2);
+    border-color: #ff4444;
+}
+
+/* ── Ship Build Options ──────────────────────────────────────────────────────── */
+.fleet-build-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #00c8ff;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.fleet-build-opts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fleet-ship-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 30, 60, 0.5);
+    border: 1px solid rgba(0, 200, 255, 0.15);
+    border-radius: 6px;
+    padding: 10px 12px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.fleet-ship-card:hover:not(.fleet-ship-disabled) {
+    border-color: rgba(0, 200, 255, 0.5);
+    background: rgba(0, 40, 80, 0.6);
+}
+
+.fleet-ship-disabled {
+    opacity: 0.45;
+}
+
+.fsc-icon {
+    font-size: 26px;
+    min-width: 32px;
+    text-align: center;
+}
+
+.fsc-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.fsc-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e0f4ff;
+    margin-bottom: 2px;
+}
+
+.fsc-desc {
+    font-size: 11px;
+    color: #557799;
+    margin-bottom: 5px;
+}
+
+.fsc-stats {
+    display: flex;
+    gap: 10px;
+    font-size: 11px;
+    flex-wrap: wrap;
+}
+
+.fsc-power {
+    color: #ff8844;
+}
+
+.fsc-cost {
+    color: #88ccff;
+}
+
+.fsc-time {
+    color: #aaaaaa;
+}
+
+.fsc-build-btn {
+    background: linear-gradient(135deg, rgba(0,200,255,0.15), rgba(0,100,200,0.2));
+    border: 1px solid rgba(0, 200, 255, 0.4);
+    color: #00c8ff;
+    border-radius: 5px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s, transform 0.1s;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+.fsc-build-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(0,200,255,0.3), rgba(0,100,200,0.4));
+    border-color: #00c8ff;
+    transform: translateY(-1px);
+}
+
+.fsc-build-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* ── Active Fleet Groups ─────────────────────────────────────────────────────── */
+.fleet-group {
+    background: rgba(0, 15, 35, 0.6);
+    border: 1px solid rgba(0, 200, 255, 0.15);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.fleet-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(0, 200, 255, 0.06);
+    border-bottom: 1px solid rgba(0, 200, 255, 0.1);
+}
+
+.fleet-group-sys {
+    font-size: 13px;
+    font-weight: 700;
+    color: #cce8ff;
+}
+
+.fleet-group-power {
+    font-size: 12px;
+    color: #ff8844;
+    font-weight: 600;
+}
+
+.fleet-group-ships {
+    padding: 8px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fleet-ship-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.fleet-ship-row:last-child {
+    border-bottom: none;
+}
+
+.fsr-icon {
+    font-size: 16px;
+    min-width: 22px;
+    text-align: center;
+}
+
+.fsr-name {
+    flex: 1;
+    font-size: 12px;
+    color: #aaccdd;
+}
+
+.fsr-power {
+    font-size: 11px;
+    color: #ff8844;
+}
