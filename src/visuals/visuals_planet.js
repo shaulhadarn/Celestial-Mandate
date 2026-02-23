@@ -1,4 +1,4 @@
-/* Updated: Mobile optimized - no shadow casting on mobile (sunLight + SpotLight), 60 particles vs 200, sunLight follows drone every frame */
+/* Updated: Fixed dark terrain - added fill DirectionalLight + AmbientLight floor, boosted hemisphere intensity so terrain is never pitch black */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState, events } from '../core/state.js';
@@ -232,7 +232,7 @@ export function createPlanetVisuals(planetData, group) {
 
     // 8. Lights
     const sunColor = isDark ? 0xffbb88 : 0xffffff;
-    sunLight = new THREE.DirectionalLight(sunColor, 2.5);
+    sunLight = new THREE.DirectionalLight(sunColor, isDark ? 2.0 : 2.8);
     sunLight.position.set(100, 200, 100);
     // Mobile: castShadow=false — shadow map is the #1 GPU cost in exploration view
     sunLight.castShadow = !isMobileDevice;
@@ -248,9 +248,20 @@ export function createPlanetVisuals(planetData, group) {
     }
     group.add(sunLight);
     group.add(sunLight.target);
-    
-    // Softer ambient/hemisphere light to contrast with the bright sun
-    const hemiIntensity = isDark ? 0.3 : 0.7; // Darker planets have darker shadows
+
+    // Fill light from opposite side — prevents pitch-black terrain on shadowed faces
+    const fillLight = new THREE.DirectionalLight(isDark ? 0x334466 : 0x8899bb, isDark ? 0.8 : 0.5);
+    fillLight.position.set(-80, 60, -80);
+    fillLight.castShadow = false;
+    group.add(fillLight);
+
+    // Ambient floor — guarantees minimum visibility everywhere regardless of surface angle
+    const ambientColor = isDark ? 0x223344 : 0x445566;
+    const ambientIntensity = isDark ? 1.2 : 0.9;
+    group.add(new THREE.AmbientLight(ambientColor, ambientIntensity));
+
+    // Hemisphere light — sky/ground gradient for natural outdoor look
+    const hemiIntensity = isDark ? 0.8 : 1.2;
     group.add(new THREE.HemisphereLight(skyColor, getGroundColor(planetData.type), hemiIntensity));
 
     return playerMesh;

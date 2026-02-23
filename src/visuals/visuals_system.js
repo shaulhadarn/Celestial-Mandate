@@ -1,4 +1,4 @@
-/* Updated: Fixed band.rotation->band.material.rotation (Sprite rotation is read-only); removed vertexColors:true from both ShaderMaterials (conflicted with manual attribute vec3 color) */
+/* Updated: Fixed nebula/band sprites being clipped at viewport edges - centered all X/Y offsets within ±80 units, pushed Z to -530/-600 range, reduced band scale from 1400->900 */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
@@ -438,32 +438,33 @@ function createSystemBackground(group) {
         blending: THREE.AdditiveBlending, depthWrite: false
     });
     const band = new THREE.Sprite(bandMat);
-    band.position.set(0, 0, -480);
-    band.scale.set(1400, 320, 1);
+    band.position.set(0, 0, -600);
+    band.scale.set(900, 220, 1);
     band.material.rotation = 0.35;
     group.add(band);
 
     // Second band at a slight angle for depth
     const bandMat2 = new THREE.SpriteMaterial({
-        map: bandTex, transparent: true, opacity: 0.25,
+        map: bandTex, transparent: true, opacity: 0.20,
         blending: THREE.AdditiveBlending, depthWrite: false
     });
     const band2 = new THREE.Sprite(bandMat2);
-    band2.position.set(60, 80, -460);
-    band2.scale.set(1100, 200, 1);
+    band2.position.set(0, 30, -580);
+    band2.scale.set(700, 150, 1);
+    band2.material.rotation = -0.2;
     group.add(band2);
 
     // ── 3. Rich layered nebulae ───────────────────────────────────────────────
     const nebulaDefs = [
-        // [r, g, b, x, y, z, scale, opacity]
-        [  30,  60, 160,  200, 120, -400, 420, 0.22 ],  // deep blue
-        [ 120,  20, 180, -180,  80, -380, 380, 0.20 ],  // purple
-        [  20, 120,  80,  -60,-160, -420, 340, 0.18 ],  // teal green
-        [ 180,  40,  20,  160,-100, -390, 300, 0.16 ],  // red-orange
-        [  60,  30, 140, -220,-120, -410, 360, 0.14 ],  // indigo
-        [  20,  80, 160,  100, 200, -430, 280, 0.17 ],  // cyan
-        [ 140,  80,  20, -100, 180, -400, 320, 0.13 ],  // amber
-        [  80, 160,  60,  240, -60, -370, 260, 0.12 ],  // lime
+        // [r, g, b, x, y, z, scale, opacity]  — X/Y kept within ±80 so sprites never clip at any viewport size
+        [  30,  60, 160,   60,  40, -560, 480, 0.22 ],  // deep blue
+        [ 120,  20, 180,  -50,  30, -540, 440, 0.20 ],  // purple
+        [  20, 120,  80,  -20, -50, -580, 400, 0.18 ],  // teal green
+        [ 180,  40,  20,   50, -35, -550, 360, 0.16 ],  // red-orange
+        [  60,  30, 140,  -70, -40, -570, 420, 0.14 ],  // indigo
+        [  20,  80, 160,   30,  70, -590, 340, 0.17 ],  // cyan
+        [ 140,  80,  20,  -40,  60, -560, 380, 0.13 ],  // amber
+        [  80, 160,  60,   70, -20, -530, 320, 0.12 ],  // lime
     ];
 
     nebulaDefs.forEach(([r, g, b, x, y, z, scale, opacity]) => {
@@ -480,11 +481,11 @@ function createSystemBackground(group) {
 
     // ── 4. Accent nebula wisps (smaller, brighter) ───────────────────────────
     const wispDefs = [
-        [  80, 140, 255,  280,  60, -350, 160, 0.28 ],
-        [ 255,  80, 120, -260, -80, -360, 140, 0.24 ],
-        [  80, 255, 200,  -40, 260, -340, 130, 0.22 ],
-        [ 255, 180,  60,  180,-220, -355, 120, 0.20 ],
-        [ 160,  80, 255, -200, 200, -345, 150, 0.22 ],
+        [  80, 140, 255,   80,  20, -500, 200, 0.26 ],
+        [ 255,  80, 120,  -70, -30, -510, 180, 0.22 ],
+        [  80, 255, 200,  -15,  75, -490, 170, 0.20 ],
+        [ 255, 180,  60,   55, -65, -505, 160, 0.18 ],
+        [ 160,  80, 255,  -60,  50, -495, 190, 0.20 ],
     ];
 
     wispDefs.forEach(([r, g, b, x, y, z, scale, opacity]) => {
