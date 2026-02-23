@@ -1,4 +1,4 @@
-/* Updated: Clamped cameraPitch min to 0.05 (horizon) so camera can never look below ground in exploration mode */
+/* Updated: Fixed mobile dpad+camera drag — second finger on camera zone while dpad is held now drags view instead of triggering pinch zoom */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState, events } from '../core/state.js';
@@ -79,11 +79,28 @@ function initExplorationMouseControls() {
         if (gameState.viewMode !== 'EXPLORATION') return;
 
         if (e.touches.length === 2) {
-            // Two fingers = pinch zoom, cancel any single-touch drag
+            const t0 = e.touches[0];
+            const t1 = e.touches[1];
+            const t0InJoystick = isInJoystickZone(t0.clientX);
+            const t1InJoystick = isInJoystickZone(t1.clientX);
+
+            if (t0InJoystick !== t1InJoystick) {
+                // One finger on dpad, other on camera zone — start camera drag (not pinch)
+                const camTouch = t0InJoystick ? t1 : t0;
+                isMouseDown = true;
+                cameraDragTouchId = camTouch.identifier;
+                lastMouseX = camTouch.clientX;
+                lastMouseY = camTouch.clientY;
+                isPinching = false;
+                e.preventDefault();
+                return;
+            }
+
+            // Both fingers outside joystick = pinch zoom
             isPinching = true;
             isMouseDown = false;
             cameraDragTouchId = null;
-            pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
+            pinchStartDist = getTouchDistance(t0, t1);
             e.preventDefault();
             return;
         }
