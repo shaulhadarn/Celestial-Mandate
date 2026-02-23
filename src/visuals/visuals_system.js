@@ -160,8 +160,8 @@ export function createSystemVisuals(system, group) {
         group.add(glow);
     }
 
-    // Light — reduced on mobile to prevent bloom/light-ray artifacts
-    _sunPointLight = new THREE.PointLight(system.color, isMobileDevice ? 20 : 80, isMobileDevice ? 80 : 60);
+    // Light — reduced intensity to avoid washing out planets
+    _sunPointLight = new THREE.PointLight(system.color, isMobileDevice ? 15 : 40, isMobileDevice ? 80 : 80);
     group.add(_sunPointLight);
 
     // Ambient light — higher on mobile since we lose specular highlights
@@ -384,7 +384,7 @@ export function updateSystemAnimations(time) {
     });
 
     if (_sunPointLight) {
-        _sunPointLight.intensity = (isMobileDevice ? 20 : 80) * (1.0 + 0.08 * Math.sin(time * 1.7));
+        _sunPointLight.intensity = (isMobileDevice ? 15 : 40) * (1.0 + 0.08 * Math.sin(time * 1.7));
     }
 
     // ── Animate planets ───────────────────────────────────────────────────────
