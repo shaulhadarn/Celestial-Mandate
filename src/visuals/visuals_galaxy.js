@@ -1,4 +1,4 @@
-/* Updated: Mobile optimized - 16-seg planet spheres on mobile, MeshBasicMaterial colony aura on mobile (no ShaderMaterial), reduced orbit ring segments */
+/* Updated: Fixed galaxy blank - removed vertexColors:true from starfield ShaderMaterial (conflicted with manual 'attribute vec3 color' declaration causing shader compile failure on all 100 systems) */
 import * as THREE from "three";
 import { textures } from "../core/assets.js";
 import { gameState } from "../core/state.js";
@@ -528,7 +528,6 @@ function createAtmosphere(group) {
     transparent: true,
     depthWrite:  false,
     blending:    THREE.AdditiveBlending,
-    vertexColors: true,
   });
 
   const starPoints = new THREE.Points(starGeo, starMat);

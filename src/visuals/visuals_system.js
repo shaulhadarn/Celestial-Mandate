@@ -1,4 +1,4 @@
-/* Updated: Desktop planets upgraded to MeshPhysicalMaterial with per-type clearcoat/roughness, 64-segment geometry, inner atmosphere rim layer */
+/* Updated: Fixed band.rotation->band.material.rotation (Sprite rotation is read-only); removed vertexColors:true from both ShaderMaterials (conflicted with manual attribute vec3 color) */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
@@ -425,7 +425,6 @@ function createSystemBackground(group) {
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
-        vertexColors: true,
     });
 
     group.add(new THREE.Points(starGeo, starMat));
@@ -441,7 +440,7 @@ function createSystemBackground(group) {
     const band = new THREE.Sprite(bandMat);
     band.position.set(0, 0, -480);
     band.scale.set(1400, 320, 1);
-    band.rotation = 0.35;
+    band.material.rotation = 0.35;
     group.add(band);
 
     // Second band at a slight angle for depth
@@ -555,7 +554,6 @@ function createSystemBackground(group) {
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
-        vertexColors: true,
     });
 
     group.add(new THREE.Points(clusterGeo, clusterMat));
