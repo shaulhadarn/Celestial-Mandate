@@ -78,28 +78,34 @@ function initExplorationMouseControls() {
     const onTouchStart = (e) => {
         if (gameState.viewMode !== 'EXPLORATION') return;
 
-        if (e.touches.length === 2) {
+        if (e.touches.length >= 2) {
             const t0 = e.touches[0];
             const t1 = e.touches[1];
             const t0InJoystick = isInJoystickZone(t0.clientX);
             const t1InJoystick = isInJoystickZone(t1.clientX);
 
-            if (t0InJoystick !== t1InJoystick) {
-                // One finger on dpad, other on camera zone — start camera drag (not pinch)
-                const camTouch = t0InJoystick ? t1 : t0;
-                isMouseDown = true;
-                cameraDragTouchId = camTouch.identifier;
-                lastMouseX = camTouch.clientX;
-                lastMouseY = camTouch.clientY;
-                isPinching = false;
+            if (t0InJoystick && t1InJoystick) {
+                // Both in joystick zone — ignore, let nipplejs handle
                 e.preventDefault();
                 return;
             }
 
-            // Both fingers outside joystick = pinch zoom
-            isPinching = true;
+            if (t0InJoystick !== t1InJoystick) {
+                // One finger on dpad, other on camera zone — start camera drag (not pinch)
+                const camTouch = t0InJoystick ? t1 : t0;
+                isPinching = false;
+                isMouseDown = true;
+                cameraDragTouchId = camTouch.identifier;
+                lastMouseX = camTouch.clientX;
+                lastMouseY = camTouch.clientY;
+                e.preventDefault();
+                return;
+            }
+
+            // Both fingers outside joystick = pinch zoom — cancel any active camera drag
             isMouseDown = false;
             cameraDragTouchId = null;
+            isPinching = true;
             pinchStartDist = getTouchDistance(t0, t1);
             e.preventDefault();
             return;

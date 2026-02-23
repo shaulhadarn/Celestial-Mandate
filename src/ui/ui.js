@@ -128,6 +128,8 @@ export function initUI() {
             document.getElementById('system-panel').classList.add('hidden');
             document.getElementById('btn-view-toggle').classList.add('hidden');
             document.getElementById('btn-empire-hub').classList.add('hidden');
+            const mdb = document.getElementById('mobile-date-badge');
+            if (mdb) mdb.style.display = 'none';
             
             enterPlanetView(planet);
             showNotification(`Landed on ${planet.name}`, 'success');
@@ -328,12 +330,20 @@ function returnToSystemViewFromPlanet() {
     document.getElementById('exploration-controls').classList.add('hidden');
     document.getElementById('hint-text').classList.remove('hidden');
     document.getElementById('btn-view-toggle').classList.remove('hidden');
-    document.getElementById('btn-empire-hub').classList.add('hidden'); 
+    document.getElementById('btn-empire-hub').classList.add('hidden');
+    const mdb = document.getElementById('mobile-date-badge');
+    if (mdb) mdb.style.display = '';
 
     // Fully restore OrbitControls to pre-landing state (flushes internal spherical/delta)
     restoreControlsAfterPlanet();
     
     updateSelectionPanel();
+
+    // On mobile, close system/planet panels so user returns to a clean system view
+    if (window.innerWidth <= 768) {
+        document.getElementById('system-panel').classList.add('hidden');
+        document.getElementById('planet-panel').classList.add('hidden');
+    }
 }
 
 // removed function updateSelectionPanel() {} (moved to ui_selection.js)
