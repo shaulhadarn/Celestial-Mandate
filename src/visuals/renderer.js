@@ -1,4 +1,4 @@
-/* Updated: Boosted system view OrbitControls speeds for snappier mobile drag/pan */
+/* Updated: Fixed mobile tap-through — UI taps no longer trigger 3D raycasts (diplomacy button fix) */
 import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
 import { loadAssets, playSound } from '../core/assets.js';
@@ -21,10 +21,15 @@ export async function init() {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mousedown', onPointerDown);
     window.addEventListener('mouseup', onPointerUp);
-    // Touch support mapping
+    // Touch support mapping — pass original event so handleTap can check event.target
     window.addEventListener('touchmove', (e) => onMouseMove(e.touches[0]));
     window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0]));
-    window.addEventListener('touchend', (e) => onPointerUp(e.changedTouches[0]));
+    window.addEventListener('touchend', (e) => {
+        const t = e.changedTouches[0];
+        // Attach the real DOM target from the TouchEvent so handleTap can filter UI taps
+        const synth = { clientX: t.clientX, clientY: t.clientY, target: e.target };
+        onPointerUp(synth);
+    });
 
     window.addEventListener('keydown', (e) => handleInput(e.key, true));
     window.addEventListener('keyup', (e) => handleInput(e.key, false));
@@ -77,6 +82,10 @@ function handleTap(event) {
     
     // Safety guard: Ensure raycaster, mouse, and camera are ready
     if (!raycaster || !mouse || !camera) return;
+
+    // Ignore taps on UI elements — prevents buttons from triggering 3D raycasts
+    const target = event.target || event.srcElement;
+    if (target && target.closest && target.closest('#ui-layer')) return;
 
     // Update mouse coordinates for raycaster exactly at tap location
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;

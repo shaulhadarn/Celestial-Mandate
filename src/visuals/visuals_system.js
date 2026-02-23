@@ -1,4 +1,4 @@
-/* Updated: Upgraded sun rendering - animated plasma ShaderMaterial, multi-layer corona, solar flare spikes, pulsing glow animation */
+/* Updated: Sun plasma shader now used on ALL devices (mobile included) — only 1 sun in system view, no perf concern */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
@@ -38,70 +38,68 @@ export function createSystemVisuals(system, group) {
     const sunColor = new THREE.Color(system.color);
     const sunR = sunColor.r, sunG = sunColor.g, sunB = sunColor.b;
 
-    // Animated plasma shader surface
+    // Animated plasma shader surface — used on ALL devices (only 1 sun, no perf concern)
     const starGeo = new THREE.SphereGeometry(5, isMobileDevice ? 32 : 64, isMobileDevice ? 32 : 64);
-    const starMat = isMobileDevice
-        ? new THREE.MeshBasicMaterial({ color: system.color })
-        : new THREE.ShaderMaterial({
-            uniforms: {
-                time:     { value: 0 },
-                sunColor: { value: new THREE.Vector3(sunR, sunG, sunB) },
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                varying vec3 vNormal;
-                void main() {
-                    vUv = uv;
-                    vNormal = normalize(normalMatrix * normal);
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform float time;
-                uniform vec3 sunColor;
-                varying vec2 vUv;
-                varying vec3 vNormal;
+    const starMat = new THREE.ShaderMaterial({
+        uniforms: {
+            time:     { value: 0 },
+            sunColor: { value: new THREE.Vector3(sunR, sunG, sunB) },
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            varying vec3 vNormal;
+            void main() {
+                vUv = uv;
+                vNormal = normalize(normalMatrix * normal);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform float time;
+            uniform vec3 sunColor;
+            varying vec2 vUv;
+            varying vec3 vNormal;
 
-                float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-                float noise(vec2 p) {
-                    vec2 i = floor(p); vec2 f = fract(p);
-                    vec2 u = f * f * (3.0 - 2.0 * f);
-                    return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
-                               mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
-                }
-                float fbm(vec2 p) {
-                    float v = 0.0; float a = 0.5;
-                    for(int i=0; i<5; i++) { v += a*noise(p); p *= 2.1; a *= 0.5; }
-                    return v;
-                }
+            float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+            float noise(vec2 p) {
+                vec2 i = floor(p); vec2 f = fract(p);
+                vec2 u = f * f * (3.0 - 2.0 * f);
+                return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
+                           mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
+            }
+            float fbm(vec2 p) {
+                float v = 0.0; float a = 0.5;
+                for(int i=0; i<5; i++) { v += a*noise(p); p *= 2.1; a *= 0.5; }
+                return v;
+            }
 
-                void main() {
-                    vec2 uv = vUv * 4.0;
-                    float n = fbm(uv + time * 0.18);
-                    float n2 = fbm(uv * 1.6 - time * 0.12 + 3.7);
-                    float plasma = n * 0.6 + n2 * 0.4;
+            void main() {
+                vec2 uv = vUv * 4.0;
+                float n = fbm(uv + time * 0.18);
+                float n2 = fbm(uv * 1.6 - time * 0.12 + 3.7);
+                float plasma = n * 0.6 + n2 * 0.4;
 
-                    // Limb darkening
-                    float limb = dot(vNormal, vec3(0.0, 0.0, 1.0));
-                    limb = pow(max(limb, 0.0), 0.4);
+                // Limb darkening
+                float limb = dot(vNormal, vec3(0.0, 0.0, 1.0));
+                limb = pow(max(limb, 0.0), 0.4);
 
-                    // Hot core color
-                    vec3 hotColor  = min(sunColor * 1.8 + 0.4, vec3(1.0));
-                    vec3 coolColor = sunColor * 0.55;
-                    vec3 col = mix(coolColor, hotColor, plasma);
-                    col *= (0.7 + 0.3 * limb);
+                // Hot core color
+                vec3 hotColor  = min(sunColor * 1.8 + 0.4, vec3(1.0));
+                vec3 coolColor = sunColor * 0.55;
+                vec3 col = mix(coolColor, hotColor, plasma);
+                col *= (0.7 + 0.3 * limb);
 
-                    // Bright sunspot flecks
-                    float spot = step(0.72, fbm(uv * 2.5 + time * 0.05));
-                    col = mix(col, sunColor * 0.25, spot * 0.5);
+                // Bright sunspot flecks
+                float spot = step(0.72, fbm(uv * 2.5 + time * 0.05));
+                col = mix(col, sunColor * 0.25, spot * 0.5);
 
-                    gl_FragColor = vec4(col, 1.0);
-                }
-            `,
-            side: THREE.FrontSide,
-        });
+                gl_FragColor = vec4(col, 1.0);
+            }
+        `,
+        side: THREE.FrontSide,
+    });
 
-    _sunShaderMat = isMobileDevice ? null : starMat;
+    _sunShaderMat = starMat;
     const star = new THREE.Mesh(starGeo, starMat);
     group.add(star);
 
