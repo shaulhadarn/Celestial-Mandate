@@ -122,17 +122,23 @@
 
 /* Only the scrollable content area animates on step change */
 .step-content-enter {
-    animation: stepContentIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: stepContentIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes stepContentIn {
-    from {
+    0% {
         opacity: 0;
-        transform: translateY(18px);
+        transform: scale(0.97);
+        filter: blur(6px);
     }
-    to {
+    60% {
         opacity: 1;
-        transform: translateY(0);
+        filter: blur(0px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: blur(0px);
     }
 }
 

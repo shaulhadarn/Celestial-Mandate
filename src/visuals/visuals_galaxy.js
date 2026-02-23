@@ -1,4 +1,4 @@
-/* Updated: Fixed galaxy blank - removed vertexColors:true from starfield ShaderMaterial (conflicted with manual 'attribute vec3 color' declaration causing shader compile failure on all 100 systems) */
+/* Updated: Galaxy stars now use animated plasma shader matching single-system sun visuals */
 import * as THREE from "three";
 import { textures } from "../core/assets.js";
 import { gameState } from "../core/state.js";
@@ -10,6 +10,7 @@ export let galaxyPlanetMeshes = [];
 export let colonyRings = [];
 export let visibleStarMeshes = [];
 let starGlows = [];
+let starShaderMats = [];
 let atmosphereGroup = null;
 
 export function createGalaxyVisuals(systems, hyperlanes, group) {
@@ -20,6 +21,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   colonyRings.length = 0;
   visibleStarMeshes.length = 0;
   starGlows = [];
+  starShaderMats = [];
 
   // 0. Atmosphere (Distant stars and Nebulae)
   createAtmosphere(group);
@@ -88,13 +90,65 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     group.add(hitMesh);
     starMeshes.push(hitMesh);
 
-    // 2. Visible Star Sphere (Detailed texture)
-    const tex = createStarTexture(sys.color);
-    const starGeo = new THREE.SphereGeometry(2.0, 32, 32); // Reduced from 2.8
-    const starMat = new THREE.MeshBasicMaterial({
-      map: tex,
-      color: 0xffffff,
-    });
+    // 2. Visible Star Sphere — animated plasma shader (desktop) or canvas texture (mobile)
+    const starGeo = new THREE.SphereGeometry(2.0, isMobileDevice ? 16 : 32, isMobileDevice ? 16 : 32);
+    let starMat;
+    if (isMobileDevice) {
+      const tex = createStarTexture(sys.color);
+      starMat = new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff });
+    } else {
+      const sc = new THREE.Color(sys.color);
+      starMat = new THREE.ShaderMaterial({
+        uniforms: {
+          time:     { value: Math.random() * 100 },
+          sunColor: { value: new THREE.Vector3(sc.r, sc.g, sc.b) },
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          varying vec3 vNormal;
+          void main() {
+            vUv = uv;
+            vNormal = normalize(normalMatrix * normal);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform float time;
+          uniform vec3 sunColor;
+          varying vec2 vUv;
+          varying vec3 vNormal;
+          float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float noise(vec2 p) {
+            vec2 i = floor(p); vec2 f = fract(p);
+            vec2 u = f * f * (3.0 - 2.0 * f);
+            return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
+                       mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
+          }
+          float fbm(vec2 p) {
+            float v = 0.0; float a = 0.5;
+            for(int i=0; i<5; i++) { v += a*noise(p); p *= 2.1; a *= 0.5; }
+            return v;
+          }
+          void main() {
+            vec2 uv = vUv * 4.0;
+            float n = fbm(uv + time * 0.18);
+            float n2 = fbm(uv * 1.6 - time * 0.12 + 3.7);
+            float plasma = n * 0.6 + n2 * 0.4;
+            float limb = dot(vNormal, vec3(0.0, 0.0, 1.0));
+            limb = pow(max(limb, 0.0), 0.4);
+            vec3 hotColor  = min(sunColor * 1.8 + 0.4, vec3(1.0));
+            vec3 coolColor = sunColor * 0.55;
+            vec3 col = mix(coolColor, hotColor, plasma);
+            col *= (0.7 + 0.3 * limb);
+            float spot = step(0.72, fbm(uv * 2.5 + time * 0.05));
+            col = mix(col, sunColor * 0.25, spot * 0.5);
+            gl_FragColor = vec4(col, 1.0);
+          }
+        `,
+        side: THREE.FrontSide,
+      });
+      starShaderMats.push(starMat);
+    }
     const starMesh = new THREE.Mesh(starGeo, starMat);
     starMesh.position.copy(sys.position);
     starMesh.rotation.y = Math.random() * Math.PI;
@@ -105,15 +159,20 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     visibleStarMeshes.push(starMesh);
 
     // Corona / Atmosphere layer
-    const coronaGeo = new THREE.SphereGeometry(2.4, 32, 32); // Increased from 2.2
-    const coronaMat = new THREE.MeshBasicMaterial({
-      map: tex,
+    const coronaGeo = new THREE.SphereGeometry(2.4, 32, 32);
+    const coronaOpts = {
       transparent: true,
       opacity: 0.2,
       side: THREE.BackSide,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-    });
+    };
+    if (isMobileDevice) {
+      coronaOpts.map = createStarTexture(sys.color);
+    } else {
+      coronaOpts.color = sys.color;
+    }
+    const coronaMat = new THREE.MeshBasicMaterial(coronaOpts);
     const coronaMesh = new THREE.Mesh(coronaGeo, coronaMat);
     coronaMesh.scale.set(-1.05, 1.05, 1.05);
     starMesh.add(coronaMesh);
@@ -397,6 +456,11 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
 export function updateGalaxyAnimations(time, group) {
   if (group) group.rotation.y = time * 0.01;
+
+  // Animate star plasma shaders (desktop only)
+  starShaderMats.forEach((mat) => {
+    mat.uniforms.time.value = time;
+  });
 
   // Rotate Stars
   visibleStarMeshes.forEach((mesh) => {
