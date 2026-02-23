@@ -1,8 +1,62 @@
-/* Created: Fleets panel - shows all built ships, shipyard build queues, and race-specific ship construction */
+/* Updated: SVG ship icons — replaced emoji with unique SVG silhouettes per ship id */
 import { gameState, RACE_SHIPS, buildShip, cancelShipBuild, events } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
+import { getShipSvg } from './ship_icons.js';
+
+function openShipModal(ship) {
+    const modal   = document.getElementById('ship-detail-modal');
+    const accent  = ship.accentColor || '#00c8ff';
+
+    const iconEl = document.getElementById('ship-modal-icon');
+    iconEl.innerHTML = getShipSvg(ship.id);
+    iconEl.style.color = accent;
+    document.getElementById('ship-modal-name').textContent  = ship.name;
+    document.getElementById('ship-modal-class').textContent = ship.shipClass || '';
+    document.getElementById('ship-modal-class').style.color = accent;
+
+    const header = document.getElementById('ship-modal-header');
+    header.style.borderBottom = `1px solid ${accent}44`;
+    header.style.background   = `linear-gradient(90deg, ${accent}18 0%, transparent 100%)`;
+
+    document.getElementById('ship-modal-stats').innerHTML = [
+        { label: 'Length',    value: ship.length   || '—' },
+        { label: 'Crew',      value: ship.crew === 0 ? 'Unmanned' : (ship.crew || '—') },
+        { label: 'Power',     value: `⚔ ${ship.power}` },
+        { label: 'Minerals',  value: `💎 ${ship.cost.minerals}` },
+        { label: 'Energy',    value: `⚡ ${ship.cost.energy}` },
+        { label: 'Build Time',value: `⏱ ${ship.buildTime}s` },
+    ].map(s => `
+        <div class="ship-stat-cell">
+            <div class="ship-stat-label">${s.label}</div>
+            <div class="ship-stat-value" style="color:${accent}">${s.value}</div>
+        </div>
+    `).join('');
+
+    document.getElementById('ship-modal-weapons').textContent = ship.weapons || '—';
+    document.getElementById('ship-modal-special').textContent = ship.special || '—';
+    document.getElementById('ship-modal-story').textContent   = ship.story   || ship.desc;
+
+    const box = modal.querySelector('.ship-modal-box');
+    box.style.borderColor  = `${accent}55`;
+    box.style.boxShadow    = `0 0 60px ${accent}22, 0 0 120px rgba(0,0,0,0.8)`;
+
+    modal.classList.remove('hidden');
+}
+
+function initShipModal() {
+    const closeBtn = document.getElementById('ship-modal-close');
+    const overlay  = document.getElementById('ship-detail-modal');
+    if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
+    if (overlay)  overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.classList.add('hidden');
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') overlay?.classList.add('hidden');
+    });
+}
 
 export function initFleetsUI() {
+    initShipModal();
     const btn = document.getElementById('btn-fleets');
     const panel = document.getElementById('fleets-panel');
     const closeBtn = document.getElementById('btn-close-fleets');
@@ -95,7 +149,7 @@ export function renderFleetsPanel() {
                 const card = document.createElement('div');
                 card.className = `fleet-ship-card ${canAfford ? '' : 'fleet-ship-disabled'}`;
                 card.innerHTML = `
-                    <div class="fsc-icon">${ship.icon}</div>
+                    <div class="fsc-icon fsc-svg-icon" style="color:${ship.accentColor || '#00c8ff'}">${getShipSvg(ship.id)}</div>
                     <div class="fsc-info">
                         <div class="fsc-name">${ship.name}</div>
                         <div class="fsc-desc">${ship.desc}</div>
@@ -105,6 +159,7 @@ export function renderFleetsPanel() {
                             <span class="fsc-time">⏱ ${ship.buildTime}s</span>
                         </div>
                     </div>
+                    <button class="fsc-view-btn" data-ship="${ship.id}">View</button>
                     <button class="fsc-build-btn" data-planet="${planetId}" data-ship="${ship.id}" ${canAfford ? '' : 'disabled'}>
                         Build
                     </button>
@@ -159,7 +214,16 @@ export function renderFleetsPanel() {
     }
     content.appendChild(fleetSection);
 
-    // Wire buttons
+    // Wire View buttons
+    content.querySelectorAll('.fsc-view-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const shipId = btn.dataset.ship;
+            const ship = raceShips.find(s => s.id === shipId);
+            if (ship) openShipModal(ship);
+        });
+    });
+
+    // Wire Build buttons
     content.querySelectorAll('.fsc-build-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const planetId = btn.dataset.planet;

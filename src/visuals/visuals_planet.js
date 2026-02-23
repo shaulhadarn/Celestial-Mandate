@@ -1,4 +1,4 @@
-/* Updated: Fixed dark terrain - added fill DirectionalLight + AmbientLight floor, boosted hemisphere intensity so terrain is never pitch black */
+/* Updated: Clamped cameraPitch min to 0.05 (horizon) so camera can never look below ground in exploration mode */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState, events } from '../core/state.js';
@@ -8,6 +8,8 @@ import { getSkyColor, createPlanetProps, createCreatures } from './visuals_plane
 import { renderColonyGroundBuildings } from './visuals_planet_colony.js';
 
 import { scene } from '../core/scene_config.js';
+
+const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 
 let playerMesh;
 let terrainMesh;
@@ -60,7 +62,7 @@ function initExplorationMouseControls() {
         const dx = e.clientX - lastMouseX;
         const dy = e.clientY - lastMouseY;
         cameraYaw -= dx * 0.005;
-        cameraPitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
+        cameraPitch = Math.max(0.05, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
     };
@@ -134,7 +136,7 @@ function initExplorationMouseControls() {
         const dx = touch.clientX - lastMouseX;
         const dy = touch.clientY - lastMouseY;
         cameraYaw -= dx * 0.005;
-        cameraPitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
+        cameraPitch = Math.max(0.05, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
         lastMouseX = touch.clientX;
         lastMouseY = touch.clientY;
     };
@@ -413,13 +415,38 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     group.children.forEach(child => { if (child.isPoints && child.userData.isDust) { child.rotation.y += 0.05 * dt; child.position.y = Math.sin(time * 0.5) * 5; } });
 
     creatures.forEach(c => {
-        const ud = c.userData; ud.phase += dt * ud.speed;
-        const targetX = ud.originX + Math.cos(ud.phase) * 10;
-        const targetZ = ud.originZ + Math.sin(ud.phase) * 10;
+        const ud = c.userData;
+        ud.phase += dt * ud.speed;
+
+        const roam   = ud.roamRadius  || 10;
+        const bob    = ud.bobHeight   || 0.4;
+        const bscale = ud.bodyScale   || 1.0;
+
+        const targetX = ud.originX + Math.cos(ud.phase) * roam;
+        const targetZ = ud.originZ + Math.sin(ud.phase) * roam;
+
         c.position.x = THREE.MathUtils.lerp(c.position.x, targetX, 0.5 * dt);
         c.position.z = THREE.MathUtils.lerp(c.position.z, targetZ, 0.5 * dt);
-        c.position.y = getTerrainHeight(c.position.x, c.position.z) + 1.5 + Math.abs(Math.sin(ud.phase * 5)) * 0.5;
-        c.lookAt(targetX, c.position.y, targetZ);
+        c.position.y = getTerrainHeight(c.position.x, c.position.z) + bscale * 0.9
+                       + Math.abs(Math.sin(ud.phase * 4)) * bob;
+
+        // Face movement direction
+        const dx = targetX - c.position.x;
+        const dz = targetZ - c.position.z;
+        if (Math.abs(dx) + Math.abs(dz) > 0.01) {
+            c.rotation.y = Math.atan2(dx, dz);
+        }
+
+        // Leg swing — children after index 3 are legs (body, head, eye×2, then legs)
+        const legStart = ud.legStartIdx || 4;
+        const legCount = ud.legCount    || 4;
+        for (let li = 0; li < legCount * 2; li++) {
+            const child = c.children[legStart + li];
+            if (!child) continue;
+            const side  = li % 2 === 0 ? 1 : -1;
+            const swing = Math.sin(ud.phase * 6 + li * 0.8) * 0.35;
+            child.rotation.x = swing * side;
+        }
     });
 
     // --- 9. Final Camera Update (after drone position is finalized) ---

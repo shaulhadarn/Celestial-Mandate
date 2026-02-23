@@ -1,6 +1,7 @@
-/* Updated: Added shipyard ship-build section to colony view */
+/* Updated: SVG ship icons in colony shipyard cards */
 import { gameState, BUILDINGS, buildBuilding, RACE_SHIPS, buildShip } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
+import { getShipSvg } from './ship_icons.js';
 
 /**
  * Renders the detailed view of a colony, including building slots and construction options.
@@ -195,7 +196,7 @@ export function renderColonyView(planetId) {
             const canAfford = gameState.resources.minerals >= ship.cost.minerals &&
                               gameState.resources.energy   >= ship.cost.energy;
             return `<div class="fleet-ship-card ${canAfford ? '' : 'fleet-ship-disabled'}" style="margin-bottom:6px;">
-                <div class="fsc-icon">${ship.icon}</div>
+                <div class="fsc-icon fsc-svg-icon" style="color:${ship.accentColor || '#00c8ff'}">${getShipSvg(ship.id)}</div>
                 <div class="fsc-info">
                     <div class="fsc-name">${ship.name}</div>
                     <div class="fsc-stats">
@@ -204,6 +205,7 @@ export function renderColonyView(planetId) {
                         <span class="fsc-time">⏱ ${ship.buildTime}s</span>
                     </div>
                 </div>
+                <button class="fsc-view-btn colony-ship-view" data-ship="${ship.id}">View</button>
                 <button class="fsc-build-btn colony-ship-build" data-planet="${planetId}" data-ship="${ship.id}" ${canAfford ? '' : 'disabled'}>Build</button>
             </div>`;
         }).join('');
@@ -218,6 +220,40 @@ export function renderColonyView(planetId) {
         // Append after the planet-colony-view content
         const colonyView = document.getElementById('planet-colony-view');
         if (colonyView) colonyView.appendChild(section);
+
+        // Wire View buttons
+        section.querySelectorAll('.colony-ship-view').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const ship = raceShips.find(s => s.id === btn.dataset.ship);
+                if (!ship) return;
+                const modal  = document.getElementById('ship-detail-modal');
+                const accent = ship.accentColor || '#00c8ff';
+                const iconEl2 = document.getElementById('ship-modal-icon');
+                iconEl2.innerHTML = getShipSvg(ship.id);
+                iconEl2.style.color = accent;
+                document.getElementById('ship-modal-name').textContent  = ship.name;
+                document.getElementById('ship-modal-class').textContent = ship.shipClass || '';
+                document.getElementById('ship-modal-class').style.color = accent;
+                const header = document.getElementById('ship-modal-header');
+                header.style.borderBottom = `1px solid ${accent}44`;
+                header.style.background   = `linear-gradient(90deg, ${accent}18 0%, transparent 100%)`;
+                document.getElementById('ship-modal-stats').innerHTML = [
+                    { label: 'Length',    value: ship.length   || '\u2014' },
+                    { label: 'Crew',      value: ship.crew === 0 ? 'Unmanned' : (ship.crew || '\u2014') },
+                    { label: 'Power',     value: `\u2694 ${ship.power}` },
+                    { label: 'Minerals',  value: `\ud83d\udc8e ${ship.cost.minerals}` },
+                    { label: 'Energy',    value: `\u26a1 ${ship.cost.energy}` },
+                    { label: 'Build Time',value: `\u23f1 ${ship.buildTime}s` },
+                ].map(s => `<div class="ship-stat-cell"><div class="ship-stat-label">${s.label}</div><div class="ship-stat-value" style="color:${accent}">${s.value}</div></div>`).join('');
+                document.getElementById('ship-modal-weapons').textContent = ship.weapons || '\u2014';
+                document.getElementById('ship-modal-special').textContent = ship.special || '\u2014';
+                document.getElementById('ship-modal-story').textContent   = ship.story   || ship.desc;
+                const box = modal.querySelector('.ship-modal-box');
+                box.style.borderColor = `${accent}55`;
+                box.style.boxShadow   = `0 0 60px ${accent}22, 0 0 120px rgba(0,0,0,0.8)`;
+                modal.classList.remove('hidden');
+            });
+        });
 
         // Wire build buttons
         section.querySelectorAll('.colony-ship-build').forEach(btn => {

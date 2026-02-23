@@ -1,4 +1,4 @@
-/* Updated: Fixed nebula/band sprites being clipped at viewport edges - centered all X/Y offsets within ±80 units, pushed Z to -530/-600 range, reduced band scale from 1400->900 */
+/* Updated: Upgraded sun rendering - animated plasma ShaderMaterial, multi-layer corona, solar flare spikes, pulsing glow animation */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
@@ -8,10 +8,24 @@ const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent
 export let planetMeshes = [];
 export let planetLabels = [];
 
+// Sun animation refs
+let _sunShaderMat = null;
+let _sunCorona1 = null;
+let _sunCorona2 = null;
+let _sunCorona3 = null;
+let _sunFlares = [];
+let _sunPointLight = null;
+
 export function clearSystemVisuals(group) {
     while(group.children.length > 0) group.remove(group.children[0]);
     planetMeshes.length = 0;
     planetLabels.length = 0;
+    _sunShaderMat = null;
+    _sunCorona1 = null;
+    _sunCorona2 = null;
+    _sunCorona3 = null;
+    _sunFlares = [];
+    _sunPointLight = null;
 }
 
 export function createSystemVisuals(system, group) {
@@ -20,31 +34,137 @@ export function createSystemVisuals(system, group) {
 
     createSystemBackground(group);
 
-    // Star
-    const starGeo = new THREE.SphereGeometry(5, 32, 32);
-    const starMat = new THREE.MeshBasicMaterial({ color: system.color });
+    // ── Animated Sun ──────────────────────────────────────────────────────────
+    const sunColor = new THREE.Color(system.color);
+    const sunR = sunColor.r, sunG = sunColor.g, sunB = sunColor.b;
+
+    // Animated plasma shader surface
+    const starGeo = new THREE.SphereGeometry(5, isMobileDevice ? 32 : 64, isMobileDevice ? 32 : 64);
+    const starMat = isMobileDevice
+        ? new THREE.MeshBasicMaterial({ color: system.color })
+        : new THREE.ShaderMaterial({
+            uniforms: {
+                time:     { value: 0 },
+                sunColor: { value: new THREE.Vector3(sunR, sunG, sunB) },
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                void main() {
+                    vUv = uv;
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float time;
+                uniform vec3 sunColor;
+                varying vec2 vUv;
+                varying vec3 vNormal;
+
+                float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+                float noise(vec2 p) {
+                    vec2 i = floor(p); vec2 f = fract(p);
+                    vec2 u = f * f * (3.0 - 2.0 * f);
+                    return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
+                               mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
+                }
+                float fbm(vec2 p) {
+                    float v = 0.0; float a = 0.5;
+                    for(int i=0; i<5; i++) { v += a*noise(p); p *= 2.1; a *= 0.5; }
+                    return v;
+                }
+
+                void main() {
+                    vec2 uv = vUv * 4.0;
+                    float n = fbm(uv + time * 0.18);
+                    float n2 = fbm(uv * 1.6 - time * 0.12 + 3.7);
+                    float plasma = n * 0.6 + n2 * 0.4;
+
+                    // Limb darkening
+                    float limb = dot(vNormal, vec3(0.0, 0.0, 1.0));
+                    limb = pow(max(limb, 0.0), 0.4);
+
+                    // Hot core color
+                    vec3 hotColor  = min(sunColor * 1.8 + 0.4, vec3(1.0));
+                    vec3 coolColor = sunColor * 0.55;
+                    vec3 col = mix(coolColor, hotColor, plasma);
+                    col *= (0.7 + 0.3 * limb);
+
+                    // Bright sunspot flecks
+                    float spot = step(0.72, fbm(uv * 2.5 + time * 0.05));
+                    col = mix(col, sunColor * 0.25, spot * 0.5);
+
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `,
+            side: THREE.FrontSide,
+        });
+
+    _sunShaderMat = isMobileDevice ? null : starMat;
     const star = new THREE.Mesh(starGeo, starMat);
     group.add(star);
 
-    // Glow sprite — desktop only, additive sprites cause light-ray artifacts on mobile GPUs
     if (!isMobileDevice) {
-        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: textures.glow,
-            color: system.color,
-            transparent: true,
-            opacity: 0.7,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            depthTest: true
+        // ── Corona layer 1 — tight inner glow ────────────────────────────────
+        _sunCorona1 = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: system.color,
+            transparent: true, opacity: 0.9,
+            blending: THREE.AdditiveBlending, depthWrite: false
         }));
-        glow.scale.set(12, 12, 12);
-        glow.renderOrder = 1;
+        _sunCorona1.scale.set(16, 16, 1);
+        group.add(_sunCorona1);
+
+        // ── Corona layer 2 — mid diffuse halo ────────────────────────────────
+        _sunCorona2 = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: system.color,
+            transparent: true, opacity: 0.45,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        _sunCorona2.scale.set(28, 28, 1);
+        group.add(_sunCorona2);
+
+        // ── Corona layer 3 — wide outer atmosphere ────────────────────────────
+        const outerColor = new THREE.Color(system.color).lerp(new THREE.Color(0xffffff), 0.3);
+        _sunCorona3 = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: outerColor,
+            transparent: true, opacity: 0.18,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        _sunCorona3.scale.set(50, 50, 1);
+        group.add(_sunCorona3);
+
+        // ── Solar flare spikes (4 cross-shaped streaks) ───────────────────────
+        _sunFlares = [];
+        const flareAngles = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+        flareAngles.forEach((angle, i) => {
+            const flare = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: textures.glow, color: system.color,
+                transparent: true, opacity: 0.35,
+                blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            const len = 22 + i * 4;
+            flare.scale.set(len, 3.5, 1);
+            flare.material.rotation = angle;
+            flare.userData.baseAngle = angle;
+            flare.userData.baseLen = len;
+            group.add(flare);
+            _sunFlares.push(flare);
+        });
+    } else {
+        // Mobile: single simple glow
+        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: system.color,
+            transparent: true, opacity: 0.6,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        glow.scale.set(14, 14, 1);
         group.add(glow);
     }
 
     // Light — reduced on mobile to prevent bloom/light-ray artifacts
-    const pointLight = new THREE.PointLight(system.color, isMobileDevice ? 20 : 80, isMobileDevice ? 80 : 60);
-    group.add(pointLight);
+    _sunPointLight = new THREE.PointLight(system.color, isMobileDevice ? 20 : 80, isMobileDevice ? 80 : 60);
+    group.add(_sunPointLight);
 
     // Ambient light — higher on mobile since we lose specular highlights
     const ambientLight = new THREE.AmbientLight(0xffffff, isMobileDevice ? 2.0 : 1.2);
@@ -235,6 +355,40 @@ export function addColonyVisual(planetMesh) {
 }
 
 export function updateSystemAnimations(time) {
+    // ── Animate sun ──────────────────────────────────────────────────────────
+    if (_sunShaderMat) {
+        _sunShaderMat.uniforms.time.value = time;
+    }
+
+    if (_sunCorona1) {
+        const pulse1 = 1.0 + 0.06 * Math.sin(time * 1.1);
+        _sunCorona1.scale.set(16 * pulse1, 16 * pulse1, 1);
+        _sunCorona1.material.opacity = 0.85 + 0.1 * Math.sin(time * 1.3);
+    }
+    if (_sunCorona2) {
+        const pulse2 = 1.0 + 0.04 * Math.sin(time * 0.7 + 1.0);
+        _sunCorona2.scale.set(28 * pulse2, 28 * pulse2, 1);
+        _sunCorona2.material.opacity = 0.4 + 0.08 * Math.sin(time * 0.9 + 0.5);
+    }
+    if (_sunCorona3) {
+        const pulse3 = 1.0 + 0.03 * Math.sin(time * 0.4 + 2.0);
+        _sunCorona3.scale.set(50 * pulse3, 50 * pulse3, 1);
+    }
+
+    _sunFlares.forEach((flare, i) => {
+        const t = time * 0.3 + i * 1.2;
+        const lenMult = 1.0 + 0.18 * Math.sin(t);
+        const baseLen = flare.userData.baseLen;
+        flare.scale.set(baseLen * lenMult, 3.5 + 1.5 * Math.sin(t * 1.4), 1);
+        flare.material.opacity = 0.25 + 0.18 * Math.abs(Math.sin(t * 0.8));
+        flare.material.rotation = flare.userData.baseAngle + 0.04 * Math.sin(time * 0.5 + i);
+    });
+
+    if (_sunPointLight) {
+        _sunPointLight.intensity = (isMobileDevice ? 20 : 80) * (1.0 + 0.08 * Math.sin(time * 1.7));
+    }
+
+    // ── Animate planets ───────────────────────────────────────────────────────
     planetMeshes.forEach(mesh => {
         const data = mesh.userData.data;
         const speed = data.speed * 10;
@@ -304,59 +458,117 @@ function createTextSprite(text) {
     return sprite;
 }
 
-function _makeNebulaTexture(r, g, b, size) {
-    const s = size || 256;
+function _makeSpaceBackgroundTexture() {
+    const W = 2048, H = 1024;
     const c = document.createElement('canvas');
-    c.width = s; c.height = s;
+    c.width = W; c.height = H;
     const ctx = c.getContext('2d');
-    const cx = s / 2, cy = s / 2;
 
-    // Outer soft cloud
-    const g1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.5);
-    g1.addColorStop(0,   `rgba(${r},${g},${b},0.55)`);
-    g1.addColorStop(0.3, `rgba(${r},${g},${b},0.28)`);
-    g1.addColorStop(0.6, `rgba(${r},${g},${b},0.10)`);
-    g1.addColorStop(1,   `rgba(${r},${g},${b},0)`);
-    ctx.fillStyle = g1;
-    ctx.fillRect(0, 0, s, s);
+    // ── 1. Deep space base gradient ──────────────────────────────────────────
+    const base = ctx.createLinearGradient(0, 0, W, H);
+    base.addColorStop(0.0,  '#00010a');
+    base.addColorStop(0.35, '#010310');
+    base.addColorStop(0.65, '#020515');
+    base.addColorStop(1.0,  '#000208');
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, W, H);
 
-    // Inner bright core
-    const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.18);
-    g2.addColorStop(0,   `rgba(${Math.min(r+60,255)},${Math.min(g+60,255)},${Math.min(b+60,255)},0.5)`);
-    g2.addColorStop(1,   `rgba(${r},${g},${b},0)`);
-    ctx.fillStyle = g2;
-    ctx.fillRect(0, 0, s, s);
-
-    return new THREE.CanvasTexture(c);
-}
-
-function _makeGalaxyBandTexture() {
-    const w = 512, h = 128;
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const ctx = c.getContext('2d');
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0,    'rgba(180,200,255,0)');
-    g.addColorStop(0.25, 'rgba(180,200,255,0.07)');
-    g.addColorStop(0.5,  'rgba(220,230,255,0.13)');
-    g.addColorStop(0.75, 'rgba(180,200,255,0.07)');
-    g.addColorStop(1,    'rgba(180,200,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-    // Add some star-cluster blobs along the band
-    for (let i = 0; i < 40; i++) {
-        const x = Math.random() * w;
-        const y = h * 0.3 + Math.random() * h * 0.4;
-        const r = 4 + Math.random() * 18;
-        const bg = ctx.createRadialGradient(x, y, 0, x, y, r);
-        bg.addColorStop(0, 'rgba(255,255,255,0.18)');
-        bg.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = bg;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
+    // ── 2. Milky Way diagonal band ───────────────────────────────────────────
+    ctx.save();
+    ctx.translate(W * 0.5, H * 0.5);
+    ctx.rotate(-0.28);
+    const band = ctx.createLinearGradient(0, -H * 0.55, 0, H * 0.55);
+    band.addColorStop(0.0,  'rgba(180,200,255,0)');
+    band.addColorStop(0.35, 'rgba(160,185,255,0.055)');
+    band.addColorStop(0.5,  'rgba(200,215,255,0.10)');
+    band.addColorStop(0.65, 'rgba(160,185,255,0.055)');
+    band.addColorStop(1.0,  'rgba(180,200,255,0)');
+    ctx.fillStyle = band;
+    ctx.fillRect(-W, -H, W * 2, H * 2);
+    // Star-cluster blobs along the band
+    for (let i = 0; i < 80; i++) {
+        const bx = (Math.random() - 0.5) * W * 1.4;
+        const by = (Math.random() - 0.5) * H * 0.28;
+        const br = 8 + Math.random() * 40;
+        const bg2 = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+        bg2.addColorStop(0, 'rgba(255,255,255,0.14)');
+        bg2.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = bg2;
+        ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
     }
-    return new THREE.CanvasTexture(c);
+    ctx.restore();
+
+    // ── 3. Large nebula clouds (always cover full canvas) ────────────────────
+    const nebulas = [
+        // [cx%, cy%, rx%, ry%, r, g, b, alpha]
+        [ 0.15, 0.20, 0.38, 0.30,  30,  60, 180, 0.28 ],  // blue top-left
+        [ 0.80, 0.15, 0.35, 0.28, 120,  20, 180, 0.24 ],  // purple top-right
+        [ 0.70, 0.75, 0.40, 0.32,  20, 110,  80, 0.22 ],  // teal bottom-right
+        [ 0.20, 0.80, 0.36, 0.28, 180,  40,  20, 0.20 ],  // red bottom-left
+        [ 0.50, 0.45, 0.45, 0.38,  60,  30, 150, 0.16 ],  // indigo center
+        [ 0.88, 0.50, 0.30, 0.35,  20,  80, 160, 0.18 ],  // cyan right
+        [ 0.10, 0.55, 0.28, 0.30, 140,  80,  20, 0.16 ],  // amber left
+        [ 0.55, 0.10, 0.32, 0.25,  80, 160,  60, 0.14 ],  // lime top-center
+        [ 0.35, 0.60, 0.30, 0.28, 200,  60, 120, 0.15 ],  // pink mid
+        [ 0.75, 0.35, 0.28, 0.32,  60, 160, 200, 0.17 ],  // sky-blue right
+    ];
+
+    nebulas.forEach(([cxp, cyp, rxp, ryp, r, g, b, alpha]) => {
+        const ncx = cxp * W, ncy = cyp * H;
+        const nrx = rxp * W, nry = ryp * H;
+        // Elliptical gradient via scale transform
+        ctx.save();
+        ctx.translate(ncx, ncy);
+        ctx.scale(1, nry / nrx);
+        const ng = ctx.createRadialGradient(0, 0, 0, 0, 0, nrx);
+        ng.addColorStop(0.0, `rgba(${r},${g},${b},${alpha})`);
+        ng.addColorStop(0.3, `rgba(${r},${g},${b},${(alpha * 0.55).toFixed(3)})`);
+        ng.addColorStop(0.65,`rgba(${r},${g},${b},${(alpha * 0.18).toFixed(3)})`);
+        ng.addColorStop(1.0, `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = ng;
+        ctx.beginPath(); ctx.arc(0, 0, nrx, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        // Bright inner core
+        ctx.save();
+        ctx.translate(ncx, ncy);
+        ctx.scale(1, nry / nrx);
+        const core = ctx.createRadialGradient(0, 0, 0, 0, 0, nrx * 0.22);
+        core.addColorStop(0, `rgba(${Math.min(r+80,255)},${Math.min(g+80,255)},${Math.min(b+80,255)},${(alpha * 0.7).toFixed(3)})`);
+        core.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = core;
+        ctx.beginPath(); ctx.arc(0, 0, nrx * 0.22, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    });
+
+    // ── 4. Accent wisps (smaller bright patches) ─────────────────────────────
+    const wisps = [
+        [ 0.42, 0.22, 0.14, 0.12,  80, 140, 255, 0.30 ],
+        [ 0.62, 0.68, 0.12, 0.10, 255,  80, 120, 0.26 ],
+        [ 0.28, 0.42, 0.13, 0.11,  80, 255, 200, 0.24 ],
+        [ 0.78, 0.82, 0.11, 0.09, 255, 180,  60, 0.22 ],
+        [ 0.90, 0.28, 0.12, 0.10, 160,  80, 255, 0.24 ],
+        [ 0.08, 0.35, 0.10, 0.09, 255, 220,  80, 0.20 ],
+    ];
+
+    wisps.forEach(([cxp, cyp, rxp, ryp, r, g, b, alpha]) => {
+        const ncx = cxp * W, ncy = cyp * H;
+        const nrx = rxp * W, nry = ryp * H;
+        ctx.save();
+        ctx.translate(ncx, ncy);
+        ctx.scale(1, nry / nrx);
+        const wg = ctx.createRadialGradient(0, 0, 0, 0, 0, nrx);
+        wg.addColorStop(0,   `rgba(${r},${g},${b},${alpha})`);
+        wg.addColorStop(0.5, `rgba(${r},${g},${b},${(alpha * 0.3).toFixed(3)})`);
+        wg.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = wg;
+        ctx.beginPath(); ctx.arc(0, 0, nrx, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    });
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.minFilter = THREE.LinearFilter;
+    return tex;
 }
 
 function createSystemBackground(group) {
@@ -431,76 +643,7 @@ function createSystemBackground(group) {
 
     if (isMobileDevice) return; // skip heavy layers on mobile
 
-    // ── 2. Galaxy band (Milky Way streak) ────────────────────────────────────
-    const bandTex = _makeGalaxyBandTexture();
-    const bandMat = new THREE.SpriteMaterial({
-        map: bandTex, transparent: true, opacity: 0.55,
-        blending: THREE.AdditiveBlending, depthWrite: false
-    });
-    const band = new THREE.Sprite(bandMat);
-    band.position.set(0, 0, -600);
-    band.scale.set(900, 220, 1);
-    band.material.rotation = 0.35;
-    group.add(band);
-
-    // Second band at a slight angle for depth
-    const bandMat2 = new THREE.SpriteMaterial({
-        map: bandTex, transparent: true, opacity: 0.20,
-        blending: THREE.AdditiveBlending, depthWrite: false
-    });
-    const band2 = new THREE.Sprite(bandMat2);
-    band2.position.set(0, 30, -580);
-    band2.scale.set(700, 150, 1);
-    band2.material.rotation = -0.2;
-    group.add(band2);
-
-    // ── 3. Rich layered nebulae ───────────────────────────────────────────────
-    const nebulaDefs = [
-        // [r, g, b, x, y, z, scale, opacity]  — X/Y kept within ±80 so sprites never clip at any viewport size
-        [  30,  60, 160,   60,  40, -560, 480, 0.22 ],  // deep blue
-        [ 120,  20, 180,  -50,  30, -540, 440, 0.20 ],  // purple
-        [  20, 120,  80,  -20, -50, -580, 400, 0.18 ],  // teal green
-        [ 180,  40,  20,   50, -35, -550, 360, 0.16 ],  // red-orange
-        [  60,  30, 140,  -70, -40, -570, 420, 0.14 ],  // indigo
-        [  20,  80, 160,   30,  70, -590, 340, 0.17 ],  // cyan
-        [ 140,  80,  20,  -40,  60, -560, 380, 0.13 ],  // amber
-        [  80, 160,  60,   70, -20, -530, 320, 0.12 ],  // lime
-    ];
-
-    nebulaDefs.forEach(([r, g, b, x, y, z, scale, opacity]) => {
-        const tex = _makeNebulaTexture(r, g, b, 256);
-        const mat = new THREE.SpriteMaterial({
-            map: tex, transparent: true, opacity,
-            blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        const sprite = new THREE.Sprite(mat);
-        sprite.position.set(x, y, z);
-        sprite.scale.set(scale, scale, 1);
-        group.add(sprite);
-    });
-
-    // ── 4. Accent nebula wisps (smaller, brighter) ───────────────────────────
-    const wispDefs = [
-        [  80, 140, 255,   80,  20, -500, 200, 0.26 ],
-        [ 255,  80, 120,  -70, -30, -510, 180, 0.22 ],
-        [  80, 255, 200,  -15,  75, -490, 170, 0.20 ],
-        [ 255, 180,  60,   55, -65, -505, 160, 0.18 ],
-        [ 160,  80, 255,  -60,  50, -495, 190, 0.20 ],
-    ];
-
-    wispDefs.forEach(([r, g, b, x, y, z, scale, opacity]) => {
-        const tex = _makeNebulaTexture(r, g, b, 128);
-        const mat = new THREE.SpriteMaterial({
-            map: tex, transparent: true, opacity,
-            blending: THREE.AdditiveBlending, depthWrite: false
-        });
-        const sprite = new THREE.Sprite(mat);
-        sprite.position.set(x, y, z);
-        sprite.scale.set(scale, scale, 1);
-        group.add(sprite);
-    });
-
-    // ── 5. Bright foreground star clusters ───────────────────────────────────
+    // ── 2. Bright foreground star clusters ───────────────────────────────────
     const clusterCount = 60;
     const cPosArray  = new Float32Array(clusterCount * 3);
     const cColArray  = new Float32Array(clusterCount * 3);

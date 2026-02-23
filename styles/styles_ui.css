@@ -1,4 +1,4 @@
-/* Updated: Added star list section to system panel - scrollable list of all galaxy stars with color dots, planet count, colony indicator, and click-to-navigate */
+/* Updated: Added missing #controls-hint, #exploration-controls, .action-btn, .hidden, .hidden-during-exploration CSS - these were never migrated from old styles.css causing Return to Orbit button to be invisible */
 
 /* ── TOP BAR SHELL ──────────────────────────────────────────────────────────── */
 #top-bar {
@@ -1016,6 +1016,89 @@
 
 .star-list-item.active .star-list-name {
     color: var(--color-primary);
+}
+
+/* ── CONTROLS HINT BAR (bottom of screen) ───────────────────────────────────── */
+#controls-hint {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 200;
+    pointer-events: none;
+}
+
+#hint-text {
+    font-family: var(--font-main);
+    font-size: 11px;
+    color: rgba(0, 242, 255, 0.45);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-align: center;
+    pointer-events: none;
+}
+
+#exploration-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+#exploration-controls > div {
+    font-family: var(--font-main);
+    font-size: 11px;
+    color: rgba(0, 242, 255, 0.55);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.bottom-actions {
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+/* ── ACTION BUTTON (generic) ────────────────────────────────────────────────── */
+.action-btn {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(0, 242, 255, 0.5);
+    color: var(--color-primary);
+    font-family: var(--font-main);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 18px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    pointer-events: auto;
+}
+
+.action-btn:hover {
+    background: rgba(0, 242, 255, 0.15);
+    border-color: var(--color-primary);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(0, 242, 255, 0.3);
+}
+
+/* ── EXPLORATION MODE — hide main UI layer ──────────────────────────────────── */
+#ui-layer.hidden-during-exploration #system-panel,
+#ui-layer.hidden-during-exploration #planet-panel,
+#ui-layer.hidden-during-exploration #empire-panel {
+    display: none !important;
+}
+
+/* ── HIDDEN UTILITY ─────────────────────────────────────────────────────────── */
+.hidden {
+    display: none !important;
 }
 
 .star-list-meta {
