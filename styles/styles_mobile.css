@@ -1,4 +1,4 @@
-/* Updated: Mobile modal margins + planet list scroll fix - all panels have 10px side/bottom margins, system panel scrollable planet list */
+/* Updated: Fixed mobile fleets/research panels - fullscreen panels no longer overridden as bottom-sheets; research content scrollable */
 /* --- MOBILE OPTIMIZATION --- */
 @media (max-width: 768px) {
     /* Layout Adjustments */
@@ -162,8 +162,7 @@
     }
 
     /* ── Mobile Modal Base — consistent margins on all sides ── */
-    #system-panel, #planet-panel, #empire-panel,
-    #colonies-panel, #research-panel, #fleets-panel {
+    #system-panel, #planet-panel, #empire-panel {
         position: fixed;
         left: 10px !important;
         right: 10px !important;
@@ -185,8 +184,7 @@
     }
 
     #system-panel.hidden, #planet-panel.hidden,
-    #empire-panel.hidden, #colonies-panel.hidden,
-    #research-panel.hidden, #fleets-panel.hidden {
+    #empire-panel.hidden {
         transform: translateY(calc(110% + 10px)) !important;
         opacity: 0;
         pointer-events: none;
@@ -420,10 +418,7 @@
         max-height: 68vh !important;
     }
 
-    #empire-panel .panel-content,
-    #colonies-panel .panel-content,
-    #research-panel .panel-content,
-    #fleets-panel .panel-content {
+    #empire-panel .panel-content {
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         min-height: 0;

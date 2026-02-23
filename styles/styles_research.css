@@ -540,10 +540,9 @@
 @media (max-width: 768px) {
     .research-tier-grid { grid-template-columns: 1fr; }
     .colonies-grid { grid-template-columns: 1fr; }
-    .fullscreen-panel-content { padding: 12px 16px; }
     .header-action-btn { font-size: 11px; padding: 5px 10px; }
 
-    /* Consistent margins for fullscreen panels on mobile */
+    /* Fullscreen panels (colonies, research, fleets) — proper mobile layout */
     .fullscreen-panel {
         left: 10px !important;
         right: 10px !important;
@@ -554,15 +553,39 @@
         border-top: 2px solid var(--color-primary);
         box-shadow: 0 8px 40px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,242,255,0.05);
         padding-bottom: env(safe-area-inset-bottom);
+        /* Critical: flex column so content area can scroll */
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 
     .fullscreen-panel-header {
         padding: 12px 16px;
         border-radius: 10px 10px 0 0;
+        flex-shrink: 0;
     }
 
     .fullscreen-panel-header h2 {
         font-size: 1.1em;
         letter-spacing: 2px;
+    }
+
+    /* Content area fills remaining space and scrolls */
+    .fullscreen-panel-content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 12px 16px;
+        overscroll-behavior: contain;
+    }
+
+    /* Ensure close button is always visible and tappable */
+    .panel-close-btn {
+        min-width: 44px;
+        min-height: 36px;
+        flex-shrink: 0;
+        font-size: 13px;
+        padding: 6px 14px;
     }
 }
