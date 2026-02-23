@@ -220,8 +220,14 @@ function updateTopBar() {
     document.getElementById('rate-food').innerText = formatRate(gameState.rates.food);
 
     const d = gameState.date;
+    const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
     const dateEl = document.getElementById('top-bar').querySelector('.date-value');
-    if (dateEl) dateEl.innerText = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+    if (dateEl) dateEl.innerText = dateStr;
+    const mobileDateEl = document.getElementById('mobile-date-badge');
+    if (mobileDateEl) {
+        const mdv = mobileDateEl.querySelector('.date-value');
+        if (mdv) mdv.innerText = dateStr;
+    }
 
     const toggleBtn = document.getElementById('btn-view-toggle');
     const hubBtn = document.getElementById('btn-empire-hub');
@@ -229,6 +235,7 @@ function updateTopBar() {
 
     if (gameState.viewMode === 'EXPLORATION') {
         topBar.classList.add('hidden'); // Hide top bar in exploration
+        if (mobileDateEl) mobileDateEl.style.display = 'none';
         return; // Skip other button logic
     } else {
         topBar.classList.remove('hidden');

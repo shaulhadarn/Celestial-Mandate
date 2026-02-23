@@ -313,12 +313,13 @@ export function createSystemVisuals(system, group) {
         planetMeshes.push(mesh);
 
         // Orbit
-        const orbitGeo = new THREE.RingGeometry(p.distance - 0.05, p.distance + 0.05, 128);
+        const orbitGeo = new THREE.RingGeometry(p.distance - 0.18, p.distance + 0.18, 128);
         const orbitMat = new THREE.MeshBasicMaterial({ 
-            color: 0xffffff, 
-            opacity: 0.08, 
+            color: 0x66aadd, 
+            opacity: 0.45, 
             transparent: true, 
             side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
             depthWrite: false
         });
         const orbit = new THREE.Mesh(orbitGeo, orbitMat);

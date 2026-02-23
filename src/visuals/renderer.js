@@ -1,4 +1,4 @@
-/* Updated: Fixed mobile black screen on view switch - frameloop demand + _forceFrames after enterSystemView and returnToGalaxyView */
+/* Updated: Boosted system view OrbitControls speeds for snappier mobile drag/pan */
 import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
 import { loadAssets, playSound } from '../core/assets.js';
@@ -145,12 +145,17 @@ export function enterSystemView(systemId, instant = false) {
         scene.fog = new THREE.FogExp2(0x020408, 0.0015);
     }
     
-    // Re-enable OrbitControls when leaving exploration mode
+    // Re-enable OrbitControls — boost speeds for tighter system-scale interaction
     if (controls) {
         controls.enabled = true;
         controls.minDistance = 10;
         controls.maxDistance = 300;
         controls.enablePan = true;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.12;
+        controls.rotateSpeed = 1.0;
+        controls.panSpeed = 1.4;
+        controls.zoomSpeed = 1.2;
     }
 
     groups.galaxy.visible = false;
@@ -188,11 +193,15 @@ export function returnToGalaxyView() {
         scene.fog = new THREE.FogExp2(0x020408, 0.0015);
     }
 
-    // Re-enable OrbitControls for galaxy/system views
+    // Restore OrbitControls to galaxy defaults
     if (controls) {
         controls.enabled = true;
         controls.enablePan = true;
         controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.rotateSpeed = 0.6;
+        controls.panSpeed = 0.8;
+        controls.zoomSpeed = 0.8;
     }
     
     buildGalaxyVisuals(gameState.systems, cachedHyperlanes);

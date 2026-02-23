@@ -1,4 +1,4 @@
-/* Updated: Fixed mobile fleets/research panels - fullscreen panels no longer overridden as bottom-sheets; research content scrollable */
+/* Updated: Mobile header optimized - date moved below top bar as floating badge, resources + buttons share full width */
 /* --- MOBILE OPTIMIZATION --- */
 @media (max-width: 768px) {
     /* Layout Adjustments */
@@ -18,12 +18,9 @@
         z-index: 50;
     }
 
+    /* Hide the date section — it becomes a floating badge below the bar */
     .header-left {
-        display: flex;
-        align-items: center;
-        pointer-events: auto;
-        min-width: 0;
-        flex-shrink: 0;
+        display: none !important;
     }
 
     .header-center {
@@ -35,18 +32,12 @@
         background: none !important;
         padding: 0 4px !important;
         gap: 3px !important;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        mask-image: linear-gradient(to right, transparent, black 6px, black calc(100% - 6px), transparent);
-        scrollbar-width: none;
         flex: 1;
         min-width: 0;
+        overflow: hidden;
+        justify-content: flex-start;
     }
-    
-    .header-center::-webkit-scrollbar {
-        display: none;
-    }
-    
+
     .header-right {
         display: flex;
         align-items: center;
@@ -54,6 +45,29 @@
         min-width: 0;
         flex-shrink: 0;
         gap: 3px;
+    }
+
+    /* Floating date badge below the top bar */
+    .mobile-date-badge {
+        display: flex !important;
+        position: fixed;
+        top: 50px;
+        left: 8px;
+        z-index: 49;
+        background: rgba(3, 8, 16, 0.88);
+        border: 1px solid rgba(0, 242, 255, 0.15);
+        border-radius: 0 0 6px 6px;
+        padding: 2px 10px;
+        pointer-events: auto;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .mobile-date-badge .date-value {
+        font-size: 11px;
+        letter-spacing: 1px;
+        color: rgba(255,255,255,0.7);
+        text-shadow: 0 0 6px rgba(0, 242, 255, 0.3);
     }
     
     /* Compact pill: icon + value + rate, no label, no fixed width */
@@ -119,22 +133,7 @@
         width: 32px;
     }
 
-    .date-display {
-        height: 32px;
-        padding: 0 8px;
-        clip-path: none;
-        border-radius: 3px;
-        gap: 0;
-    }
-
-    .date-label {
-        display: none;
-    }
-
-    .date-value {
-        font-size: 13px;
-        letter-spacing: 1px;
-    }
+    /* Original date-display hidden via header-left display:none */
 
     #settings-panel {
         width: 92% !important;
@@ -651,14 +650,13 @@
         font-size: 8px;
     }
 
-    .date-display {
-        height: 28px;
-        padding: 0 6px;
+    .mobile-date-badge {
+        top: 46px;
+        padding: 1px 8px;
     }
 
-    .date-value {
-        font-size: 11px;
-        letter-spacing: 0.5px;
+    .mobile-date-badge .date-value {
+        font-size: 10px;
     }
 
     .hdr-btn {

@@ -368,15 +368,17 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
       // Orbit Path — 32 segments on mobile vs 64 desktop
       const orbitGeo = new THREE.RingGeometry(
-        orbitDist - 0.03,
-        orbitDist + 0.03,
+        orbitDist - 0.08,
+        orbitDist + 0.08,
         isMobileDevice ? 32 : 64,
       );
       const orbitMat = new THREE.MeshBasicMaterial({
-        color: hasColony ? 0x00f2ff : 0x888888,
-        opacity: hasColony ? 0.3 : 0.1,
+        color: hasColony ? 0x00f2ff : 0x6699bb,
+        opacity: hasColony ? 0.5 : 0.3,
         transparent: true,
         side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       });
       const orbit = new THREE.Mesh(orbitGeo, orbitMat);
       orbit.rotation.x = Math.PI / 2;
