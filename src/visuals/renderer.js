@@ -1,4 +1,4 @@
-/* Updated: Fixed mobile UI buttons — added #creation-screen and #loading-screen to preventDefault exclusions so all UI buttons work on mobile */
+/* Updated: Fixed mobile race intro buttons — added #race-intro-overlay to preventDefault exclusions so all UI buttons work on mobile */
 import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
 import { loadAssets, playSound } from '../core/assets.js';
@@ -24,16 +24,16 @@ export async function init() {
     window.addEventListener('mouseup', onPointerUp);
     // Touch support — passive:false is CRITICAL so preventDefault() can block browser scroll/pan
     window.addEventListener('touchmove', (e) => {
-        // Only block default when touching the 3D canvas (not UI panels, splash screen, creation screen, or loading screen)
+        // Only block default when touching the 3D canvas (not UI panels, splash screen, creation screen, loading screen, or race intro overlay)
         const target = e.target || e.srcElement;
-        if (!target || !target.closest || (!target.closest('#ui-layer') && !target.closest('#splash-screen') && !target.closest('#creation-screen') && !target.closest('#loading-screen'))) {
+        if (!target || !target.closest || (!target.closest('#ui-layer') && !target.closest('#splash-screen') && !target.closest('#creation-screen') && !target.closest('#loading-screen') && !target.closest('#race-intro-overlay'))) {
             e.preventDefault();
         }
         if (e.touches[0]) onMouseMove(e.touches[0]);
     }, { passive: false });
     window.addEventListener('touchstart', (e) => {
         const target = e.target || e.srcElement;
-        if (!target || !target.closest || (!target.closest('#ui-layer') && !target.closest('#splash-screen') && !target.closest('#creation-screen') && !target.closest('#loading-screen'))) {
+        if (!target || !target.closest || (!target.closest('#ui-layer') && !target.closest('#splash-screen') && !target.closest('#creation-screen') && !target.closest('#loading-screen') && !target.closest('#race-intro-overlay'))) {
             e.preventDefault();
         }
         if (e.touches[0]) onPointerDown(e.touches[0]);
