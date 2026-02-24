@@ -37,6 +37,13 @@ body, html {
     touch-action: none; /* Critical for mobile drag */
 }
 
+/* Ensure canvas and all R3F wrapper divs also prevent browser touch gestures */
+#game-container canvas,
+#game-container > div,
+#game-container > div > div {
+    touch-action: none;
+}
+
 #ui-layer {
     position: absolute;
     top: 0;

@@ -159,9 +159,11 @@ export function enterSystemView(systemId, instant = false) {
     // Re-enable OrbitControls — boost speeds for tighter system-scale interaction
     if (controls) {
         controls.enabled = true;
+        controls.enableRotate = true;
+        controls.enableZoom = true;
+        controls.enablePan = true;
         controls.minDistance = 10;
         controls.maxDistance = 300;
-        controls.enablePan = true;
         controls.enableDamping = true;
         controls.dampingFactor = 0.12;
         controls.rotateSpeed = 1.0;
@@ -207,6 +209,8 @@ export function returnToGalaxyView() {
     // Restore OrbitControls to galaxy defaults
     if (controls) {
         controls.enabled = true;
+        controls.enableRotate = true;
+        controls.enableZoom = true;
         controls.enablePan = true;
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -305,6 +309,8 @@ export function restoreControlsAfterPlanet() {
     camera.updateProjectionMatrix();
     controls.minDistance = 10;
     controls.maxDistance = 300;
+    controls.enableRotate = true;
+    controls.enableZoom = true;
     controls.enablePan = true;
     controls.enableDamping = true;
     controls.dampingFactor = 0.12;
@@ -315,6 +321,31 @@ export function restoreControlsAfterPlanet() {
 
     controls.enabled = true;
     controls.update();
+}
+
+function animateCamera(target, distance, height, duration = 800) {
+    if (!camera || !controls) return;
+    const startPos = camera.position.clone();
+    const startTarget = controls.target.clone();
+    const endTarget = target.clone();
+    const endPos = new THREE.Vector3(0, height, distance);
+    const startTime = performance.now();
+
+    function step(now) {
+        const elapsed = now - startTime;
+        const t = Math.min(1, elapsed / duration);
+        // Ease out cubic for smooth deceleration
+        const ease = 1 - Math.pow(1 - t, 3);
+
+        camera.position.lerpVectors(startPos, endPos, ease);
+        controls.target.lerpVectors(startTarget, endTarget, ease);
+        controls.update();
+
+        if (t < 1) {
+            requestAnimationFrame(step);
+        }
+    }
+    requestAnimationFrame(step);
 }
 
 export function focusCamera(target, distance = 50) {

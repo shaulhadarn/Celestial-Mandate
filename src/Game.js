@@ -88,6 +88,14 @@ const ControlsWrapper = () => {
       setGlobalControls(controlsRef.current);
       controlsRef.current.minDistance = 20;
       controlsRef.current.maxDistance = 400;
+      // Explicit touch configuration for mobile map dragging
+      controlsRef.current.enableRotate = true;
+      controlsRef.current.enableZoom = true;
+      controlsRef.current.enablePan = true;
+      controlsRef.current.touches = {
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_PAN
+      };
     }
   }, []);
   return /* @__PURE__ */ jsxDEV(
@@ -159,7 +167,7 @@ const Game = () => {
         toneMappingExposure: isMobileDevice ? 0.85 : 1.1,
         outputColorSpace: THREE.SRGBColorSpace
       },
-      style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 },
+      style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0, touchAction: "none" },
       children: [
         /* @__PURE__ */ jsxDEV(PerspectiveCamera, { makeDefault: true, position: [0, 100, 100], fov: 60, near: 0.1, far: 1500 }, void 0, false, {
           fileName: "<stdin>",
