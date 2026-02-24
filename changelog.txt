@@ -1,6 +1,19 @@
 Changelog - Stellaris Imperium
 ================================
 
+2026-02-24: Fixed mobile galaxy touch — drag/pan/zoom completely broken on mobile
+- Root cause 1: touchmove/touchstart listeners were registered as passive:true (browser default), so e.preventDefault() was never called, letting the browser consume touch events before OrbitControls could see them
+- Root cause 2: OrbitControls touch.ONE was set to ROTATE (orbiting a sphere), which is useless for a top-down galaxy map — should be PAN so one finger drags the map
+- Root cause 3: tap distance threshold was 20px, too small for mobile fat fingers causing star taps to never register
+- `src/visuals/renderer.js`:
+  - touchmove and touchstart listeners now use `{ passive: false }` so e.preventDefault() actually runs
+  - preventDefault() is skipped when the touch target is inside #ui-layer (so UI buttons still work)
+  - Tap detection threshold increased from 20px → 30px for mobile usability
+- `src/Game.js`:
+  - OrbitControls touch.ONE changed from ROTATE → PAN (one finger drags the galaxy map)
+  - OrbitControls touch.TWO set to DOLLY_PAN (pinch-to-zoom + two-finger pan)
+  - screenSpacePanning = true so panning moves in screen XY plane (feels like dragging a map)
+
 2026-02-22: Research times increased x4; Star list added to system panel; Machine Intelligence SVG animated
 - `src/core/research_data.js`: Multiplied all tech costs x4 (T1: 320-400, T2: 600-800, T3: 1200-1600, T4: 2800-3600)
 - `index.html` + `src/ui/ui_selection.js` + `styles/styles_ui.css`: Added scrollable star list to Capital System panel showing all galaxy stars with color dots, planet count, colony indicator, click-to-navigate

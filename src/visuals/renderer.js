@@ -1,4 +1,4 @@
-/* Updated: Fixed mobile tap-through — UI taps no longer trigger 3D raycasts (diplomacy button fix) */
+/* Updated: Fixed mobile galaxy touch — preventDefault on touchmove/touchstart to stop browser scroll hijack, widened tap threshold for fat fingers */
 import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
 import { loadAssets, playSound } from '../core/assets.js';
@@ -22,15 +22,28 @@ export async function init() {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mousedown', onPointerDown);
     window.addEventListener('mouseup', onPointerUp);
-    // Touch support mapping — pass original event so handleTap can check event.target
-    window.addEventListener('touchmove', (e) => onMouseMove(e.touches[0]));
-    window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0]));
+    // Touch support — passive:false is CRITICAL so preventDefault() can block browser scroll/pan
+    window.addEventListener('touchmove', (e) => {
+        // Only block default when touching the 3D canvas (not UI panels)
+        const target = e.target || e.srcElement;
+        if (!target || !target.closest || !target.closest('#ui-layer')) {
+            e.preventDefault();
+        }
+        if (e.touches[0]) onMouseMove(e.touches[0]);
+    }, { passive: false });
+    window.addEventListener('touchstart', (e) => {
+        const target = e.target || e.srcElement;
+        if (!target || !target.closest || !target.closest('#ui-layer')) {
+            e.preventDefault();
+        }
+        if (e.touches[0]) onPointerDown(e.touches[0]);
+    }, { passive: false });
     window.addEventListener('touchend', (e) => {
         const t = e.changedTouches[0];
         // Attach the real DOM target from the TouchEvent so handleTap can filter UI taps
         const synth = { clientX: t.clientX, clientY: t.clientY, target: e.target };
         onPointerUp(synth);
-    });
+    }, { passive: true });
 
     window.addEventListener('keydown', (e) => handleInput(e.key, true));
     window.addEventListener('keyup', (e) => handleInput(e.key, false));
@@ -73,8 +86,8 @@ function onPointerUp(event) {
     const duration = Date.now() - pointerDownTime;
     const dist = pointerDownPos.distanceTo(new THREE.Vector2(event.clientX, event.clientY));
 
-    // Thresholds: < 500ms duration, < 20px movement (Relaxed for easier tapping)
-    if (duration < 500 && dist < 20) {
+    // Thresholds: < 500ms duration, < 30px movement (widened for mobile fat-finger taps)
+    if (duration < 500 && dist < 30) {
         handleTap(event);
     }
 }

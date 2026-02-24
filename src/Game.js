@@ -1,4 +1,4 @@
-/* Updated: frameloop set to always (demand broke useFrame/composer render loop causing blank system view); drei Stars, AdaptiveDpr, AdaptiveEvents, PerformanceMonitor active */
+/* Updated: Fixed mobile galaxy touch — OrbitControls touch.ONE set to PAN so single-finger drag moves the galaxy map, passive:false touch events in renderer.js prevent scroll hijack */
 import { jsxDEV } from "react/jsx-dev-runtime";
 import React, { useEffect, useRef, useState } from "react";
 import { Canvas, useThree, useFrame, extend } from "@react-three/fiber";
@@ -88,14 +88,17 @@ const ControlsWrapper = () => {
       setGlobalControls(controlsRef.current);
       controlsRef.current.minDistance = 20;
       controlsRef.current.maxDistance = 400;
-      // Explicit touch configuration for mobile map dragging
       controlsRef.current.enableRotate = true;
       controlsRef.current.enableZoom = true;
       controlsRef.current.enablePan = true;
+      // ONE finger = PAN (moves the galaxy map around, most intuitive on mobile)
+      // TWO fingers = DOLLY_PAN (pinch-to-zoom + two-finger pan)
       controlsRef.current.touches = {
-        ONE: THREE.TOUCH.ROTATE,
+        ONE: THREE.TOUCH.PAN,
         TWO: THREE.TOUCH.DOLLY_PAN
       };
+      // screenSpacePanning true = pan moves camera in screen XY plane (feels like dragging a map)
+      controlsRef.current.screenSpacePanning = true;
     }
   }, []);
   return /* @__PURE__ */ jsxDEV(
