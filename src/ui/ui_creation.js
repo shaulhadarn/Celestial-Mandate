@@ -96,11 +96,9 @@ function renderStepContent() {
     if (state.currentStep === TOTAL_STEPS - 1) {
         _nextBtn.innerText = 'Establish Empire';
         _nextBtn.classList.add('huge-btn');
-        _nextBtn.style.fontSize = '18px';
     } else {
         _nextBtn.innerText = 'Next Step';
         _nextBtn.classList.remove('huge-btn');
-        _nextBtn.style.fontSize = '';
     }
 
     // Animate only the content area
