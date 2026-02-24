@@ -1,4 +1,4 @@
-/* Updated: Added 2 alien species with distinct shapes/behaviors + vegetation (trees, bushes, alien plants) per planet type */
+/* Updated: Fixed floating rocks — lowered Y offset so rocks sit partially embedded in terrain instead of hovering */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 
@@ -198,7 +198,7 @@ export function createPlanetProps(planetType, group, heightFn) {
         const mesh = new THREE.Mesh(isCrystal ? crystalGeo : propGeo, isCrystal ? crystalMat : propMat);
 
         const halfHeight = isCrystal ? (3 * scale) / 2 : (1 * scale) / 2;
-        const meshY = yBase + (isCrystal ? 1.5 * scale : 0.8 * scale);
+        const meshY = yBase + (isCrystal ? 1.2 * scale : 0.25 * scale);
 
         mesh.position.set(x, meshY, z);
         mesh.scale.setScalar(scale);

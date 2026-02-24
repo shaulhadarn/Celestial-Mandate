@@ -240,8 +240,13 @@
     padding: 0;
     min-width: 300px;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), inset 0 0 40px rgba(0, 242, 255, 0.05);
-    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    transition: opacity 0.35s cubic-bezier(0.19, 1, 0.22, 1),
+                transform 0.35s cubic-bezier(0.19, 1, 0.22, 1),
+                visibility 0s 0s;
     transform-origin: top left;
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0) scale(1);
     clip-path: polygon(
         0 0, 
         100% 0, 
@@ -260,9 +265,18 @@
 }
 
 .panel.hidden {
-    opacity: 0;
-    transform: translateX(-30px) scale(0.95);
-    pointer-events: none;
+    opacity: 0 !important;
+    transform: translateX(-20px) scale(0.97) !important;
+    pointer-events: none !important;
+    visibility: hidden;
+    transition: opacity 0.3s cubic-bezier(0.19, 1, 0.22, 1),
+                transform 0.3s cubic-bezier(0.19, 1, 0.22, 1),
+                visibility 0s 0.3s;
+}
+
+/* Planet panel slides from right */
+#planet-panel.hidden {
+    transform: translateX(20px) scale(0.97) !important;
 }
 
 #system-panel {
@@ -272,12 +286,11 @@
 }
 
 #planet-panel {
-    top: 50%;
+    top: 100px;
     right: 40px;
     left: auto;
     bottom: auto;
-    transform: translateY(-50%);
-    transform-origin: center right;
+    transform-origin: top right;
     min-width: 360px;
     max-height: 80vh;
     overflow-y: auto;
@@ -1091,6 +1104,11 @@
     box-shadow: 0 0 12px rgba(0, 242, 255, 0.3);
 }
 
+/* ── Mobile date badge — hidden on desktop, shown only via mobile media query ── */
+#mobile-date-badge {
+    display: none !important;
+}
+
 /* ── EXPLORATION MODE — hide main UI layer ──────────────────────────────────── */
 #ui-layer.hidden-during-exploration #system-panel,
 #ui-layer.hidden-during-exploration #planet-panel,
@@ -1102,6 +1120,11 @@
 /* ── HIDDEN UTILITY ─────────────────────────────────────────────────────────── */
 .hidden {
     display: none !important;
+}
+
+/* Panels override: use visibility+opacity instead of display:none so transitions work */
+.panel.hidden {
+    display: block !important;
 }
 
 .star-list-meta {

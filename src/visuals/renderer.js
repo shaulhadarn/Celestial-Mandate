@@ -296,28 +296,20 @@ export function restoreControlsAfterPlanet() {
     // _panOffset, _scale state that accumulated while controls were disabled
     controls.reset();
 
-    if (savedControlsState) {
-        // Restore exact pre-landing camera position and target
-        controls.target.copy(savedControlsState.target);
-        camera.position.copy(savedControlsState.position);
-        camera.zoom = savedControlsState.zoom;
-        camera.updateProjectionMatrix();
-        controls.minDistance = savedControlsState.minDistance;
-        controls.maxDistance = savedControlsState.maxDistance;
-        controls.enablePan = savedControlsState.enablePan;
-        controls.enableDamping = savedControlsState.enableDamping;
-        controls.dampingFactor = savedControlsState.dampingFactor;
-        savedControlsState = null;
-    } else {
-        // Fallback: restore system view defaults
-        controls.target.set(0, 0, 0);
-        camera.position.set(0, 40, 40);
-        controls.minDistance = 10;
-        controls.maxDistance = 100;
-        controls.enablePan = true;
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-    }
+    // Always reset to the default system view camera — same as enterSystemView
+    controls.target.set(0, 0, 0);
+    camera.position.set(0, 40, 50);
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    controls.minDistance = 10;
+    controls.maxDistance = 300;
+    controls.enablePan = true;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.12;
+    controls.rotateSpeed = 1.0;
+    controls.panSpeed = 1.4;
+    controls.zoomSpeed = 1.2;
+    savedControlsState = null;
 
     controls.enabled = true;
     controls.update();
