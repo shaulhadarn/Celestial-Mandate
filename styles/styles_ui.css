@@ -1177,82 +1177,348 @@
 }
 
 /* ── RANDOM EVENT MODAL ────────────────────────────────────────────────────── */
+/* ── RANDOM EVENT MODAL — Premium Design ─────────────────────────────────── */
+
 .event-modal {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 10000;
+    --evt-accent: #00f2ff;
 }
 
 .event-modal.hidden { display: none; }
 
-.event-modal-box {
-    background: linear-gradient(180deg, rgba(2, 8, 18, 0.98) 0%, rgba(1, 4, 10, 0.98) 100%);
-    border: 1px solid rgba(0, 242, 255, 0.25);
-    box-shadow: 0 0 60px rgba(0, 242, 255, 0.08), 0 0 120px rgba(0, 0, 0, 0.8);
-    max-width: 420px;
-    width: 90%;
+/* ── Backdrop ──────────────────────────────────────────────────────────── */
+.evt-backdrop {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.85) 100%);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+/* ── Main box ──────────────────────────────────────────────────────────── */
+.evt-box {
+    position: relative;
+    background: linear-gradient(170deg, rgba(6, 14, 28, 0.97) 0%, rgba(2, 6, 14, 0.99) 100%);
+    border: 1px solid color-mix(in srgb, var(--evt-accent) 25%, transparent);
+    box-shadow:
+        0 0 80px color-mix(in srgb, var(--evt-accent) 10%, transparent),
+        0 0 160px rgba(0, 0, 0, 0.9),
+        inset 0 1px 0 color-mix(in srgb, var(--evt-accent) 10%, transparent);
+    max-width: 440px;
+    width: 92%;
     padding: 0;
     overflow: hidden;
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
 }
 
-.event-modal-header {
-    padding: 14px 18px;
-    border-bottom: 1px solid rgba(0, 242, 255, 0.12);
-    background: rgba(0, 242, 255, 0.04);
+.evt-box.evt-enter {
+    animation: evtEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.event-modal-title {
+@keyframes evtEnter {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Decorative corner accents ─────────────────────────────────────────── */
+.evt-corner {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+    z-index: 2;
+}
+.evt-corner::before,
+.evt-corner::after {
+    content: '';
+    position: absolute;
+    background: var(--evt-accent);
+    box-shadow: 0 0 6px var(--evt-accent);
+    opacity: 0.7;
+}
+.evt-corner::before { width: 16px; height: 1px; }
+.evt-corner::after  { width: 1px; height: 16px; }
+
+.evt-corner-tl { top: -1px; left: -1px; }
+.evt-corner-tl::before { top: 0; left: 0; }
+.evt-corner-tl::after  { top: 0; left: 0; }
+
+.evt-corner-tr { top: -1px; right: -1px; }
+.evt-corner-tr::before { top: 0; right: 0; }
+.evt-corner-tr::after  { top: 0; right: 0; }
+
+.evt-corner-bl { bottom: -1px; left: -1px; }
+.evt-corner-bl::before { bottom: 0; left: 0; }
+.evt-corner-bl::after  { bottom: 0; left: 0; }
+
+.evt-corner-br { bottom: -1px; right: -1px; }
+.evt-corner-br::before { bottom: 0; right: 0; }
+.evt-corner-br::after  { bottom: 0; right: 0; }
+
+/* ── Animated scan line ────────────────────────────────────────────────── */
+.evt-scanline {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--evt-accent) 50%, transparent 100%);
+    opacity: 0.4;
+    z-index: 3;
+    animation: evtScan 3.5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes evtScan {
+    0%   { top: 0; opacity: 0; }
+    10%  { opacity: 0.4; }
+    90%  { opacity: 0.4; }
+    100% { top: 100%; opacity: 0; }
+}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+.evt-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px 14px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--evt-accent) 6%, transparent) 0%, transparent 100%);
+}
+
+/* Icon wrapper with ring */
+.evt-icon-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.evt-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--evt-accent);
+    filter: drop-shadow(0 0 4px var(--evt-accent));
+    z-index: 1;
+    position: relative;
+}
+
+.evt-icon-ring {
+    position: absolute;
+    inset: 0;
+    border: 1px solid color-mix(in srgb, var(--evt-accent) 30%, transparent);
+    border-radius: 50%;
+    animation: evtRingPulse 3s ease-in-out infinite;
+}
+.evt-icon-ring::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 1px solid color-mix(in srgb, var(--evt-accent) 12%, transparent);
+    border-radius: 50%;
+}
+
+@keyframes evtRingPulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50%      { transform: scale(1.08); opacity: 1; }
+}
+
+/* Header text */
+.evt-header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.evt-category {
     font-family: var(--font-main);
-    font-size: 15px;
+    font-size: 9px;
     font-weight: 700;
-    color: #00f2ff;
-    letter-spacing: 1px;
+    letter-spacing: 2.5px;
+    color: var(--evt-accent);
+    opacity: 0.85;
+    text-transform: uppercase;
 }
 
-.event-modal-desc {
-    padding: 14px 18px;
+.evt-title {
     font-family: var(--font-main);
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.75);
-    line-height: 1.5;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    text-shadow: 0 0 20px color-mix(in srgb, var(--evt-accent) 30%, transparent);
 }
 
-.event-modal-choices {
-    padding: 10px 18px 18px;
+/* ── Separator ─────────────────────────────────────────────────────────── */
+.evt-separator {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 20px;
+    height: 12px;
+}
+
+.evt-sep-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--evt-accent) 25%, transparent), transparent);
+}
+
+.evt-sep-diamond {
+    width: 6px;
+    height: 6px;
+    background: var(--evt-accent);
+    transform: rotate(45deg);
+    opacity: 0.5;
+    box-shadow: 0 0 6px var(--evt-accent);
+    flex-shrink: 0;
+    margin: 0 8px;
+}
+
+/* ── Description ───────────────────────────────────────────────────────── */
+.evt-desc {
+    padding: 10px 22px 16px;
+    font-family: var(--font-main);
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.72);
+    line-height: 1.65;
+    letter-spacing: 0.2px;
+}
+
+/* ── Choices ────────────────────────────────────────────────────────────── */
+.evt-choices {
+    padding: 0 20px 20px;
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.event-choice-btn {
+.evt-choice-btn {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    background: rgba(0, 242, 255, 0.04);
-    border: 1px solid rgba(0, 242, 255, 0.15);
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%);
+    border: 1px solid color-mix(in srgb, var(--evt-accent) 15%, transparent);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s ease;
     font-family: var(--font-main);
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    animation: evtChoiceIn 0.35s ease forwards;
 }
 
-.event-choice-btn:hover {
-    background: rgba(0, 242, 255, 0.1);
-    border-color: rgba(0, 242, 255, 0.4);
+@keyframes evtChoiceIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
 
-.event-choice-label {
-    font-size: 12px;
+/* Left accent bar on choice */
+.evt-choice-btn::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--evt-accent);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.evt-choice-btn:hover {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--evt-accent) 8%, transparent) 0%, color-mix(in srgb, var(--evt-accent) 3%, transparent) 100%);
+    border-color: color-mix(in srgb, var(--evt-accent) 40%, transparent);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--evt-accent) 8%, transparent);
+    transform: translateX(2px);
+}
+
+.evt-choice-btn:hover::before {
+    opacity: 0.8;
+}
+
+.evt-choice-btn:active {
+    transform: translateX(2px) scale(0.99);
+}
+
+/* Choice row: marker + label */
+.evt-choice-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.evt-choice-marker {
+    width: 5px;
+    height: 5px;
+    background: var(--evt-accent);
+    opacity: 0.5;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+    transition: opacity 0.2s ease;
+}
+
+.evt-choice-btn:hover .evt-choice-marker {
+    opacity: 1;
+    box-shadow: 0 0 6px var(--evt-accent);
+}
+
+.evt-choice-label {
+    font-size: 12.5px;
     font-weight: 600;
-    color: #ffffff;
+    color: rgba(255, 255, 255, 0.92);
+    letter-spacing: 0.3px;
 }
 
-.event-choice-effect {
+/* ── Effect chips ──────────────────────────────────────────────────────── */
+.evt-choice-effects {
+    display: flex;
+    gap: 8px;
+    padding-left: 15px;
+    flex-wrap: wrap;
+}
+
+.evt-eff-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-main);
     font-size: 10px;
-    color: rgba(0, 242, 255, 0.7);
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 2px;
+}
+
+.evt-eff-pos {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.08);
+    border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.evt-eff-neg {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.evt-res-icon {
+    width: 11px;
+    height: 11px;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* ── Footer accent ─────────────────────────────────────────────────────── */
+.evt-footer-line {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--evt-accent), transparent);
+    opacity: 0.2;
 }
