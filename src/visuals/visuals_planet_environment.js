@@ -1,8 +1,7 @@
 /* Updated: Fixed floating rocks — lowered Y offset so rocks sit partially embedded in terrain instead of hovering */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
-
-const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+import { isMobile as isMobileDevice } from '../core/device.js';
 
 export function getSkyColor(type) {
     switch(type) {

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlanet, getPlanet, surveySystem, SURVEY_COST, loadGame } from '../core/state.js';
 import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet } from '../visuals/renderer.js';
 import { setJoystickInput } from '../visuals/visuals_planet.js';
+import { disposeGroup } from '../core/dispose.js';
 import { groups, controls, scene } from '../core/scene_config.js';
 import { renderColonyView, updateColonyDynamicState } from './ui_colony.js';
 import { renderColonyList, initEmpireHub } from './ui_empire.js';
@@ -12,6 +13,7 @@ import { showNotification } from './ui_notifications.js';
 import { initResearchUI } from './ui_research.js';
 import { initColoniesOverview } from './ui_colonies_overview.js';
 import { initFleetsUI } from './ui_fleets.js';
+import { initEventsUI } from './ui_events.js';
 
 // Re-export for other modules to use
 export { showNotification };
@@ -31,6 +33,12 @@ export function initUI() {
     initResearchUI();
     initColoniesOverview();
     initFleetsUI();
+    initSpeedControls();
+    initEventsUI();
+
+    events.addEventListener('autosave', () => {
+        showNotification('Game autosaved', 'info');
+    });
 
     // Splash Screen Listeners
     const splashStart = document.getElementById('splash-start');
@@ -211,6 +219,47 @@ export function initUI() {
     });
 }
 
+function initSpeedControls() {
+    const pauseBtn = document.getElementById('btn-pause');
+    const speed1 = document.getElementById('btn-speed-1');
+    const speed2 = document.getElementById('btn-speed-2');
+    const speed3 = document.getElementById('btn-speed-3');
+
+    function updateSpeedUI() {
+        [speed1, speed2, speed3].forEach(b => b?.classList.remove('speed-active'));
+        pauseBtn?.classList.remove('speed-paused');
+        if (gameState.paused) {
+            pauseBtn?.classList.add('speed-paused');
+        } else if (gameState.gameSpeed === 1) {
+            speed1?.classList.add('speed-active');
+        } else if (gameState.gameSpeed === 2) {
+            speed2?.classList.add('speed-active');
+        } else if (gameState.gameSpeed === 3) {
+            speed3?.classList.add('speed-active');
+        }
+    }
+
+    if (pauseBtn) pauseBtn.addEventListener('click', () => {
+        gameState.paused = !gameState.paused;
+        updateSpeedUI();
+    });
+    if (speed1) speed1.addEventListener('click', () => {
+        gameState.paused = false;
+        gameState.gameSpeed = 1;
+        updateSpeedUI();
+    });
+    if (speed2) speed2.addEventListener('click', () => {
+        gameState.paused = false;
+        gameState.gameSpeed = 2;
+        updateSpeedUI();
+    });
+    if (speed3) speed3.addEventListener('click', () => {
+        gameState.paused = false;
+        gameState.gameSpeed = 3;
+        updateSpeedUI();
+    });
+}
+
 function updateTopBar() {
     document.getElementById('res-energy').innerText = Math.floor(gameState.resources.energy);
     document.getElementById('res-minerals').innerText = Math.floor(gameState.resources.minerals);
@@ -309,10 +358,8 @@ function returnToSystemViewFromPlanet() {
         scene.fog = new THREE.FogExp2(0x020408, 0.0015);
     }
 
-    // Clear planet group so terrain/sky/props don't linger in memory
-    while (groups.planet.children.length > 0) {
-        groups.planet.remove(groups.planet.children[0]);
-    }
+    // Dispose planet group GPU resources (geometries, materials, textures) to prevent memory leak
+    disposeGroup(groups.planet);
 
     // Remove Joystick
     if (activeJoystick) {

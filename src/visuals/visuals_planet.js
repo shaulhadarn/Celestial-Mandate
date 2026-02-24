@@ -2,14 +2,14 @@
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState, events } from '../core/state.js';
+import { disposeGroup } from '../core/dispose.js';
 import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
 import { getSkyColor, createPlanetProps, createCreatures } from './visuals_planet_environment.js';
 import { renderColonyGroundBuildings } from './visuals_planet_colony.js';
 
 import { scene } from '../core/scene_config.js';
-
-const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+import { isMobile as isMobileDevice } from '../core/device.js';
 
 let playerMesh;
 let terrainMesh;
@@ -179,7 +179,7 @@ export function createPlanetVisuals(planetData, group) {
     creatures.length = 0;
     currentPlanetData = planetData;
     explorationGroup = group;
-    while(group.children.length > 0) group.remove(group.children[0]);
+    disposeGroup(group);
 
     // Ice/Arctic now have dark sky colors — treat them as dark for lighting purposes
     const isDark = ['Barren', 'Tomb', 'Molten', 'Ice', 'Arctic'].includes(planetData.type);

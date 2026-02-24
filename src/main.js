@@ -4,7 +4,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { init as initRenderer, buildGalaxyVisuals, focusCamera, enterSystemView, isRendererReady } from "./visuals/renderer.js";
 import { generateGalaxy } from "./core/galaxy_generator.js";
-import { gameState, updateResources, events, colonizePlanet, selectSystem, selectPlanet } from "./core/state.js";
+import { gameState, updateResources, events, colonizePlanet, selectSystem, selectPlanet, rebuildIndexes } from "./core/state.js";
 import { initUI } from "./ui/ui.js";
 import { initCreationUI } from "./ui/ui_creation.js";
 import { initSplashPlanet, stopSplashPlanet } from "./visuals/splash_renderer.js";
@@ -49,6 +49,7 @@ function startGame(playerCiv) {
   const galaxyData = generateGalaxy(100, 300, playerCiv);
   gameState.systems = galaxyData.systems;
   gameState.hyperlanes = galaxyData.hyperlanes;
+  rebuildIndexes();
   buildGalaxyVisuals(gameState.systems, gameState.hyperlanes);
   startLogicLoop();
   const homeSystem = galaxyData.systems[0];
@@ -90,9 +91,14 @@ function startLoadedGame() {
   focusHome(homeSystem, homePlanet);
   console.log("Game Loaded Successfully");
 }
+let logicIntervalId = null;
 function startLogicLoop() {
-  setInterval(() => {
-    updateResources();
+  if (logicIntervalId) clearInterval(logicIntervalId);
+  logicIntervalId = setInterval(() => {
+    const speed = gameState.gameSpeed || 1;
+    for (let i = 0; i < speed; i++) {
+      updateResources();
+    }
   }, 1e3);
 }
 function focusHome(homeSystem, homePlanet) {

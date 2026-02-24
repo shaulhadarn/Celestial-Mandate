@@ -9,8 +9,8 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { groups, setGlobalScene, setGlobalCamera, setGlobalRenderer, setGlobalControls, setGlobalComposer } from "./core/scene_config.js";
 import { updateFrame } from "./visuals/renderer.js";
+import { isMobile as isMobileDevice } from "./core/device.js";
 extend({ EffectComposer, RenderPass, UnrealBloomPass });
-const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 const SceneBindings = () => {
   const { scene, camera, gl } = useThree();
   useEffect(() => {

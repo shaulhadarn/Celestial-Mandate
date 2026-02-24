@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
-
-const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+import { disposeGroup } from '../core/dispose.js';
+import { createTextSprite } from '../core/text_sprite.js';
+import { isMobile as isMobileDevice } from '../core/device.js';
 
 export let planetMeshes = [];
 export let planetLabels = [];
@@ -17,7 +18,7 @@ let _sunFlares = [];
 let _sunPointLight = null;
 
 export function clearSystemVisuals(group) {
-    while(group.children.length > 0) group.remove(group.children[0]);
+    disposeGroup(group);
     planetMeshes.length = 0;
     planetLabels.length = 0;
     _sunShaderMat = null;
@@ -333,7 +334,7 @@ export function createSystemVisuals(system, group) {
         group.add(orbit);
 
         // Label
-        const label = createTextSprite(p.name);
+        const label = createTextSprite(p.name, { fontSize: 20, worldScale: 0.035 });
         label.userData = { id: p.id, data: p };
         group.add(label);
         planetLabels.push({ sprite: label, target: mesh, offsetY: - (p.size * 2.5) - 2 });
@@ -410,59 +411,6 @@ export function updateSystemAnimations(time) {
             item.sprite.position.y += item.offsetY;
         }
     });
-}
-
-function createTextSprite(text) {
-    const PIXEL_SCALE = 2;
-    const fontSize = 20;
-    const font = `600 ${fontSize * PIXEL_SCALE}px "Rajdhani", sans-serif`;
-
-    const measure = document.createElement('canvas').getContext('2d');
-    measure.font = font;
-    const metrics = measure.measureText(text);
-
-    const GLOW_PAD = 5 * PIXEL_SCALE;
-    const w = Math.ceil(metrics.width) + GLOW_PAD * 2;
-    const h = (fontSize + 8) * PIXEL_SCALE + GLOW_PAD * 2;
-    const cx = w / 2;
-    const cy = h / 2;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-
-    ctx.font = font;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-
-    // Single very subtle halo — thin and low opacity
-    ctx.lineWidth   = 3 * PIXEL_SCALE;
-    ctx.strokeStyle = 'rgba(0, 242, 255, 0.10)';
-    ctx.strokeText(text, cx, cy);
-
-    // Thin dark outline for readability
-    ctx.lineWidth   = 1.2 * PIXEL_SCALE;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
-    ctx.strokeText(text, cx, cy);
-
-    // Pure white fill for maximum readability
-    ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-    ctx.fillText(text, cx, cy);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.generateMipmaps = true;
-    tex.anisotropy = 4;
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: tex, transparent: true, opacity: 0.90, depthTest: true, depthWrite: false
-    }));
-    sprite.scale.set((w * 0.035) / PIXEL_SCALE, (h * 0.035) / PIXEL_SCALE, 1);
-    return sprite;
 }
 
 function _makeSpaceBackgroundTexture() {

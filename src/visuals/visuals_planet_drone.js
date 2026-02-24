@@ -1,8 +1,7 @@
 /* Updated: Mobile optimized - no SpotLight shadow on mobile, reduced PointLight range, lower-poly drone geometry on mobile */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
-
-const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+import { isMobile as isMobileDevice } from '../core/device.js';
 
 /**
  * Creates the 3D model for the player's exploration drone.
