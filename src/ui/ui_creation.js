@@ -1,4 +1,4 @@
-/* Updated: Split into 5 steps — Species, Homeworld, Traits, Archetype+Ethics, Civics */
+/* Updated: Delay game-start event until fade-out animation completes for smooth transition to race intro */
 import { events } from '../core/state.js';
 import { state, TOTAL_STEPS, validateStep, validateCiv } from './ui_creation_state.js';
 import { renderSpeciesStep } from './ui_creation_species.js';
@@ -126,8 +126,10 @@ function handleNext(container) {
     if (state.currentStep === TOTAL_STEPS - 1) {
         if (validateCiv()) {
             container.classList.add('fade-out');
-            setTimeout(() => container.classList.add('hidden'), 1000);
-            events.dispatchEvent(new CustomEvent('game-start', { detail: state.currentCiv }));
+            setTimeout(() => {
+                container.classList.add('hidden');
+                events.dispatchEvent(new CustomEvent('game-start', { detail: state.currentCiv }));
+            }, 1000);
         }
     } else {
         if (validateStep(state.currentStep)) {

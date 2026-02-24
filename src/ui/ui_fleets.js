@@ -1,9 +1,21 @@
-/* Updated: SVG ship icons — replaced emoji with unique SVG silhouettes per ship id */
+/* Updated: Upgraded ship modal with SVG stat icons, capabilities bars, weapon/special lists; replaced all emoji with SVG throughout fleets UI */
 import { gameState, RACE_SHIPS, buildShip, cancelShipBuild, events } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
 import { getShipSvg } from './ship_icons.js';
 
-function openShipModal(ship) {
+// SVG icon templates for stat cells
+const STAT_ICONS = {
+    length: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="7" x2="3" y2="13"/><line x1="17" y1="7" x2="17" y2="13"/><line x1="8" y1="9" x2="12" y2="9"/></svg>`,
+    crew: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="7" r="3"/><path d="M4 17 C4 13 7 11 10 11 C13 11 16 13 16 17"/></svg>`,
+    power: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 L14 2 L10 9 L15 9 L8 18 L10 11 L5 11 Z"/></svg>`,
+    minerals: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><polygon points="10,2 17,7 17,13 10,18 3,13 3,7"/><line x1="10" y1="2" x2="10" y2="18" opacity="0.4"/><line x1="3" y1="7" x2="17" y2="13" opacity="0.4"/><line x1="17" y1="7" x2="3" y2="13" opacity="0.4"/></svg>`,
+    energy: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M11 2 L7 10 L10 10 L9 18 L13 10 L10 10 L11 2Z"/></svg>`,
+    buildTime: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><line x1="10" y1="6" x2="10" y2="10"/><line x1="10" y1="10" x2="13" y2="13"/><circle cx="10" cy="10" r="1" fill="currentColor"/></svg>`,
+    hull: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2 L17 6 L17 14 L10 18 L3 14 L3 6 Z"/><path d="M10 6 L14 8 L14 12 L10 14 L6 12 L6 8 Z" opacity="0.5"/></svg>`,
+    speed: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 14 Q10 4 17 14"/><line x1="10" y1="14" x2="13" y2="8"/><circle cx="10" cy="14" r="1.5" fill="currentColor"/></svg>`,
+};
+
+export function openShipModal(ship) {
     const modal   = document.getElementById('ship-detail-modal');
     const accent  = ship.accentColor || '#00c8ff';
 
@@ -18,23 +30,66 @@ function openShipModal(ship) {
     header.style.borderBottom = `1px solid ${accent}44`;
     header.style.background   = `linear-gradient(90deg, ${accent}18 0%, transparent 100%)`;
 
+    // Derive extra stats from ship data
+    const hullHP = Math.round(ship.power * 120 + (ship.crew || 0) * 2);
+    const speed = ship.crew === 0 ? 'Autonomous' : (ship.power <= 2 ? 'Fast' : ship.power <= 5 ? 'Standard' : 'Slow');
+
     document.getElementById('ship-modal-stats').innerHTML = [
-        { label: 'Length',    value: ship.length   || '—' },
-        { label: 'Crew',      value: ship.crew === 0 ? 'Unmanned' : (ship.crew || '—') },
-        { label: 'Power',     value: `⚔ ${ship.power}` },
-        { label: 'Minerals',  value: `💎 ${ship.cost.minerals}` },
-        { label: 'Energy',    value: `⚡ ${ship.cost.energy}` },
-        { label: 'Build Time',value: `⏱ ${ship.buildTime}s` },
+        { label: 'Length',     value: ship.length || '—',                         icon: STAT_ICONS.length },
+        { label: 'Crew',       value: ship.crew === 0 ? 'Unmanned' : (ship.crew || '—'), icon: STAT_ICONS.crew },
+        { label: 'Power',      value: ship.power,                                 icon: STAT_ICONS.power },
+        { label: 'Hull HP',    value: hullHP,                                      icon: STAT_ICONS.hull },
+        { label: 'Speed',      value: speed,                                       icon: STAT_ICONS.speed },
+        { label: 'Minerals',   value: ship.cost.minerals,                          icon: STAT_ICONS.minerals },
+        { label: 'Energy',     value: ship.cost.energy,                            icon: STAT_ICONS.energy },
+        { label: 'Build Time', value: `${ship.buildTime}s`,                        icon: STAT_ICONS.buildTime },
     ].map(s => `
         <div class="ship-stat-cell">
+            <div class="ship-stat-icon" style="color:${accent}">${s.icon}</div>
             <div class="ship-stat-label">${s.label}</div>
             <div class="ship-stat-value" style="color:${accent}">${s.value}</div>
         </div>
     `).join('');
 
-    document.getElementById('ship-modal-weapons').textContent = ship.weapons || '—';
-    document.getElementById('ship-modal-special').textContent = ship.special || '—';
-    document.getElementById('ship-modal-story').textContent   = ship.story   || ship.desc;
+    // Capabilities bars
+    const maxPower = 11;
+    const capEntries = [
+        { label: 'Firepower',  pct: Math.min(100, (ship.power / maxPower) * 100) },
+        { label: 'Durability', pct: Math.min(100, (hullHP / 1500) * 100) },
+        { label: 'Agility',   pct: ship.power <= 2 ? 90 : ship.power <= 5 ? 55 : 25 },
+    ];
+    const capsEl = document.getElementById('ship-modal-capabilities');
+    if (capsEl) {
+        capsEl.innerHTML = capEntries.map(c => `
+            <div class="ship-cap-row">
+                <span class="ship-cap-label">${c.label}</span>
+                <div class="ship-cap-bar-bg">
+                    <div class="ship-cap-bar-fill" style="width:${c.pct}%; background:${accent};"></div>
+                </div>
+                <span class="ship-cap-pct" style="color:${accent}">${Math.round(c.pct)}%</span>
+            </div>
+        `).join('');
+    }
+
+    // Weapons list with bullet SVGs
+    const weaponsList = (ship.weapons || '—').split(',').map(w => w.trim());
+    document.getElementById('ship-modal-weapons').innerHTML = weaponsList.map(w => `
+        <div class="ship-weapon-item">
+            <svg viewBox="0 0 16 16" fill="currentColor" class="ship-bullet-icon" style="color:${accent}"><circle cx="8" cy="8" r="3" opacity="0.8"/><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg>
+            <span>${w}</span>
+        </div>
+    `).join('');
+
+    // Special systems list with bullet SVGs
+    const specialList = (ship.special || '—').split(',').map(s => s.trim());
+    document.getElementById('ship-modal-special').innerHTML = specialList.map(s => `
+        <div class="ship-weapon-item">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="ship-bullet-icon" style="color:${accent}"><rect x="3" y="3" width="10" height="10" rx="2"/><circle cx="8" cy="8" r="2" fill="currentColor" opacity="0.6"/></svg>
+            <span>${s}</span>
+        </div>
+    `).join('');
+
+    document.getElementById('ship-modal-story').textContent = ship.story || ship.desc;
 
     const box = modal.querySelector('.ship-modal-box');
     box.style.borderColor  = `${accent}55`;
@@ -154,9 +209,9 @@ export function renderFleetsPanel() {
                         <div class="fsc-name">${ship.name}</div>
                         <div class="fsc-desc">${ship.desc}</div>
                         <div class="fsc-stats">
-                            <span class="fsc-power">⚔ ${ship.power}</span>
-                            <span class="fsc-cost">💎${ship.cost.minerals} ⚡${ship.cost.energy}</span>
-                            <span class="fsc-time">⏱ ${ship.buildTime}s</span>
+                            <span class="fsc-power"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" class="fsc-stat-svg"><path d="M4 1 L10 1 L7 6 L11 6 L5 13 L7 7 L3 7 Z"/></svg>${ship.power}</span>
+                            <span class="fsc-cost"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" class="fsc-stat-svg fsc-mineral"><polygon points="7,1 12,4 12,10 7,13 2,10 2,4"/></svg>${ship.cost.minerals} <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="fsc-stat-svg fsc-energy"><path d="M8 1 L5 7 L7 7 L6 13 L9 7 L7 7 L8 1Z"/></svg>${ship.cost.energy}</span>
+                            <span class="fsc-time"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="fsc-stat-svg"><circle cx="7" cy="7" r="5"/><line x1="7" y1="4" x2="7" y2="7"/><line x1="7" y1="7" x2="9" y2="9"/></svg>${ship.buildTime}s</span>
                         </div>
                     </div>
                     <button class="fsc-view-btn" data-ship="${ship.id}">View</button>
@@ -176,7 +231,7 @@ export function renderFleetsPanel() {
     // ── Section 2: Active Fleet ───────────────────────────────────────────────
     const fleetSection = document.createElement('div');
     fleetSection.className = 'fleets-section';
-    fleetSection.innerHTML = `<h3 class="fleets-section-title">🚀 Active Fleet</h3>`;
+    fleetSection.innerHTML = `<h3 class="fleets-section-title"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="fleets-title-svg"><path d="M10 2 L14 8 L12 10 L10 9 L8 10 L6 8 Z"/><path d="M8 10 L6 16 L10 14 L14 16 L12 10"/></svg> Active Fleet</h3>`;
 
     const fleets = gameState.fleets || [];
     if (fleets.length === 0) {
@@ -196,15 +251,15 @@ export function renderFleetsPanel() {
             group.className = 'fleet-group';
             group.innerHTML = `
                 <div class="fleet-group-header">
-                    <span class="fleet-group-sys">📍 ${sysName}</span>
-                    <span class="fleet-group-power">⚔ Fleet Power: ${totalPower}</span>
+                    <span class="fleet-group-sys"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" class="fsc-stat-svg"><path d="M7 1 C4 1 2 3.5 2 6 C2 9.5 7 13 7 13 C7 13 12 9.5 12 6 C12 3.5 10 1 7 1Z"/><circle cx="7" cy="6" r="2"/></svg> ${sysName}</span>
+                    <span class="fleet-group-power"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" class="fsc-stat-svg"><path d="M4 1 L10 1 L7 6 L11 6 L5 13 L7 7 L3 7 Z"/></svg> Fleet Power: ${totalPower}</span>
                 </div>
                 <div class="fleet-group-ships">
                     ${ships.map(f => `
                         <div class="fleet-ship-row">
                             <span class="fsr-icon">${f.icon}</span>
                             <span class="fsr-name">${f.name}</span>
-                            <span class="fsr-power">⚔ ${f.power}</span>
+                            <span class="fsr-power"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" class="fsc-stat-svg"><path d="M4 1 L10 1 L7 6 L11 6 L5 13 L7 7 L3 7 Z"/></svg> ${f.power}</span>
                         </div>
                     `).join('')}
                 </div>

@@ -1,4 +1,4 @@
-/* Updated: Added anti-aliasing toggle — recreates WebGL renderer on change, rebuilds composer and controls */
+/* Updated: Improved rendering quality — use full devicePixelRatio on desktop, LineLoop orbits, recreateRenderer defers pixel ratio to applyGraphicsConfig */
 import * as THREE from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -43,7 +43,8 @@ export function initRenderer() {
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     // Mobile: cap at 1.5x to avoid oversized framebuffers that cause bloom tile artifacts
-    renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
+    // Desktop: use full device pixel ratio for crisp edges
+    renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : window.devicePixelRatio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = isMobile ? 0.75 : 1.2;
@@ -137,7 +138,7 @@ function recreateRenderer() {
         logarithmicDepthBuffer: false,
     });
     newRenderer.setSize(window.innerWidth, window.innerHeight);
-    newRenderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
+    newRenderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : window.devicePixelRatio);
     newRenderer.outputColorSpace = THREE.SRGBColorSpace;
     newRenderer.toneMapping = THREE.ACESFilmicToneMapping;
     newRenderer.toneMappingExposure = isMobile ? 0.75 : 1.2;

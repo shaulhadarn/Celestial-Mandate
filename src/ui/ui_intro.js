@@ -1,4 +1,4 @@
-/* Created: Race intro cinematic - 4 unique story slides per race shown before game starts */
+/* Updated: Removed shooting stars from race intro background */
 
 // ── Slide data keyed by bodyType id ─────────────────────────────────────────
 const RACE_INTROS = {
@@ -272,11 +272,6 @@ function _buildOverlay(civName) {
         <div class="intro-bg-stars"></div>
         <div class="intro-bg-nebula"></div>
         <div class="intro-bg-stars-dense"></div>
-        <div class="intro-bg-shooting-stars">
-            <div class="intro-shooting-star ss-1"></div>
-            <div class="intro-shooting-star ss-2"></div>
-            <div class="intro-shooting-star ss-3"></div>
-        </div>
         <div class="intro-bg-vignette"></div>
         <div class="intro-content">
             <div class="intro-empire-name">${civName || 'Your Empire'}</div>

@@ -1,4 +1,4 @@
-/* Updated: Sun plasma shader now used on ALL devices (mobile included) — only 1 sun in system view, no perf concern */
+/* Updated: Orbit rings use LineLoop for consistent visibility at all angles, planet segments increased to 96 on desktop */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState } from '../core/state.js';
@@ -239,8 +239,8 @@ export function createSystemVisuals(system, group) {
                 emissiveIntensity = 0.1;
         }
 
-        // Higher resolution geometry on desktop
-        const segments = isMobileDevice ? 32 : 64;
+        // Higher resolution geometry on desktop for smooth circular edges
+        const segments = isMobileDevice ? 32 : 96;
         const pGeo = new THREE.SphereGeometry(p.size * 2 * scale, segments, segments);
 
         // Per-type physical material properties
@@ -310,18 +310,26 @@ export function createSystemVisuals(system, group) {
         group.add(mesh);
         planetMeshes.push(mesh);
 
-        // Orbit
-        const orbitGeo = new THREE.RingGeometry(p.distance - 0.08, p.distance + 0.08, 128);
-        const orbitMat = new THREE.MeshBasicMaterial({ 
-            color: 0x66aadd, 
-            opacity: 0.45, 
-            transparent: true, 
-            side: THREE.DoubleSide,
+        // Orbit — use LineLoop so the ring is always visible regardless of camera angle
+        const orbitSegments = 256;
+        const orbitPoints = [];
+        for (let j = 0; j <= orbitSegments; j++) {
+            const theta = (j / orbitSegments) * Math.PI * 2;
+            orbitPoints.push(new THREE.Vector3(
+                Math.cos(theta) * p.distance,
+                0,
+                Math.sin(theta) * p.distance
+            ));
+        }
+        const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+        const orbitMat = new THREE.LineBasicMaterial({
+            color: 0x66aadd,
+            opacity: 0.4,
+            transparent: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
-        const orbit = new THREE.Mesh(orbitGeo, orbitMat);
-        orbit.rotation.x = Math.PI / 2;
+        const orbit = new THREE.LineLoop(orbitGeo, orbitMat);
         group.add(orbit);
 
         // Label
