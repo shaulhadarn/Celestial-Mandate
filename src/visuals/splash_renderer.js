@@ -1,5 +1,6 @@
 /* Updated: Organized app hierarchy, moved to src/visuals folder, fixed imports and paths */
 import * as THREE from 'three';
+import { isMobile } from '../core/device.js';
 import { createHullTexture, createGlowTexture } from '../core/splash_assets.js';
 import { createSplashScreenShip, createCapitalFleet, resetShip } from './splash_ships.js';
 import { trailParticles, spawnTrailParticle, updateTrailParticles } from './splash_particles.js';
@@ -33,8 +34,6 @@ export function initSplashPlanet(containerId) {
     const maxPixelRatio = window.innerWidth > 768 ? 2 : 1.5;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
     container.appendChild(renderer.domElement);
-
-    const isMobile = window.innerWidth <= 768;
 
     trailTexture = createGlowTexture();
     hullTexture = createHullTexture();

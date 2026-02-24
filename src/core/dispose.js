@@ -19,15 +19,19 @@ export function disposeGroup(group) {
     }
 }
 
+function disposeTexture(tex) {
+    if (tex && !tex.userData?.shared) tex.dispose();
+}
+
 function disposeMaterial(material) {
     if (Array.isArray(material)) {
         material.forEach(m => disposeMaterial(m));
         return;
     }
-    if (material.map) material.map.dispose();
-    if (material.normalMap) material.normalMap.dispose();
-    if (material.roughnessMap) material.roughnessMap.dispose();
-    if (material.metalnessMap) material.metalnessMap.dispose();
-    if (material.emissiveMap) material.emissiveMap.dispose();
+    disposeTexture(material.map);
+    disposeTexture(material.normalMap);
+    disposeTexture(material.roughnessMap);
+    disposeTexture(material.metalnessMap);
+    disposeTexture(material.emissiveMap);
     material.dispose();
 }

@@ -6,16 +6,24 @@ import { RANDOM_EVENTS } from './events_data.js';
 // Index maps for O(1) lookups — rebuilt after galaxy generation or game load
 const _systemIndex = new Map(); // id -> system
 const _planetIndex = new Map(); // id -> planet
+const _planetToSystem = new Map(); // planetId -> systemId
 
 export function rebuildIndexes() {
     _systemIndex.clear();
     _planetIndex.clear();
+    _planetToSystem.clear();
     for (const sys of gameState.systems) {
         _systemIndex.set(sys.id, sys);
         for (const p of sys.planets) {
             _planetIndex.set(p.id, p);
+            _planetToSystem.set(p.id, sys.id);
         }
     }
+}
+
+export function getSystemForPlanet(planetId) {
+    const sysId = _planetToSystem.get(planetId);
+    return sysId != null ? _systemIndex.get(sysId) : null;
 }
 
 // Central store for Game State
@@ -371,12 +379,10 @@ export function updateResources() {
                     planetId,
                 };
                 // Find which system this planet belongs to
-                for (const sys of gameState.systems) {
-                    if (sys.planets.find(p => p.id === planetId)) {
-                        fleet.systemId = sys.id;
-                        fleet.systemName = sys.name;
-                        break;
-                    }
+                const sys = getSystemForPlanet(planetId);
+                if (sys) {
+                    fleet.systemId = sys.id;
+                    fleet.systemName = sys.name;
                 }
                 if (!gameState.fleets) gameState.fleets = [];
                 gameState.fleets.push(fleet);

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlanet, getPlanet, surveySystem, SURVEY_COST, loadGame } from '../core/state.js';
 import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet } from '../visuals/renderer.js';
 import { setJoystickInput } from '../visuals/visuals_planet.js';
+import { disposeGroup } from '../core/dispose.js';
 import { groups, controls, scene } from '../core/scene_config.js';
 import { renderColonyView, updateColonyDynamicState } from './ui_colony.js';
 import { renderColonyList, initEmpireHub } from './ui_empire.js';
@@ -357,10 +358,8 @@ function returnToSystemViewFromPlanet() {
         scene.fog = new THREE.FogExp2(0x020408, 0.0015);
     }
 
-    // Clear planet group so terrain/sky/props don't linger in memory
-    while (groups.planet.children.length > 0) {
-        groups.planet.remove(groups.planet.children[0]);
-    }
+    // Dispose planet group GPU resources (geometries, materials, textures) to prevent memory leak
+    disposeGroup(groups.planet);
 
     // Remove Joystick
     if (activeJoystick) {

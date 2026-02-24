@@ -13,6 +13,11 @@ export function loadAssets() {
     textures.gas = texLoader.load('assets/planet_gas.png');
     textures.barren = texLoader.load('assets/planet_barren.png');
 
+    // Mark all shared textures so disposeGroup() skips them during cleanup
+    for (const tex of Object.values(textures)) {
+        if (tex && tex.isTexture) tex.userData.shared = true;
+    }
+
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     loadSound('hover', 'assets/ui_hover.mp3');
     loadSound('select', 'assets/ui_select.mp3');

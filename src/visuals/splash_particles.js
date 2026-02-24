@@ -1,10 +1,10 @@
 /* Updated: Organized app hierarchy, moved to src/visuals folder, fixed imports and paths */
 import * as THREE from 'three';
+import { isMobile } from '../core/device.js';
 
 export const trailParticles = [];
 
 export function spawnTrailParticle(scene, position, trailTexture) {
-    const isMobile = window.innerWidth <= 768;
     if (isMobile && trailParticles.length > 80) return;
 
     const mat = new THREE.SpriteMaterial({

@@ -1,5 +1,6 @@
 /* Updated: Organized app hierarchy, moved to src/visuals folder, fixed imports and paths */
 import * as THREE from 'three';
+import { isMobile } from '../core/device.js';
 
 export function createSplashScreenShip(type = 'scout', textures) {
     const shipGroup = new THREE.Group();
@@ -194,7 +195,6 @@ export function resetShip(ship, ships, initial = false) {
     ship.position.y = (Math.random() - 0.5) * 6;
     ship.position.z = 7 + Math.random() * 4; 
     
-    const isMobile = window.innerWidth <= 768;
     if (isMobile) {
         ship.position.y = 4 + (Math.random() - 0.5) * 4;
     }
