@@ -50,7 +50,7 @@ function startGame(playerCiv) {
   gameState.systems = galaxyData.systems;
   gameState.hyperlanes = galaxyData.hyperlanes;
   rebuildIndexes();
-  buildGalaxyVisuals(gameState.systems, gameState.hyperlanes);
+  // Galaxy visuals will be built when scene is ready in SceneBindings component
   startLogicLoop();
   const homeSystem = galaxyData.systems[0];
   const homePlanet = homeSystem.planets[0];
@@ -74,7 +74,7 @@ function startLoadedGame() {
     lineNumber: 87,
     columnNumber: 17
   }, this));
-  buildGalaxyVisuals(gameState.systems, gameState.hyperlanes);
+  // Galaxy visuals will be built when scene is ready in SceneBindings component
   startLogicLoop();
   const homeSystem = gameState.systems[0];
   let homePlanet = null;

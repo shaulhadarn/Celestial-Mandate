@@ -8,7 +8,8 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { groups, setGlobalScene, setGlobalCamera, setGlobalRenderer, setGlobalControls, setGlobalComposer } from "./core/scene_config.js";
-import { updateFrame } from "./visuals/renderer.js";
+import { updateFrame, buildGalaxyVisuals } from "./visuals/renderer.js";
+import { gameState } from "./core/state.js";
 import { isMobile as isMobileDevice } from "./core/device.js";
 extend({ EffectComposer, RenderPass, UnrealBloomPass });
 const SceneBindings = () => {
@@ -34,6 +35,12 @@ const SceneBindings = () => {
     scene.add(groups.galaxy);
     scene.add(groups.system);
     scene.add(groups.planet);
+    
+    // Build galaxy visuals now that scene is ready
+    if (gameState.systems && gameState.systems.length > 0) {
+      buildGalaxyVisuals(gameState.systems, gameState.hyperlanes);
+    }
+    
     return () => {
       scene.remove(groups.galaxy);
       scene.remove(groups.system);

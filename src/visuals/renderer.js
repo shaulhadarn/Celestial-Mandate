@@ -150,6 +150,11 @@ function handleTap(event) {
 
 export function buildGalaxyVisuals(systems, hyperlanes) {
     if (hyperlanes) cachedHyperlanes = hyperlanes;
+    // Safety check: ensure scene and groups are ready before building galaxy
+    if (!scene || !groups || !groups.galaxy) {
+        console.warn("buildGalaxyVisuals: Scene not ready, skipping galaxy build");
+        return;
+    }
     // Removed: Galaxy building logic (moved to visuals_galaxy.js)
     createGalaxyVisuals(systems, cachedHyperlanes, groups.galaxy);
 }

@@ -1,6 +1,13 @@
 Changelog - Stellaris Imperium
 ================================
 
+2026-02-24: Fixed galaxy view not starting — added scene readiness check and proper initialization timing
+- Root cause: buildGalaxyVisuals was being called before React Three Fiber scene was ready, causing galaxy visuals to not be created
+- Fix 1: Added safety check in buildGalaxyVisuals to ensure scene and groups are ready before building
+- Fix 2: Moved galaxy visual creation to SceneBindings component which runs when R3F scene is ready
+- Fix 3: Removed duplicate buildGalaxyVisuals calls from main.js that were causing timing issues
+- Result: Galaxy visuals now properly initialize and animate when game starts
+
 2026-02-24: Fixed mobile race intro buttons — added #race-intro-overlay to preventDefault exclusions
 - Root cause: Race intro "Continue" and "Begin Your Reign" buttons were unresponsive on mobile because #race-intro-overlay is outside #ui-layer and was blocked by preventDefault()
 - Fix: Modified touchmove and touchstart listeners in renderer.js to also exclude #race-intro-overlay from preventDefault()
