@@ -1516,6 +1516,36 @@
     flex-shrink: 0;
 }
 
+/* ── Chain indicator bar ────────────────────────────────────────────────── */
+.evt-chain-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 20px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--evt-accent) 10%, transparent), transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--evt-accent) 12%, transparent);
+}
+
+.evt-chain-bar.hidden { display: none; }
+
+.evt-chain-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--evt-accent);
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.evt-chain-text {
+    font-family: var(--font-main);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: var(--evt-accent);
+    opacity: 0.7;
+    text-transform: uppercase;
+}
+
 /* ── Footer accent ─────────────────────────────────────────────────────── */
 .evt-footer-line {
     height: 2px;

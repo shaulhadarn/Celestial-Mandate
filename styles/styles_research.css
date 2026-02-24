@@ -294,6 +294,16 @@
     margin-bottom: 4px;
 }
 
+.research-card-flavor {
+    font-style: italic;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+    border-left: 2px solid rgba(0, 242, 255, 0.15);
+    padding-left: 8px;
+    margin: 6px 0 4px;
+    line-height: 1.5;
+}
+
 .research-card-bonus {
     font-size: 11px;
     color: #64ff96;

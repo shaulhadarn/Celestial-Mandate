@@ -124,6 +124,7 @@ function renderResearchPanel() {
                     <div class="research-card-body">
                         <div class="research-card-name">${tech.name}</div>
                         <div class="research-card-desc">${tech.desc}</div>
+                        ${tech.flavor ? `<div class="research-card-flavor">${tech.flavor}</div>` : ''}
                         ${bonusText ? `<div class="research-card-bonus">${bonusText}</div>` : ''}
                         ${tech.unlocks ? `<div class="research-card-unlock">🏗️ Unlocks: ${tech.unlocks.replace(/_/g,' ')}</div>` : ''}
                         ${prereqText ? `<div class="research-card-prereq">Requires: ${prereqText}</div>` : ''}

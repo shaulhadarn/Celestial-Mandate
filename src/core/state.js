@@ -1,7 +1,7 @@
 /* Updated: Enriched RACE_SHIPS with story, shipClass, length, crew, weapons, special, accentColor for all 24 ships across 8 races */
 import { ARCHETYPES } from './civilization_data.js';
 import { TECH_TREE, RESEARCH_BUILDINGS, getTechById, getAvailableTechs } from './research_data.js';
-import { RANDOM_EVENTS } from './events_data.js';
+import { RANDOM_EVENTS, EVENT_CHAINS } from './events_data.js';
 
 // Index maps for O(1) lookups — rebuilt after galaxy generation or game load
 const _systemIndex = new Map(); // id -> system
@@ -59,6 +59,15 @@ export const gameState = {
         currentResearch: null,   // { techId, progress, total }
         researchPoints: 0,       // accumulated per tick from research labs
         bonuses: {}              // accumulated bonuses from completed techs
+    },
+    // Story & lore state
+    eventChains: {
+        active: [],              // [{ chainId, nextStepId, ticksRemaining }]
+        completed: []            // [chainId, ...]
+    },
+    milestonesFired: [],         // [milestoneId, ...]
+    codex: {
+        unlocked: []             // [codexEntryId, ...]
     }
 };
 
@@ -183,7 +192,10 @@ export function saveGame() {
             date: gameState.date,
             playerCivilization: gameState.playerCivilization,
             research: gameState.research,
-            version: '1.2.0'
+            eventChains: gameState.eventChains,
+            milestonesFired: gameState.milestonesFired,
+            codex: gameState.codex,
+            version: '1.3.0'
         };
         localStorage.setItem('celestial_mandate_save', JSON.stringify(data));
         return true;
@@ -219,6 +231,11 @@ export function loadGame() {
             });
         }
         
+        // Story & lore state (backward compatible defaults)
+        gameState.eventChains = data.eventChains || { active: [], completed: [] };
+        gameState.milestonesFired = data.milestonesFired || [];
+        gameState.codex = data.codex || { unlocked: [] };
+
         // Reset View
         gameState.viewMode = 'GALAXY';
         gameState.selectedSystemId = null;
@@ -235,15 +252,81 @@ export function loadGame() {
 let _autosaveTicks = 0;
 let _eventTicks = 0;
 
+/* ── Chain helper: find a step by ID within a chain ─────────────────────── */
+function _findChainStep(chainId, stepId) {
+    const chain = EVENT_CHAINS[chainId];
+    if (!chain) return null;
+    return chain.steps.find(s => s.id === stepId) || null;
+}
+
 function tickRandomEvents() {
     _eventTicks++;
-    // Trigger a random event every 45-90 ticks
+
+    // ── Tick active event chains ───────────────────────────────────────────
+    const chains = gameState.eventChains;
+    for (let i = chains.active.length - 1; i >= 0; i--) {
+        const entry = chains.active[i];
+        entry.ticksRemaining--;
+        if (entry.ticksRemaining <= 0) {
+            const step = _findChainStep(entry.chainId, entry.nextStepId);
+            if (step) {
+                const chain = EVENT_CHAINS[entry.chainId];
+                const stepIdx = chain.steps.indexOf(step);
+                events.dispatchEvent(new CustomEvent('random-event', {
+                    detail: {
+                        event: step,
+                        chainId: entry.chainId,
+                        chainTitle: chain.title,
+                        stepNum: stepIdx + 1,
+                        totalSteps: chain.steps.length
+                    }
+                }));
+            }
+            chains.active.splice(i, 1);
+        }
+    }
+
+    // ── Standalone random events (including chain starters) ────────────────
     const threshold = 45 + Math.floor(Math.random() * 45);
     if (_eventTicks >= threshold) {
         _eventTicks = 0;
-        const evt = RANDOM_EVENTS[Math.floor(Math.random() * RANDOM_EVENTS.length)];
-        events.dispatchEvent(new CustomEvent('random-event', { detail: { event: evt } }));
+
+        // Chance to start a chain (20%) if any are available
+        const availableChains = Object.values(EVENT_CHAINS).filter(c =>
+            !chains.completed.includes(c.id) &&
+            !chains.active.some(a => a.chainId === c.id)
+        );
+
+        if (availableChains.length > 0 && Math.random() < 0.2) {
+            const chain = availableChains[Math.floor(Math.random() * availableChains.length)];
+            const firstStep = chain.steps[0];
+            events.dispatchEvent(new CustomEvent('random-event', {
+                detail: {
+                    event: firstStep,
+                    chainId: chain.id,
+                    chainTitle: chain.title,
+                    stepNum: 1,
+                    totalSteps: chain.steps.length
+                }
+            }));
+        } else {
+            const evt = RANDOM_EVENTS[Math.floor(Math.random() * RANDOM_EVENTS.length)];
+            events.dispatchEvent(new CustomEvent('random-event', { detail: { event: evt } }));
+        }
     }
+}
+
+export function scheduleChainStep(chainId, nextStepId, delay) {
+    if (!nextStepId) {
+        // Chain ends — mark completed
+        if (!gameState.eventChains.completed.includes(chainId)) {
+            gameState.eventChains.completed.push(chainId);
+        }
+        return;
+    }
+    const [min, max] = delay;
+    const ticks = min + Math.floor(Math.random() * (max - min));
+    gameState.eventChains.active.push({ chainId, nextStepId, ticksRemaining: ticks });
 }
 
 export function applyEventChoice(effect) {

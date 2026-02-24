@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="styles/styles_research.css">
     <link rel="stylesheet" href="styles/styles_intro.css">
     <link rel="stylesheet" href="styles/styles_fleets.css">
+    <link rel="stylesheet" href="styles/styles_codex.css">
     <!-- styles.css is deprecated -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -253,6 +254,10 @@
                     <span class="hdr-btn-icon">🔬</span>
                     <span class="hdr-btn-label">Research</span>
                 </button>
+                <button id="btn-codex" class="hdr-btn">
+                    <span class="hdr-btn-icon">📖</span>
+                    <span class="hdr-btn-label">Codex</span>
+                </button>
                 <button id="btn-settings" class="hdr-btn hdr-btn-icon-only" title="Settings">
                     <span class="hdr-btn-icon">⚙</span>
                 </button>
@@ -357,6 +362,19 @@
                 <button id="btn-close-research" class="panel-close-btn">✕ Close</button>
             </div>
             <div id="research-panel-content" class="fullscreen-panel-content"></div>
+        </div>
+
+        <div id="codex-panel" class="fullscreen-panel hidden">
+            <div class="fullscreen-panel-header">
+                <h2>📖 Galactic Codex</h2>
+                <button id="btn-close-codex" class="panel-close-btn">✕ Close</button>
+            </div>
+            <div class="codex-body">
+                <div class="codex-sidebar" id="codex-sidebar"></div>
+                <div class="codex-content" id="codex-content">
+                    <div class="codex-empty">Select an entry to read</div>
+                </div>
+            </div>
         </div>
 
         <div id="controls-hint">

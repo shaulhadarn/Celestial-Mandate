@@ -1,4 +1,4 @@
-import { events, applyEventChoice } from '../core/state.js';
+import { events, applyEventChoice, scheduleChainStep } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
 
 let _modal = null;
@@ -9,6 +9,13 @@ const CATEGORY_META = {
     danger:      { label: 'ALERT',       color: '#f87171' },
     discovery:   { label: 'DISCOVERY',   color: '#a78bfa' },
     diplomacy:   { label: 'DIPLOMATIC',  color: '#fbbf24' },
+    crisis:      { label: 'CRISIS',      color: '#f97316' },
+    ancient:     { label: 'ANCIENT',     color: '#2dd4bf' },
+    // Milestone categories
+    expansion:   { label: 'MILESTONE',   color: '#60a5fa' },
+    exploration: { label: 'MILESTONE',   color: '#a78bfa' },
+    military:    { label: 'MILESTONE',   color: '#f87171' },
+    economy:     { label: 'MILESTONE',   color: '#fbbf24' },
 };
 
 /* ── Resource display helpers ───────────────────────────────────────────── */
@@ -47,6 +54,12 @@ function _ensureModal() {
 
             <!-- Animated scan line -->
             <div class="evt-scanline"></div>
+
+            <!-- Chain indicator (hidden by default) -->
+            <div class="evt-chain-bar hidden">
+                <svg class="evt-chain-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="8" r="2.5"/><circle cx="12" cy="8" r="2.5"/><line x1="6.5" y1="8" x2="9.5" y2="8"/></svg>
+                <span class="evt-chain-text"></span>
+            </div>
 
             <!-- Header -->
             <div class="evt-header">
@@ -88,8 +101,8 @@ function _ensureModal() {
     return _modal;
 }
 
-/* ── Show event ─────────────────────────────────────────────────────────── */
-function _showEvent(evt) {
+/* ── Show event (random or chain step) ──────────────────────────────────── */
+function _showEvent(evt, chainInfo) {
     const modal = _ensureModal();
     const cat = CATEGORY_META[evt.category] || CATEGORY_META.discovery;
 
@@ -104,6 +117,16 @@ function _showEvent(evt) {
     const catEl = modal.querySelector('.evt-category');
     catEl.textContent = cat.label;
 
+    // Chain indicator
+    const chainBar = modal.querySelector('.evt-chain-bar');
+    if (chainInfo) {
+        chainBar.classList.remove('hidden');
+        chainBar.querySelector('.evt-chain-text').textContent =
+            `${chainInfo.chainTitle} — Part ${chainInfo.stepNum} of ${chainInfo.totalSteps}`;
+    } else {
+        chainBar.classList.add('hidden');
+    }
+
     // Title
     modal.querySelector('.evt-title').textContent = evt.title;
 
@@ -113,12 +136,18 @@ function _showEvent(evt) {
     // Choices
     const choicesEl = modal.querySelector('.evt-choices');
     choicesEl.innerHTML = '';
-    evt.choices.forEach((choice, i) => {
+
+    // For milestone events (no choices), add a single "Acknowledged" button
+    const choices = evt.choices && evt.choices.length > 0
+        ? evt.choices
+        : [{ label: 'Acknowledged', effect: {} }];
+
+    choices.forEach((choice, i) => {
         const btn = document.createElement('button');
         btn.className = 'evt-choice-btn';
         btn.style.animationDelay = `${0.15 + i * 0.07}s`;
 
-        const hasEffect = Object.values(choice.effect).some(v => v !== 0);
+        const hasEffect = choice.effect && Object.values(choice.effect).some(v => v !== 0);
         btn.innerHTML = `
             <div class="evt-choice-row">
                 <span class="evt-choice-marker"></span>
@@ -127,9 +156,17 @@ function _showEvent(evt) {
             ${hasEffect ? `<div class="evt-choice-effects">${_formatEffect(choice.effect)}</div>` : ''}
         `;
         btn.addEventListener('click', () => {
-            applyEventChoice(choice.effect);
+            if (choice.effect) applyEventChoice(choice.effect);
             modal.classList.add('hidden');
             showNotification(`${evt.title}: ${choice.label}`, 'info');
+
+            // If this is a chain event, schedule next step
+            if (chainInfo && choice.nextStep) {
+                scheduleChainStep(chainInfo.chainId, choice.nextStep, choice.delay || [30, 60]);
+            } else if (chainInfo && !choice.nextStep) {
+                // Chain ends with this choice
+                scheduleChainStep(chainInfo.chainId, null, [0, 0]);
+            }
         });
         choicesEl.appendChild(btn);
     });
@@ -138,13 +175,25 @@ function _showEvent(evt) {
     const box = modal.querySelector('.evt-box');
     box.classList.remove('evt-enter');
     modal.classList.remove('hidden');
-    // Force reflow to restart animation
     void box.offsetWidth;
     box.classList.add('evt-enter');
 }
 
 export function initEventsUI() {
+    // Random events + chain events
     events.addEventListener('random-event', (e) => {
-        _showEvent(e.detail.event);
+        const detail = e.detail;
+        const chainInfo = detail.chainId ? {
+            chainId: detail.chainId,
+            chainTitle: detail.chainTitle,
+            stepNum: detail.stepNum,
+            totalSteps: detail.totalSteps
+        } : null;
+        _showEvent(detail.event, chainInfo);
+    });
+
+    // Milestone events (no choices, just narrative)
+    events.addEventListener('milestone-event', (e) => {
+        _showEvent(e.detail.event, null);
     });
 }

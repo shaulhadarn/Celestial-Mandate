@@ -14,6 +14,8 @@ import { initResearchUI } from './ui_research.js';
 import { initColoniesOverview } from './ui_colonies_overview.js';
 import { initFleetsUI } from './ui_fleets.js';
 import { initEventsUI } from './ui_events.js';
+import { initCodexUI } from './ui_codex.js';
+import { initMilestoneEvents } from '../core/milestone_events.js';
 
 // Re-export for other modules to use
 export { showNotification };
@@ -35,6 +37,8 @@ export function initUI() {
     initFleetsUI();
     initSpeedControls();
     initEventsUI();
+    initCodexUI();
+    initMilestoneEvents();
 
     events.addEventListener('autosave', () => {
         showNotification('Game autosaved', 'info');
