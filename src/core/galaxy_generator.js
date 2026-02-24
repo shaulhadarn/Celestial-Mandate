@@ -44,8 +44,10 @@ export function generateGalaxy(systemCount = 50, radius = 200, playerSettings = 
         }
     }
 
-    // Generate Hyperlanes
+    // Generate Hyperlanes (use Set for O(1) duplicate checking)
     const hyperlanes = [];
+    const hyperlaneKeys = new Set();
+    const systemById = new Map(systems.map(s => [s.id, s]));
     systems.forEach(sysA => {
         // Find neighbors
         const neighbors = systems
@@ -59,18 +61,18 @@ export function generateGalaxy(systemCount = 50, radius = 200, playerSettings = 
 
         neighbors.forEach(n => {
             if (n.dist < 50) { // Max lane length
-                // Avoid duplicates (checking if A-B or B-A exists)
                 const id1 = Math.min(sysA.id, n.id);
                 const id2 = Math.max(sysA.id, n.id);
                 const key = `${id1}-${id2}`;
-                
-                if (!hyperlanes.find(h => h.key === key)) {
+
+                if (!hyperlaneKeys.has(key)) {
+                    hyperlaneKeys.add(key);
                     hyperlanes.push({
                         key: key,
                         start: sysA.position,
-                        end: systems.find(s => s.id === n.id).position
+                        end: systemById.get(n.id).position
                     });
-                    
+
                     // Add to system data for logical traversal
                     sysA.connections.push(n.id);
                 }

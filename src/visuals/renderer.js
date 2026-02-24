@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
 import { loadAssets, playSound } from '../core/assets.js';
-import { scene, camera, renderer, composer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
-import { createGalaxyVisuals, updateGalaxyAnimations, starMeshes } from './visuals_galaxy.js';
+import { disposeGroup } from '../core/dispose.js';
+import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
+import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes } from './visuals_galaxy.js';
 import { createSystemVisuals, updateSystemAnimations, addColonyVisual, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput } from './visuals_planet.js';
 
@@ -44,13 +45,14 @@ export async function init() {
                 playSound('select'); 
             }
         } else if (gameState.viewMode === 'GALAXY') {
-            buildGalaxyVisuals(gameState.systems, cachedHyperlanes);
+            // Add colony ring for just the affected system instead of rebuilding entire galaxy
+            const planetId = e.detail.planetId;
+            const sys = gameState.systems.find(s => s.planets.some(p => p.id === planetId));
+            if (sys) addColonyRingForSystem(sys.id, groups.galaxy);
             playSound('select');
         }
     });
 
-    // Start render loop immediately
-    requestAnimationFrame(animate);
 }
 
 function onMouseMove(event) {
@@ -219,8 +221,8 @@ export function returnToGalaxyView() {
     groups.system.visible = false;
     groups.planet.visible = false;
 
-    // Clean up system view to save resources
-    while(groups.system.children.length > 0) groups.system.remove(groups.system.children[0]);
+    // Clean up system view GPU resources
+    disposeGroup(groups.system);
     planetMeshes.length = 0; 
 
     // Restore Camera
@@ -351,32 +353,3 @@ export function isRendererReady() {
     return !!(camera && controls && scene);
 }
 
-// Main render loop - uses composer for bloom post-processing
-const clock = new THREE.Clock();
-function animate() {
-    requestAnimationFrame(animate);
-
-    const delta = Math.min(clock.getDelta(), 0.1);
-    const time = clock.getElapsedTime();
-
-    // Update OrbitControls damping
-    if (controls && controls.update) controls.update();
-
-    // Update game visuals based on current view mode
-    if (gameState.viewMode === 'GALAXY') {
-        updateGalaxyAnimations(time, groups.galaxy);
-    } else if (gameState.viewMode === 'SYSTEM') {
-        updateSystemAnimations(time);
-    } else if (gameState.viewMode === 'EXPLORATION') {
-        if (camera && controls) {
-            updatePlanetPhysics(delta, camera, controls, groups.planet);
-        }
-    }
-
-    // Render with post-processing (bloom) if composer is available, otherwise fallback
-    if (composer) {
-        composer.render();
-    } else if (renderer && scene && camera) {
-        renderer.render(scene, camera);
-    }
-}

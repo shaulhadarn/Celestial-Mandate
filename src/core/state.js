@@ -1,6 +1,22 @@
 /* Updated: Enriched RACE_SHIPS with story, shipClass, length, crew, weapons, special, accentColor for all 24 ships across 8 races */
 import { ARCHETYPES } from './civilization_data.js';
 import { TECH_TREE, RESEARCH_BUILDINGS, getTechById, getAvailableTechs } from './research_data.js';
+import { RANDOM_EVENTS } from './events_data.js';
+
+// Index maps for O(1) lookups — rebuilt after galaxy generation or game load
+const _systemIndex = new Map(); // id -> system
+const _planetIndex = new Map(); // id -> planet
+
+export function rebuildIndexes() {
+    _systemIndex.clear();
+    _planetIndex.clear();
+    for (const sys of gameState.systems) {
+        _systemIndex.set(sys.id, sys);
+        for (const p of sys.planets) {
+            _planetIndex.set(p.id, p);
+        }
+    }
+}
 
 // Central store for Game State
 export const gameState = {
@@ -28,6 +44,7 @@ export const gameState = {
     fleets: [], // Global list of ships: { id, type, systemId, name }
     date: new Date(2200, 0, 1),
     paused: false,
+    gameSpeed: 1, // 1x, 2x, 3x
     playerCivilization: null, // Set on game start
     research: {
         completedTechs: [],      // array of tech ids
@@ -198,12 +215,37 @@ export function loadGame() {
         gameState.viewMode = 'GALAXY';
         gameState.selectedSystemId = null;
         gameState.selectedPlanetId = null;
-        
+
+        rebuildIndexes();
         return true;
     } catch (e) {
         console.error("Load failed", e);
         return false;
     }
+}
+
+let _autosaveTicks = 0;
+let _eventTicks = 0;
+
+function tickRandomEvents() {
+    _eventTicks++;
+    // Trigger a random event every 45-90 ticks
+    const threshold = 45 + Math.floor(Math.random() * 45);
+    if (_eventTicks >= threshold) {
+        _eventTicks = 0;
+        const evt = RANDOM_EVENTS[Math.floor(Math.random() * RANDOM_EVENTS.length)];
+        events.dispatchEvent(new CustomEvent('random-event', { detail: { event: evt } }));
+    }
+}
+
+export function applyEventChoice(effect) {
+    if (effect.energy) gameState.resources.energy += effect.energy;
+    if (effect.minerals) gameState.resources.minerals += effect.minerals;
+    if (effect.food) gameState.resources.food += effect.food;
+    if (gameState.resources.energy < 0) gameState.resources.energy = 0;
+    if (gameState.resources.minerals < 0) gameState.resources.minerals = 0;
+    if (gameState.resources.food < 0) gameState.resources.food = 0;
+    events.dispatchEvent(new CustomEvent('resources-updated'));
 }
 
 export function updateResources() {
@@ -366,7 +408,18 @@ export function updateResources() {
 
     // Advance time by 1 day per tick
     gameState.date.setDate(gameState.date.getDate() + 1);
-    
+
+    tickFleetMovement();
+    tickRandomEvents();
+
+    // Autosave every 60 ticks (~60 game-days)
+    _autosaveTicks++;
+    if (_autosaveTicks >= 60) {
+        _autosaveTicks = 0;
+        saveGame();
+        events.dispatchEvent(new CustomEvent('autosave'));
+    }
+
     events.dispatchEvent(new CustomEvent('tick'));
 }
 
@@ -450,15 +503,11 @@ export function selectPlanet(planetId) {
 }
 
 export function getSystem(id) {
-    return gameState.systems.find(s => s.id === id);
+    return _systemIndex.get(id) || gameState.systems.find(s => s.id === id);
 }
 
 export function getPlanet(id) {
-    for (const sys of gameState.systems) {
-        const p = sys.planets.find(p => p.id === id);
-        if (p) return p;
-    }
-    return null;
+    return _planetIndex.get(id) || null;
 }
 
 export function surveySystem(systemId) {
@@ -540,6 +589,58 @@ export function cancelShipBuild(planetId, queueIndex) {
     }
     col.shipQueue.splice(queueIndex, 1);
     events.dispatchEvent(new CustomEvent('resources-updated'));
+}
+
+/**
+ * Orders a fleet (ship) to move to a connected system via hyperlane.
+ * @param {number} fleetIndex - Index in gameState.fleets
+ * @param {number} targetSystemId - Destination system ID
+ * @returns {boolean} Whether the order was accepted
+ */
+export function moveFleet(fleetIndex, targetSystemId) {
+    const fleet = gameState.fleets[fleetIndex];
+    if (!fleet) return false;
+    if (fleet.moving) return false; // already in transit
+
+    const currentSys = getSystem(fleet.systemId);
+    if (!currentSys) return false;
+
+    // Check if destination is connected via hyperlane
+    if (!currentSys.connections.includes(targetSystemId)) return false;
+
+    const targetSys = getSystem(targetSystemId);
+    if (!targetSys) return false;
+
+    fleet.moving = {
+        fromId: fleet.systemId,
+        toId: targetSystemId,
+        toName: targetSys.name,
+        progress: 0,
+        total: 10, // 10 ticks to travel
+    };
+    events.dispatchEvent(new CustomEvent('fleet-moving', { detail: { fleet } }));
+    return true;
+}
+
+function tickFleetMovement() {
+    if (!gameState.fleets) return;
+    gameState.fleets.forEach(fleet => {
+        if (!fleet.moving) return;
+        fleet.moving.progress++;
+        if (fleet.moving.progress >= fleet.moving.total) {
+            fleet.systemId = fleet.moving.toId;
+            fleet.systemName = fleet.moving.toName;
+            const arrival = fleet.moving;
+            fleet.moving = null;
+            events.dispatchEvent(new CustomEvent('fleet-arrived', { detail: { fleet, arrival } }));
+        }
+    });
+}
+
+export function getConnectedSystems(systemId) {
+    const sys = getSystem(systemId);
+    if (!sys) return [];
+    return sys.connections.map(id => getSystem(id)).filter(Boolean);
 }
 
 export function buildBuilding(planetId, buildingKey, isInstant = false) {

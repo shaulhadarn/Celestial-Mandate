@@ -386,6 +386,58 @@
     color: #ff8844;
 }
 
+.fsr-move-btn {
+    font-family: var(--font-main);
+    font-size: 10px;
+    font-weight: 600;
+    color: #88ccff;
+    background: rgba(0, 200, 255, 0.08);
+    border: 1px solid rgba(0, 200, 255, 0.25);
+    padding: 2px 8px;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: all 0.15s ease;
+}
+
+.fsr-move-btn:hover {
+    background: rgba(0, 200, 255, 0.15);
+    border-color: rgba(0, 200, 255, 0.5);
+}
+
+.fsr-transit {
+    font-size: 10px;
+    color: #ffaa44;
+    margin-left: 6px;
+    font-style: italic;
+}
+
+.fsr-dest-picker {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(0, 200, 255, 0.2);
+}
+
+.fsr-dest-btn {
+    font-family: var(--font-main);
+    font-size: 10px;
+    font-weight: 600;
+    color: #00f2ff;
+    background: rgba(0, 242, 255, 0.06);
+    border: 1px solid rgba(0, 242, 255, 0.2);
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.fsr-dest-btn:hover {
+    background: rgba(0, 242, 255, 0.15);
+    border-color: rgba(0, 242, 255, 0.5);
+}
+
 /* ── View Button (next to Build) ─────────────────────────────────────────────── */
 .fsc-view-btn {
     background: rgba(0, 0, 0, 0.5);

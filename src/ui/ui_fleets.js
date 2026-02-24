@@ -1,5 +1,5 @@
 /* Updated: Upgraded ship modal with SVG stat icons, capabilities bars, weapon/special lists; replaced all emoji with SVG throughout fleets UI */
-import { gameState, RACE_SHIPS, buildShip, cancelShipBuild, events } from '../core/state.js';
+import { gameState, RACE_SHIPS, buildShip, cancelShipBuild, moveFleet, getConnectedSystems, events } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
 import { getShipSvg } from './ship_icons.js';
 
@@ -128,8 +128,16 @@ export function initFleetsUI() {
         if (panel && !panel.classList.contains('hidden')) renderFleetsPanel();
     });
 
+    events.addEventListener('fleet-arrived', (e) => {
+        showNotification(`${e.detail.fleet.name} arrived at ${e.detail.fleet.systemName}`, 'success');
+        if (panel && !panel.classList.contains('hidden')) renderFleetsPanel();
+    });
+
     events.addEventListener('tick', () => {
-        if (panel && !panel.classList.contains('hidden')) _updateShipQueueProgress();
+        if (panel && !panel.classList.contains('hidden')) {
+            _updateShipQueueProgress();
+            renderFleetsPanel();
+        }
     });
 }
 
@@ -255,13 +263,19 @@ export function renderFleetsPanel() {
                     <span class="fleet-group-power"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" class="fsc-stat-svg"><path d="M4 1 L10 1 L7 6 L11 6 L5 13 L7 7 L3 7 Z"/></svg> Fleet Power: ${totalPower}</span>
                 </div>
                 <div class="fleet-group-ships">
-                    ${ships.map(f => `
+                    ${ships.map(f => {
+                        const fleetIdx = gameState.fleets.indexOf(f);
+                        const movingInfo = f.moving
+                            ? `<span class="fsr-transit">In transit to ${f.moving.toName} (${Math.floor((f.moving.progress / f.moving.total) * 100)}%)</span>`
+                            : `<button class="fsr-move-btn" data-fleet-idx="${fleetIdx}">Move</button>`;
+                        return `
                         <div class="fleet-ship-row">
                             <span class="fsr-icon">${f.icon}</span>
                             <span class="fsr-name">${f.name}</span>
                             <span class="fsr-power"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" class="fsc-stat-svg"><path d="M4 1 L10 1 L7 6 L11 6 L5 13 L7 7 L3 7 Z"/></svg> ${f.power}</span>
-                        </div>
-                    `).join('')}
+                            ${movingInfo}
+                        </div>`;
+                    }).join('')}
                 </div>
             `;
             fleetSection.appendChild(group);
@@ -297,6 +311,46 @@ export function renderFleetsPanel() {
         btn.addEventListener('click', () => {
             cancelShipBuild(btn.dataset.planet, parseInt(btn.dataset.idx));
             renderFleetsPanel();
+        });
+    });
+
+    // Wire Move buttons — show dropdown of connected systems
+    content.querySelectorAll('.fsr-move-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const fleetIdx = parseInt(btn.dataset.fleetIdx);
+            const fleet = gameState.fleets[fleetIdx];
+            if (!fleet) return;
+
+            // If a dropdown already exists, remove it
+            const existing = btn.parentElement.querySelector('.fsr-dest-picker');
+            if (existing) { existing.remove(); return; }
+
+            const connected = getConnectedSystems(fleet.systemId);
+            if (connected.length === 0) {
+                showNotification('No connected systems to move to!', 'alert');
+                return;
+            }
+
+            const picker = document.createElement('div');
+            picker.className = 'fsr-dest-picker';
+            picker.innerHTML = connected.map(sys =>
+                `<button class="fsr-dest-btn" data-dest="${sys.id}">${sys.name}</button>`
+            ).join('');
+
+            picker.querySelectorAll('.fsr-dest-btn').forEach(destBtn => {
+                destBtn.addEventListener('click', () => {
+                    const destId = parseInt(destBtn.dataset.dest);
+                    if (moveFleet(fleetIdx, destId)) {
+                        const destSys = connected.find(s => s.id === destId);
+                        showNotification(`${fleet.name} departing for ${destSys?.name || 'unknown'}`, 'info');
+                        renderFleetsPanel();
+                    } else {
+                        showNotification('Cannot move to that system!', 'alert');
+                    }
+                });
+            });
+
+            btn.parentElement.appendChild(picker);
         });
     });
 }

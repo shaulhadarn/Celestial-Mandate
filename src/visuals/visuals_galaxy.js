@@ -2,8 +2,12 @@
 import * as THREE from "three";
 import { textures } from "../core/assets.js";
 import { gameState } from "../core/state.js";
+import { disposeGroup } from "../core/dispose.js";
+import { createTextSprite } from "../core/text_sprite.js";
+import { isMobile as isMobileDevice } from "../core/device.js";
 
-const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+// Cache star canvas textures by color to avoid recreating them on every galaxy rebuild
+const _starTextureCache = new Map();
 
 export let starMeshes = [];
 export let galaxyPlanetMeshes = [];
@@ -14,8 +18,8 @@ let starShaderMats = [];
 let atmosphereGroup = null;
 
 export function createGalaxyVisuals(systems, hyperlanes, group) {
-  // Clear old
-  while (group.children.length > 0) group.remove(group.children[0]);
+  // Dispose old GPU resources (geometries, materials, textures) before rebuilding
+  disposeGroup(group);
   starMeshes.length = 0;
   galaxyPlanetMeshes.length = 0;
   colonyRings.length = 0;
@@ -454,6 +458,46 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(dirLight);
 }
 
+/**
+ * Adds colony indicator rings for a specific system without rebuilding the full galaxy.
+ * Call this when a colony is founded in galaxy view instead of rebuilding everything.
+ */
+export function addColonyRingForSystem(systemId, group) {
+  const sys = gameState.systems.find(s => s.id === systemId);
+  if (!sys) return;
+
+  const ringGeo = new THREE.RingGeometry(4.0, 4.2, 64);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x00f2ff,
+    transparent: true,
+    opacity: 0.6,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.copy(sys.position);
+
+  const innerRingGeo = new THREE.RingGeometry(3.4, 3.6, 64);
+  const innerRingMat = new THREE.MeshBasicMaterial({
+    color: 0x00f2ff,
+    transparent: true,
+    opacity: 0.3,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
+  innerRing.rotation.x = Math.PI / 2;
+  innerRing.position.copy(sys.position);
+
+  group.add(ring);
+  group.add(innerRing);
+  colonyRings.push(ring);
+  colonyRings.push(innerRing);
+}
+
 export function updateGalaxyAnimations(time, group) {
   if (group) group.rotation.y = time * 0.01;
 
@@ -743,6 +787,7 @@ function createAtmosphere(group) {
 }
 
 function createStarTexture(colorInt) {
+  if (_starTextureCache.has(colorInt)) return _starTextureCache.get(colorInt);
   const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -795,67 +840,7 @@ function createStarTexture(colorInt) {
   }
 
   const tex = new THREE.CanvasTexture(canvas);
+  _starTextureCache.set(colorInt, tex);
   return tex;
 }
 
-function createTextSprite(text) {
-  const PIXEL_SCALE = 2;
-  const fontSize = 17;
-  const font = `600 ${fontSize * PIXEL_SCALE}px "Rajdhani", sans-serif`;
-
-  // Measure on a temp canvas first
-  const measure = document.createElement("canvas").getContext("2d");
-  measure.font = font;
-  const metrics = measure.measureText(text);
-
-  // Minimal padding — single thin glow only
-  const GLOW_PAD = 5 * PIXEL_SCALE;
-  const w = Math.ceil(metrics.width) + GLOW_PAD * 2;
-  const h = (fontSize + 8) * PIXEL_SCALE + GLOW_PAD * 2;
-  const cx = w / 2;
-  const cy = h / 2;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-
-  ctx.font = font;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  ctx.shadowColor = "transparent";
-  ctx.shadowBlur = 0;
-
-  ctx.lineJoin = "round";
-  ctx.lineCap  = "round";
-
-  // Single very subtle outer halo — much thinner and more transparent
-  ctx.lineWidth   = 3 * PIXEL_SCALE;
-  ctx.strokeStyle = "rgba(0, 242, 255, 0.10)";
-  ctx.strokeText(text, cx, cy);
-
-  // Thin dark outline for readability
-  ctx.lineWidth   = 1.2 * PIXEL_SCALE;
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.65)";
-  ctx.strokeText(text, cx, cy);
-
-  // Pure white fill for maximum readability
-  ctx.fillStyle = "rgba(255, 255, 255, 1.0)";
-  ctx.fillText(text, cx, cy);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.generateMipmaps = true;
-  tex.anisotropy = 4;
-
-  const spriteMaterial = new THREE.SpriteMaterial({
-    map: tex,
-    transparent: true,
-    depthTest: true,
-    depthWrite: false,
-  });
-  const sprite = new THREE.Sprite(spriteMaterial);
-  sprite.scale.set((w * 0.05) / PIXEL_SCALE, (h * 0.05) / PIXEL_SCALE, 1);
-  return sprite;
-}

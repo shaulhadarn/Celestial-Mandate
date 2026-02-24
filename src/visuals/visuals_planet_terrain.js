@@ -1,8 +1,7 @@
 /* Updated: Mobile optimized - 96-segment terrain, MeshLambertMaterial on mobile, no micro-noise jitter on mobile */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
-
-const isMobileDevice = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+import { isMobile as isMobileDevice } from '../core/device.js';
 
 /**
  * Procedural terrain height math.
