@@ -1,6 +1,11 @@
 Changelog - Stellaris Imperium
 ================================
 
+2026-02-24: Fixed mobile creation screen buttons — added #creation-screen and #loading-screen to preventDefault exclusions
+- Root cause: Species design "Next Step" buttons were unresponsive on mobile because #creation-screen is outside #ui-layer and was blocked by preventDefault()
+- Fix: Modified touchmove and touchstart listeners in renderer.js to also exclude #creation-screen and #loading-screen from preventDefault()
+- Result: All UI buttons in creation screens now respond to touch on mobile devices while preserving 3D canvas interactions
+
 2026-02-24: Fixed mobile splash screen buttons — added #splash-screen to preventDefault exclusions
 - Root cause: After fixing galaxy touch interactions, preventDefault() was blocking touch events on splash screen buttons because #splash-screen is outside #ui-layer
 - Fix: Modified touchmove and touchstart listeners in renderer.js to also exclude #splash-screen from preventDefault()
