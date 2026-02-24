@@ -1,4 +1,4 @@
-/* Updated: Fixed mobile galaxy touch — preventDefault on touchmove/touchstart to stop browser scroll hijack, widened tap threshold for fat fingers */
+/* Updated: Fixed mobile splash screen buttons — added #splash-screen to preventDefault exclusions so UI buttons work on splash screen */
 import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
 import { loadAssets, playSound } from '../core/assets.js';
@@ -24,16 +24,16 @@ export async function init() {
     window.addEventListener('mouseup', onPointerUp);
     // Touch support — passive:false is CRITICAL so preventDefault() can block browser scroll/pan
     window.addEventListener('touchmove', (e) => {
-        // Only block default when touching the 3D canvas (not UI panels)
+        // Only block default when touching the 3D canvas (not UI panels or splash screen)
         const target = e.target || e.srcElement;
-        if (!target || !target.closest || !target.closest('#ui-layer')) {
+        if (!target || !target.closest || (!target.closest('#ui-layer') && !target.closest('#splash-screen'))) {
             e.preventDefault();
         }
         if (e.touches[0]) onMouseMove(e.touches[0]);
     }, { passive: false });
     window.addEventListener('touchstart', (e) => {
         const target = e.target || e.srcElement;
-        if (!target || !target.closest || !target.closest('#ui-layer')) {
+        if (!target || !target.closest || (!target.closest('#ui-layer') && !target.closest('#splash-screen'))) {
             e.preventDefault();
         }
         if (e.touches[0]) onPointerDown(e.touches[0]);

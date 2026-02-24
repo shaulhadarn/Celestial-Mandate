@@ -1,6 +1,11 @@
 Changelog - Stellaris Imperium
 ================================
 
+2026-02-24: Fixed mobile splash screen buttons — added #splash-screen to preventDefault exclusions
+- Root cause: After fixing galaxy touch interactions, preventDefault() was blocking touch events on splash screen buttons because #splash-screen is outside #ui-layer
+- Fix: Modified touchmove and touchstart listeners in renderer.js to also exclude #splash-screen from preventDefault()
+- Result: Splash screen "New Game" button now responds to touch on mobile devices while preserving galaxy drag functionality
+
 2026-02-24: Fixed mobile galaxy touch — drag/pan/zoom completely broken on mobile
 - Root cause 1: touchmove/touchstart listeners were registered as passive:true (browser default), so e.preventDefault() was never called, letting the browser consume touch events before OrbitControls could see them
 - Root cause 2: OrbitControls touch.ONE was set to ROTATE (orbiting a sphere), which is useless for a top-down galaxy map — should be PAN so one finger drags the map
