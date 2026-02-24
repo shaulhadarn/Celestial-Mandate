@@ -37,6 +37,12 @@ body, html {
     touch-action: none; /* Critical for mobile drag */
 }
 
+/* touch-action is NOT inherited — must be set on all descendants for mobile drag to work */
+#game-container canvas,
+#game-container > div {
+    touch-action: none;
+}
+
 #ui-layer {
     position: absolute;
     top: 0;

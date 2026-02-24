@@ -22,9 +22,21 @@ export async function init() {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mousedown', onPointerDown);
     window.addEventListener('mouseup', onPointerUp);
-    // Touch support mapping — pass original event so handleTap can check event.target
-    window.addEventListener('touchmove', (e) => onMouseMove(e.touches[0]));
-    window.addEventListener('touchstart', (e) => onPointerDown(e.touches[0]));
+    // Touch support mapping — non-passive so we can preventDefault on canvas touches,
+    // which stops the browser from hijacking the gesture (scroll/pan/zoom) on mobile.
+    window.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) onPointerDown(e.touches[0]);
+        // Prevent browser gesture handling on the 3D canvas (not UI elements)
+        if (e.target && e.target.tagName === 'CANVAS' && e.target.closest('#game-container')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    window.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 0) onMouseMove(e.touches[0]);
+        if (e.target && e.target.tagName === 'CANVAS' && e.target.closest('#game-container')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
     window.addEventListener('touchend', (e) => {
         const t = e.changedTouches[0];
         // Attach the real DOM target from the TouchEvent so handleTap can filter UI taps

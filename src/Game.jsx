@@ -92,7 +92,7 @@ const Game = () => {
         powerPreference: "high-performance",
         toneMapping: THREE.ReinhardToneMapping
       },
-      style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0 },
+      style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0, touchAction: "none" },
       children: [
         /* @__PURE__ */ jsxDEV(PerspectiveCamera, { makeDefault: true, position: [0, 100, 100], fov: 60, near: 0.1, far: 1500 }, void 0, false, {
           fileName: "<stdin>",
