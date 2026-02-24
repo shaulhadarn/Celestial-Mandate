@@ -33,6 +33,14 @@ export function initEmpireHub() {
         detail.innerHTML = `<h4>Fleet Command</h4><p style="color:#8ba4b3; font-size:12px;">1st Expeditionary Fleet: Stationary at Capital.</p>`;
     });
 
+    const hubCodex = document.getElementById('hub-codex');
+    if (hubCodex) hubCodex.addEventListener('click', () => {
+        empirePanel.classList.add('hidden');
+        // Simulate a click on the header codex button to open + render
+        const codexBtn = document.getElementById('btn-codex');
+        if (codexBtn) codexBtn.click();
+    });
+
     if (closeEmpire) closeEmpire.addEventListener('click', () => {
         empirePanel.classList.add('hidden');
     });

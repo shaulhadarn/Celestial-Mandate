@@ -287,7 +287,7 @@ function tickRandomEvents() {
     }
 
     // ── Standalone random events (including chain starters) ────────────────
-    const threshold = 45 + Math.floor(Math.random() * 45);
+    const threshold = 90 + Math.floor(Math.random() * 90);
     if (_eventTicks >= threshold) {
         _eventTicks = 0;
 
