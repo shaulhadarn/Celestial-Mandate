@@ -107,7 +107,7 @@ function renderColoniesOverview() {
                     ${buildingIcons}${emptySlots}
                     ${constructing ? `<span class="colony-constructing" title="Building: ${BUILDINGS[constructing.buildingKey]?.name}">⏳</span>` : ''}
                 </div>
-                <button class="colony-goto-btn" data-planet-id="${planetId}" data-system-id="${system?.id || ''}">
+                <button class="colony-goto-btn" data-planet-id="${planetId}" data-system-id="${system != null ? system.id : ''}">
                     → Go to Colony
                 </button>
             </div>`;
@@ -127,9 +127,11 @@ function renderColoniesOverview() {
     // Wire up Go to Colony buttons
     content.querySelectorAll('.colony-goto-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const systemId = parseInt(btn.dataset.systemId);
+            const rawSysId = btn.dataset.systemId;
+            if (rawSysId === '' || rawSysId == null) return;
+            const systemId = parseInt(rawSysId, 10);
+            if (isNaN(systemId)) return;
             const planetId = btn.dataset.planetId;
-            if (!systemId && systemId !== 0) return;
 
             // 1. Close the colonies overlay panel
             document.getElementById('colonies-panel').classList.add('hidden');

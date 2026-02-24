@@ -1,4 +1,4 @@
-/* Updated: Fix mobile white square artifacts - skip EffectComposer entirely on mobile, use direct renderer.render() */
+/* Updated: Added anti-aliasing toggle — recreates WebGL renderer on change, rebuilds composer and controls */
 import * as THREE from 'three';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -110,36 +110,103 @@ const config = {
     shadows: 'high',
     scale: 1.0,
     resolution: 'native',
-    ultraSharp: false  // supersampling + max anisotropy
+    ultraSharp: false,  // supersampling + max anisotropy
+    antialias: !isMobile // default on for desktop, off for mobile
 };
 
 export function getGraphicsConfig() { return { ...config }; }
 
 export function updateGraphicsSetting(key, value) {
     config[key] = value;
+    if (key === 'antialias') {
+        recreateRenderer();
+    }
     applyGraphicsConfig();
 }
 
+function recreateRenderer() {
+    if (!renderer) return;
+    const container = renderer.domElement.parentElement;
+    const oldCanvas = renderer.domElement;
+
+    // Create new renderer with updated antialias
+    const newRenderer = new THREE.WebGLRenderer({
+        antialias: config.antialias,
+        powerPreference: 'high-performance',
+        precision: 'highp',
+        logarithmicDepthBuffer: false,
+    });
+    newRenderer.setSize(window.innerWidth, window.innerHeight);
+    newRenderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2));
+    newRenderer.outputColorSpace = THREE.SRGBColorSpace;
+    newRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+    newRenderer.toneMappingExposure = isMobile ? 0.75 : 1.2;
+
+    // Swap canvas
+    container.replaceChild(newRenderer.domElement, oldCanvas);
+    renderer.dispose();
+    renderer = newRenderer;
+
+    // Reconnect OrbitControls to new canvas
+    if (controls) {
+        controls.dispose();
+        import('three/addons/controls/OrbitControls.js').then(({ OrbitControls }) => {
+            const newControls = new OrbitControls(camera, renderer.domElement);
+            newControls.enableDamping = controls.enableDamping;
+            newControls.dampingFactor = controls.dampingFactor;
+            newControls.maxDistance = controls.maxDistance;
+            newControls.minDistance = controls.minDistance;
+            newControls.enablePan = controls.enablePan;
+            newControls.rotateSpeed = controls.rotateSpeed;
+            newControls.panSpeed = controls.panSpeed;
+            newControls.zoomSpeed = controls.zoomSpeed;
+            newControls.target.copy(controls.target);
+            controls = newControls;
+        });
+    }
+
+    // Rebuild composer for bloom on desktop
+    if (!isMobile) {
+        composer = new EffectComposer(renderer);
+        composer.setSize(window.innerWidth, window.innerHeight);
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            0.8, 0.5, 0.8
+        );
+        bloomPass.enabled = config.bloom;
+        composer.addPass(bloomPass);
+        const outputPass = new OutputPass();
+        composer.addPass(outputPass);
+    }
+}
+
 export function setGraphicsPreset(level) {
+    const prevAA = config.antialias;
     if (level === 'ultra') {
         config.bloom = true;
         config.shadows = 'high';
         config.scale = 1.0;
         config.resolution = 'native';
         config.ultraSharp = true;
+        config.antialias = true;
     } else if (level === 'high') {
         config.bloom = true;
         config.shadows = 'high';
         config.scale = 1.0;
         config.resolution = 'native';
         config.ultraSharp = false;
+        config.antialias = true;
     } else {
         config.bloom = false;
         config.shadows = 'off';
         config.scale = 0.75;
         config.resolution = 'native';
         config.ultraSharp = false;
+        config.antialias = false;
     }
+    if (prevAA !== config.antialias) recreateRenderer();
     applyGraphicsConfig();
     return config;
 }

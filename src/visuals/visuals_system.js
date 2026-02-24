@@ -311,7 +311,7 @@ export function createSystemVisuals(system, group) {
         planetMeshes.push(mesh);
 
         // Orbit
-        const orbitGeo = new THREE.RingGeometry(p.distance - 0.18, p.distance + 0.18, 128);
+        const orbitGeo = new THREE.RingGeometry(p.distance - 0.08, p.distance + 0.08, 128);
         const orbitMat = new THREE.MeshBasicMaterial({ 
             color: 0x66aadd, 
             opacity: 0.45, 

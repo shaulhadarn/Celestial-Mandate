@@ -33,6 +33,7 @@ export function initSettingsUI() {
     });
 
     const syncUI = (conf) => {
+        setActive(['gfx-aa-on', 'gfx-aa-off'], conf.antialias ? 'gfx-aa-on' : 'gfx-aa-off');
         setActive(['gfx-bloom-on', 'gfx-bloom-off'], conf.bloom ? 'gfx-bloom-on' : 'gfx-bloom-off');
         setActive(['gfx-shadow-high', 'gfx-shadow-low', 'gfx-shadow-off'], `gfx-shadow-${conf.shadows}`);
 
@@ -73,6 +74,18 @@ export function initSettingsUI() {
     }
 
     // Granular Controls
+    const aaIds = ['gfx-aa-on', 'gfx-aa-off'];
+    document.getElementById('gfx-aa-on')?.addEventListener('click', () => {
+        updateGraphicsSetting('antialias', true);
+        setActive(aaIds, 'gfx-aa-on');
+        showNotification('Anti-Aliasing enabled — smoother edges', 'success');
+    });
+    document.getElementById('gfx-aa-off')?.addEventListener('click', () => {
+        updateGraphicsSetting('antialias', false);
+        setActive(aaIds, 'gfx-aa-off');
+        showNotification('Anti-Aliasing disabled', 'info');
+    });
+
     const bloomIds = ['gfx-bloom-on', 'gfx-bloom-off'];
     document.getElementById('gfx-bloom-on')?.addEventListener('click', () => {
         updateGraphicsSetting('bloom', true);
