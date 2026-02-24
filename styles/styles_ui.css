@@ -1094,7 +1094,8 @@
 /* ── EXPLORATION MODE — hide main UI layer ──────────────────────────────────── */
 #ui-layer.hidden-during-exploration #system-panel,
 #ui-layer.hidden-during-exploration #planet-panel,
-#ui-layer.hidden-during-exploration #empire-panel {
+#ui-layer.hidden-during-exploration #empire-panel,
+#ui-layer.hidden-during-exploration #mobile-date-badge {
     display: none !important;
 }
 
