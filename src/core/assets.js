@@ -1,17 +1,29 @@
 /* Updated: Upgraded glow textures to 512px with smooth power-curve falloff and separate soft halo texture */
 import * as THREE from 'three';
+import {
+    createTerranTexture, createContinentalTexture, createOceanTexture,
+    createDesertTexture, createArcticTexture, createBarrenTexture,
+    createMoltenTexture, createGasGiantTexture, createTombTexture
+} from './planet_textures.js';
 
 export const textures = {};
 export const sounds = {};
 let audioCtx;
 
 export function loadAssets() {
-    const texLoader = new THREE.TextureLoader();
     textures.glow = createGlowTexture();
     textures.glowSoft = createSoftHaloTexture();
-    textures.terran = texLoader.load('assets/planet_terran.png');
-    textures.gas = texLoader.load('assets/planet_gas.png');
-    textures.barren = texLoader.load('assets/planet_barren.png');
+
+    // Procedural equirectangular planet textures (seamless spherical mapping)
+    textures.terran = createTerranTexture();
+    textures.continental = createContinentalTexture();
+    textures.ocean = createOceanTexture();
+    textures.desert = createDesertTexture();
+    textures.arctic = createArcticTexture();
+    textures.barren = createBarrenTexture();
+    textures.molten = createMoltenTexture();
+    textures.gas = createGasGiantTexture();
+    textures.tomb = createTombTexture();
 
     // Mark all shared textures so disposeGroup() skips them during cleanup
     for (const tex of Object.values(textures)) {
