@@ -110,8 +110,8 @@ const config = {
     shadows: 'high',
     scale: 1.0,
     resolution: 'native',
-    ultraSharp: false,  // supersampling + max anisotropy
-    antialias: !isMobile // default on for desktop, off for mobile
+    ultraSharp: true,   // supersampling + max anisotropy (ultra sharp default)
+    antialias: true
 };
 
 export function getGraphicsConfig() { return { ...config }; }
