@@ -228,6 +228,18 @@ export function initUI() {
         if (gameState.selectedSystemId) {
             if (surveySystem(gameState.selectedSystemId)) {
                 showNotification("System Surveyed: Data Available", "success");
+                // Animate the panel content to reflect surveyed data
+                const content = document.getElementById('system-panel').querySelector('.panel-content');
+                if (content) {
+                    content.style.transition = 'none';
+                    content.style.opacity = '0.3';
+                    content.style.transform = 'translateY(4px)';
+                    requestAnimationFrame(() => {
+                        content.style.transition = 'opacity 0.35s ease-out, transform 0.35s ease-out';
+                        content.style.opacity = '1';
+                        content.style.transform = 'translateY(0)';
+                    });
+                }
             } else {
                 showNotification("Cannot Survey: Insufficient Energy", "alert");
             }

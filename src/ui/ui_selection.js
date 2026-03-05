@@ -3,21 +3,27 @@ import { gameState, getSystem, getPlanet, SURVEY_COST, selectSystem, selectPlane
 import { renderColonyView } from './ui_colony.js';
 import { enterSystemView } from '../visuals/renderer.js';
 
+/** Track previous system to detect fresh opens vs content updates */
+let _prevSystemId = null;
+
 /**
  * Updates the System and Planet selection panels based on the current game state.
  */
 export function updateSelectionPanel() {
     const sysPanel = document.getElementById('system-panel');
     const planetPanel = document.getElementById('planet-panel');
-    
+
     const sys = gameState.selectedSystemId !== null ? getSystem(gameState.selectedSystemId) : null;
 
     if (sys) {
+        const isNewSystem = _prevSystemId !== sys.id;
+        _prevSystemId = sys.id;
+
         document.getElementById('sys-name').innerText = sys.name;
         document.getElementById('sys-class').innerText = getStarClass(sys.starType);
         document.getElementById('sys-class').style.color = '#' + sys.color.toString(16);
         document.getElementById('sys-planets').innerText = sys.planets.length;
-        
+
         const surveyBtn = document.getElementById('btn-survey');
         if (sys.surveyed) {
             surveyBtn.innerText = "System Surveyed";
@@ -32,15 +38,41 @@ export function updateSelectionPanel() {
             surveyBtn.style.opacity = '1';
             surveyBtn.style.cursor = 'pointer';
         }
+
+        // Fade-in the panel content when opening a new system
+        const content = sysPanel.querySelector('.panel-content');
+        if (isNewSystem && content) {
+            content.style.opacity = '0';
+            content.style.transform = 'translateY(6px)';
+            requestAnimationFrame(() => {
+                content.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+                content.style.opacity = '1';
+                content.style.transform = 'translateY(0)';
+            });
+        }
+
         sysPanel.classList.remove('hidden');
         renderStarList(sys.id);
     }
 
     if (gameState.selectedPlanetId !== null && gameState.viewMode === 'SYSTEM') {
         const planet = getPlanet(gameState.selectedPlanetId);
-        
+
         if (planet) {
             if (window.innerWidth <= 768) sysPanel.classList.add('hidden');
+
+            // Fade-in planet panel content
+            const pContent = planetPanel.querySelector('.panel-content');
+            if (pContent) {
+                pContent.style.transition = 'none';
+                pContent.style.opacity = '0';
+                pContent.style.transform = 'translateY(6px)';
+                requestAnimationFrame(() => {
+                    pContent.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+                    pContent.style.opacity = '1';
+                    pContent.style.transform = 'translateY(0)';
+                });
+            }
 
             document.getElementById('planet-name').innerText = planet.name;
             const isSurveyed = sys ? sys.surveyed : false;
@@ -144,6 +176,16 @@ function renderStarList(activeSystemId) {
             selectPlanet(planet.id);
         });
         container.appendChild(row);
+
+        // Staggered fade-in for each planet row
+        const idx = container.children.length - 1;
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(4px)';
+        requestAnimationFrame(() => {
+            row.style.transition = `opacity 0.25s ease-out ${idx * 0.04}s, transform 0.25s ease-out ${idx * 0.04}s`;
+            row.style.opacity = '1';
+            row.style.transform = 'translateY(0)';
+        });
     });
 }
 

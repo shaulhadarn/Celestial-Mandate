@@ -285,6 +285,7 @@
                 transform 0.35s cubic-bezier(0.19, 1, 0.22, 1),
                 visibility 0s 0s;
     transform-origin: top left;
+    will-change: transform, opacity;
     opacity: 1;
     visibility: visible;
     transform: translateX(0) scale(1);
