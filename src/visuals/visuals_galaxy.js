@@ -439,47 +439,48 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
       switch (p.type) {
         case "Terran":
-        case "Continental":
-        case "Ocean":
           tex = textures.terran;
-          matColor = 0xaaddff;
+          emissiveColor = 0x112244;
+          emissiveIntensity = 0.35;
+          break;
+        case "Continental":
+          tex = textures.continental;
+          emissiveColor = 0x112244;
+          emissiveIntensity = 0.35;
+          break;
+        case "Ocean":
+          tex = textures.ocean;
           emissiveColor = 0x112244;
           emissiveIntensity = 0.35;
           break;
         case "Gas Giant":
           tex = textures.gas;
-          matColor = 0xddbb88;
           emissiveColor = 0x331100;
           emissiveIntensity = 0.5;
           break;
         case "Ice":
         case "Arctic":
-          tex = textures.barren;
-          matColor = 0xddeeff;
+          tex = textures.arctic;
           emissiveColor = 0x113344;
           emissiveIntensity = 0.25;
           break;
         case "Molten":
-          tex = textures.barren;
-          matColor = 0xbb4422;
+          tex = textures.molten;
           emissiveColor = 0x551100;
           emissiveIntensity = 0.7;
           break;
         case "Desert":
-          tex = textures.barren;
-          matColor = 0xddbb88;
+          tex = textures.desert;
           emissiveColor = 0x221100;
           emissiveIntensity = 0.2;
           break;
         case "Tomb":
-          tex = textures.barren;
-          matColor = 0x999999;
+          tex = textures.tomb;
           emissiveColor = 0x111111;
           emissiveIntensity = 0.1;
           break;
         default:
           tex = textures.barren;
-          matColor = 0xcccccc;
           emissiveColor = 0x111111;
           emissiveIntensity = 0.15;
       }

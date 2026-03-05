@@ -189,50 +189,50 @@ export function createSystemVisuals(system, group) {
         let emissiveIntensity = 0.0;
         switch(p.type) {
             case 'Terran':
+                tex = textures.terran;
+                atmosphereColor = 0x00aaff;
+                emissiveColor = 0x112244;
+                emissiveIntensity = 0.3;
+                break;
             case 'Continental':
-                tex = textures.terran; 
+                tex = textures.continental;
                 atmosphereColor = 0x00aaff;
                 emissiveColor = 0x112244;
                 emissiveIntensity = 0.3;
                 break;
             case 'Ocean':
-                tex = textures.terran;
-                matColor = 0xaaddff;
+                tex = textures.ocean;
                 atmosphereColor = 0x0088ff;
                 emissiveColor = 0x112244;
                 emissiveIntensity = 0.3;
                 break;
             case 'Gas Giant':
-                tex = textures.gas; 
+                tex = textures.gas;
                 atmosphereColor = 0xffaa00;
                 emissiveColor = 0x331100;
                 emissiveIntensity = 0.4;
                 break;
             case 'Ice':
             case 'Arctic':
-                tex = textures.barren; 
-                matColor = 0xddeeff; 
+                tex = textures.arctic;
                 atmosphereColor = 0xaaddff;
                 emissiveColor = 0x112233;
                 emissiveIntensity = 0.2;
                 break;
             case 'Molten':
-                tex = textures.barren; 
-                matColor = 0xcc4411; 
+                tex = textures.molten;
                 atmosphereColor = 0xff4400;
                 emissiveColor = 0x661100;
                 emissiveIntensity = 0.6;
                 break;
             case 'Desert':
-                tex = textures.barren;
-                matColor = 0xddbb88;
+                tex = textures.desert;
                 atmosphereColor = 0xffaa66;
                 emissiveColor = 0x221100;
                 emissiveIntensity = 0.2;
                 break;
             case 'Tomb':
-                tex = textures.barren;
-                matColor = 0x888888;
+                tex = textures.tomb;
                 atmosphereColor = 0x444444;
                 emissiveColor = 0x111111;
                 emissiveIntensity = 0.1;
@@ -243,7 +243,6 @@ export function createSystemVisuals(system, group) {
                 break;
             default: // Barren
                 tex = textures.barren;
-                matColor = 0xbbbbbb;
                 emissiveColor = 0x111111;
                 emissiveIntensity = 0.1;
         }

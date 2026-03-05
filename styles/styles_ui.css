@@ -1229,7 +1229,7 @@
     z-index: 10000;
     --evt-accent: #00f2ff;
     opacity: 1;
-    transition: opacity 0.35s ease;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .event-modal.hidden {
@@ -1266,6 +1266,7 @@
     -webkit-overflow-scrolling: touch;
     opacity: 0;
     transform: translateY(12px) scale(0.97);
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .evt-box.evt-enter {
@@ -1275,6 +1276,15 @@
 @keyframes evtEnter {
     from { opacity: 0; transform: translateY(12px) scale(0.97); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.evt-box.evt-exit {
+    animation: evtExit 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes evtExit {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(-8px) scale(0.96); }
 }
 
 /* ── Decorative corner accents ─────────────────────────────────────────── */
@@ -1442,6 +1452,14 @@
     color: rgba(255, 255, 255, 0.72);
     line-height: 1.65;
     letter-spacing: 0.2px;
+}
+
+.evt-desc-para {
+    margin: 0 0 8px 0;
+}
+
+.evt-desc-para:last-child {
+    margin-bottom: 0;
 }
 
 /* ── Choices ────────────────────────────────────────────────────────────── */

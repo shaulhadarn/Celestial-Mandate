@@ -37,6 +37,21 @@ function _formatEffect(effect) {
     return parts.join('');
 }
 
+/* ── Description formatter — splits block text into readable paragraphs ── */
+function _formatDesc(text) {
+    if (!text) return '';
+    // Escape HTML to prevent XSS
+    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Split into sentences, group ~2-3 sentences per paragraph
+    const sentences = escaped.match(/[^.!?]+[.!?]+/g) || [escaped];
+    const paragraphs = [];
+    for (let i = 0; i < sentences.length; i += 2) {
+        const chunk = sentences.slice(i, i + 2).join('').trim();
+        if (chunk) paragraphs.push(chunk);
+    }
+    return paragraphs.map(p => `<p class="evt-desc-para">${p}</p>`).join('');
+}
+
 /* ── Modal construction ─────────────────────────────────────────────────── */
 function _ensureModal() {
     if (_modal) return _modal;
@@ -116,13 +131,20 @@ function _openModal() {
 
 function _closeModal() {
     if (!_modal) return;
+    // Trigger exit animation on the box
+    const box = _modal.querySelector('.evt-box');
+    if (box) {
+        box.classList.remove('evt-enter');
+        box.classList.add('evt-exit');
+    }
     _modal.classList.add('hidden');
-    // After fade-out transition completes, set display:none
+    // After fade-out transition completes, set display:none and clean up
     setTimeout(() => {
         if (_modal.classList.contains('hidden')) {
             _modal.classList.add('evt-no-display');
+            if (box) box.classList.remove('evt-exit');
         }
-    }, 350);
+    }, 450);
 }
 
 /* ── Show event (random or chain step) ──────────────────────────────────── */
@@ -154,8 +176,9 @@ function _showEvent(evt, chainInfo) {
     // Title
     modal.querySelector('.evt-title').textContent = evt.title;
 
-    // Description
-    modal.querySelector('.evt-desc').textContent = evt.desc;
+    // Description — break long text into readable paragraphs
+    const descEl = modal.querySelector('.evt-desc');
+    descEl.innerHTML = _formatDesc(evt.desc);
 
     // Choices
     const choicesEl = modal.querySelector('.evt-choices');
@@ -169,13 +192,16 @@ function _showEvent(evt, chainInfo) {
     choices.forEach((choice, i) => {
         const btn = document.createElement('button');
         btn.className = 'evt-choice-btn';
-        btn.style.animationDelay = `${0.15 + i * 0.07}s`;
+        // Force animation restart: start without animation, add it after reflow
+        btn.style.animation = 'none';
+        btn.style.opacity = '0';
 
+        const escapedLabel = (choice.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const hasEffect = choice.effect && Object.values(choice.effect).some(v => v !== 0);
         btn.innerHTML = `
             <div class="evt-choice-row">
                 <span class="evt-choice-marker"></span>
-                <span class="evt-choice-label">${choice.label}</span>
+                <span class="evt-choice-label">${escapedLabel}</span>
             </div>
             ${hasEffect ? `<div class="evt-choice-effects">${_formatEffect(choice.effect)}</div>` : ''}
         `;
@@ -195,12 +221,21 @@ function _showEvent(evt, chainInfo) {
         choicesEl.appendChild(btn);
     });
 
-    // Trigger entrance animation
+    // Trigger entrance animations
     const box = modal.querySelector('.evt-box');
-    box.classList.remove('evt-enter');
+    box.classList.remove('evt-enter', 'evt-exit');
     _openModal();
     void box.offsetWidth;
     box.classList.add('evt-enter');
+
+    // Restart button entrance animations after modal is visible
+    requestAnimationFrame(() => {
+        const btns = choicesEl.querySelectorAll('.evt-choice-btn');
+        btns.forEach((btn, i) => {
+            btn.style.animation = '';
+            btn.style.animationDelay = `${0.15 + i * 0.07}s`;
+        });
+    });
 }
 
 export function initEventsUI() {
