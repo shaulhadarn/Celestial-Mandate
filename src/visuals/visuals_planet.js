@@ -62,7 +62,7 @@ function initExplorationMouseControls() {
         const dx = e.clientX - lastMouseX;
         const dy = e.clientY - lastMouseY;
         cameraYaw -= dx * 0.005;
-        cameraPitch = Math.max(0.05, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
+        cameraPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
     };
@@ -159,7 +159,7 @@ function initExplorationMouseControls() {
         const dx = touch.clientX - lastMouseX;
         const dy = touch.clientY - lastMouseY;
         cameraYaw -= dx * 0.005;
-        cameraPitch = Math.max(0.05, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
+        cameraPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
         lastMouseX = touch.clientX;
         lastMouseY = touch.clientY;
     };
@@ -304,7 +304,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     camera.lookAt(droneCenter);
 
     // --- 2. Movement Direction (derived from cameraYaw, not camera.quaternion) ---
-    const speed = 40;
+    const speed = 100;
     const drag = 0.92;
     const velocity = playerMesh.userData.velocity;
     const inputDir = new THREE.Vector3();
