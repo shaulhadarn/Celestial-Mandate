@@ -22,6 +22,26 @@ export { showNotification };
 
 let activeJoystick = null;
 
+// --- Scene Transition Helpers ---
+function getTransitionOverlay() {
+    return document.getElementById('scene-transition-overlay');
+}
+
+function showTransition(text, subtext) {
+    const overlay = getTransitionOverlay();
+    overlay.querySelector('.transition-text').textContent = text || '';
+    overlay.querySelector('.transition-subtext').textContent = subtext || '';
+    overlay.querySelector('.transition-spinner').style.display = text ? '' : 'none';
+    overlay.classList.add('active');
+    return new Promise(r => setTimeout(r, 600)); // wait for fade-in
+}
+
+function hideTransition() {
+    const overlay = getTransitionOverlay();
+    overlay.classList.remove('active');
+    return new Promise(r => setTimeout(r, 600)); // wait for fade-out
+}
+
 /**
  * Main UI Hub. Sets up tickers and general interface listeners.
  */
@@ -133,6 +153,10 @@ export function initUI() {
         }
 
         try {
+            // Phase 1: Fade to black with landing animation
+            await showTransition('Initiating Landing', `Descending to ${planet.name}`);
+
+            // Phase 2: Do the actual scene swap while screen is black
             document.getElementById('ui-layer').classList.add('hidden-during-exploration');
             document.getElementById('exploration-controls').classList.remove('hidden');
             document.getElementById('hint-text').classList.add('hidden');
@@ -142,26 +166,22 @@ export function initUI() {
             document.getElementById('btn-empire-hub').classList.add('hidden');
             const mdb = document.getElementById('mobile-date-badge');
             if (mdb) mdb.style.display = 'none';
-            
+
             enterPlanetView(planet);
-            showNotification(`Landed on ${planet.name}`, 'success');
 
             if (window.innerWidth <= 768) {
-                // Show look-zone hint
                 const lookZone = document.getElementById('exploration-look-zone');
                 if (lookZone) lookZone.classList.add('visible');
 
-                // Dynamic import for mobile controls
                 try {
                     const nipplejs = (await import('nipplejs')).default;
                     const container = document.getElementById('joystick-container');
                     container.classList.add('visible');
-                    
+
                     if (activeJoystick) {
                         activeJoystick.destroy();
                     }
 
-                    // Joystick fills the container zone (left 42% of screen)
                     activeJoystick = nipplejs.create({
                         zone: container,
                         mode: 'static',
@@ -183,10 +203,17 @@ export function initUI() {
                     console.error("Failed to load joystick controls", e);
                 }
             }
+
+            // Brief pause so scene has a frame to render
+            await new Promise(r => setTimeout(r, 400));
+
+            // Phase 3: Fade in the planet view
+            await hideTransition();
+            showNotification(`Landed on ${planet.name}`, 'success');
         } catch (err) {
             console.error("Landing failed", err);
             showNotification("Landing Sequence Failed", "alert");
-            // Attempt recovery
+            hideTransition();
             document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
             document.getElementById('exploration-controls').classList.add('hidden');
         }
@@ -350,22 +377,22 @@ function showLoadingScreen(onComplete) {
     }, 150);
 }
 
-function returnToSystemViewFromPlanet() {
+async function returnToSystemViewFromPlanet() {
+    // Phase 1: Fade to black
+    await showTransition('', '');
+
+    // Phase 2: Do the scene swap while screen is black
     gameState.viewMode = 'SYSTEM';
     groups.planet.visible = false;
     groups.system.visible = true;
 
-    // Reset scene background and fog back to deep-space system view defaults
-    // (planet landing sets its own sky color/fog which must be cleared on return)
     if (scene) {
         scene.background = new THREE.Color(0x020408);
         scene.fog = new THREE.FogExp2(0x020408, 0.0015);
     }
 
-    // Dispose planet group GPU resources (geometries, materials, textures) to prevent memory leak
     disposeGroup(groups.planet);
 
-    // Remove Joystick
     if (activeJoystick) {
         activeJoystick.destroy();
         activeJoystick = null;
@@ -376,7 +403,6 @@ function returnToSystemViewFromPlanet() {
     if (lookZone) lookZone.classList.remove('visible');
     setJoystickInput(0, 0);
 
-    // UI Restore
     document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
     document.getElementById('exploration-controls').classList.add('hidden');
     document.getElementById('hint-text').classList.remove('hidden');
@@ -385,16 +411,19 @@ function returnToSystemViewFromPlanet() {
     const mdb = document.getElementById('mobile-date-badge');
     if (mdb) mdb.style.display = '';
 
-    // Fully restore OrbitControls to pre-landing state (flushes internal spherical/delta)
     restoreControlsAfterPlanet();
-    
     updateSelectionPanel();
 
-    // On mobile, close system/planet panels so user returns to a clean system view
     if (window.innerWidth <= 768) {
         document.getElementById('system-panel').classList.add('hidden');
         document.getElementById('planet-panel').classList.add('hidden');
     }
+
+    // Brief pause for scene to render a frame
+    await new Promise(r => setTimeout(r, 200));
+
+    // Phase 3: Fade in the orbit view
+    await hideTransition();
 }
 
 // removed function updateSelectionPanel() {} (moved to ui_selection.js)

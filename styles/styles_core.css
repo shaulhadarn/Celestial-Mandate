@@ -274,6 +274,55 @@ body, html {
     text-transform: uppercase;
 }
 
+/* --- SCENE TRANSITION OVERLAY --- */
+#scene-transition-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 5000;
+    background: #020408;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+}
+
+#scene-transition-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.transition-content {
+    text-align: center;
+}
+
+.transition-spinner {
+    width: 60px;
+    height: 60px;
+    border: 2px solid rgba(0, 242, 255, 0.1);
+    border-top: 2px solid var(--color-primary);
+    border-radius: 50%;
+    margin: 0 auto 24px;
+    animation: spin 1s linear infinite;
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
+}
+
+.transition-text {
+    font-size: 1.3rem;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    margin-bottom: 10px;
+}
+
+.transition-subtext {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
 /* --- LOADING SCREEN --- */
 #loading-screen {
     position: fixed;
