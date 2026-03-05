@@ -259,8 +259,9 @@ function applyGraphicsConfig() {
         }
     }
 
-    // Update Composer size — composer is null on mobile, skip entirely
+    // Update Composer size + pixel ratio — composer is null on mobile, skip entirely
     if (!isMobile && composer) {
+        composer.setPixelRatio(pixelRatio);
         composer.setSize(width, height);
         composer.passes.forEach(pass => {
             if (pass instanceof UnrealBloomPass) {
