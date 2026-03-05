@@ -183,96 +183,65 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   });
 
   // ── B. Instanced star spheres ─────────────────────────────────────────────
-  const starSegs = isMobileDevice ? 16 : 32;
+  const starSegs = isMobileDevice ? 24 : 32;
   const starGeo = new THREE.SphereGeometry(2.0, starSegs, starSegs);
 
-  let starMat;
-  if (isMobileDevice) {
-    // On mobile, use a shared MeshBasicMaterial with vertex colors
-    starMat = new THREE.MeshBasicMaterial({
-      vertexColors: false,
-      // We'll use a neutral white base; per-instance color via instanceColor
-    });
-    // For mobile we need per-instance color but MeshBasicMaterial doesn't
-    // read instanceColor by default. We'll use a simple ShaderMaterial instead.
-    starMat = new THREE.ShaderMaterial({
-      vertexShader: /* glsl */ `
-        attribute vec3 instanceColor;
-        varying vec2 vUv;
-        varying vec3 vCol;
-        void main() {
-          vUv = uv;
-          vCol = instanceColor;
-          vec4 instancePos = instanceMatrix * vec4(position, 1.0);
-          gl_Position = projectionMatrix * modelViewMatrix * instancePos;
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        varying vec2 vUv;
-        varying vec3 vCol;
-        void main() {
-          // Simple solid color with slight variation for cheap "texture" look
-          float n = fract(sin(dot(vUv * 4.0, vec2(127.1, 311.7))) * 43758.5453);
-          vec3 col = vCol * (0.85 + 0.15 * n);
-          gl_FragColor = vec4(col, 1.0);
-        }
-      `,
-    });
-  } else {
-    starMat = new THREE.ShaderMaterial({
-      uniforms: {
-        time: { value: 0 },
-      },
-      vertexShader: /* glsl */ `
-        attribute vec3 instanceColor;
-        varying vec2 vUv;
-        varying vec3 vNormal;
-        varying vec3 vSunColor;
-        void main() {
-          vUv = uv;
-          vNormal = normalize(normalMatrix * normal);
-          vSunColor = instanceColor;
-          vec4 instancePos = instanceMatrix * vec4(position, 1.0);
-          gl_Position = projectionMatrix * modelViewMatrix * instancePos;
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        uniform float time;
-        varying vec2 vUv;
-        varying vec3 vNormal;
-        varying vec3 vSunColor;
-        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-        float noise(vec2 p) {
-          vec2 i = floor(p); vec2 f = fract(p);
-          vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
-                     mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
-        }
-        float fbm(vec2 p) {
-          float v = 0.0; float a = 0.5;
-          for(int i=0; i<5; i++) { v += a*noise(p); p *= 2.1; a *= 0.5; }
-          return v;
-        }
-        void main() {
-          vec2 uv = vUv * 4.0;
-          float n = fbm(uv + time * 0.18);
-          float n2 = fbm(uv * 1.6 - time * 0.12 + 3.7);
-          float plasma = n * 0.6 + n2 * 0.4;
-          float limb = dot(vNormal, vec3(0.0, 0.0, 1.0));
-          limb = pow(max(limb, 0.0), 0.4);
-          vec3 hotColor  = min(vSunColor * 1.8 + 0.4, vec3(1.0));
-          vec3 coolColor = vSunColor * 0.55;
-          vec3 col = mix(coolColor, hotColor, plasma);
-          col *= (0.7 + 0.3 * limb);
-          float spot = step(0.72, fbm(uv * 2.5 + time * 0.05));
-          col = mix(col, vSunColor * 0.25, spot * 0.5);
-          gl_FragColor = vec4(col, 1.0);
-        }
-      `,
-      side: THREE.FrontSide,
-    });
-    starShaderMats.push(starMat);
-  }
+  // Plasma shader for star surfaces — same look on mobile & desktop
+  // Mobile uses 3 fbm iterations for perf, desktop uses 5
+  const fbmIters = isMobileDevice ? 3 : 5;
+  const starMat = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+    },
+    vertexShader: /* glsl */ `
+      attribute vec3 instanceColor;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vSunColor;
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vSunColor = instanceColor;
+        vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * instancePos;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float time;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vSunColor;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p); vec2 f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i+vec2(1,0)), u.x),
+                   mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
+      }
+      float fbm(vec2 p) {
+        float v = 0.0; float a = 0.5;
+        for(int i=0; i<${fbmIters}; i++) { v += a*noise(p); p *= 2.1; a *= 0.5; }
+        return v;
+      }
+      void main() {
+        vec2 uv = vUv * 4.0;
+        float n = fbm(uv + time * 0.18);
+        float n2 = fbm(uv * 1.6 - time * 0.12 + 3.7);
+        float plasma = n * 0.6 + n2 * 0.4;
+        float limb = dot(vNormal, vec3(0.0, 0.0, 1.0));
+        limb = pow(max(limb, 0.0), 0.4);
+        vec3 hotColor  = min(vSunColor * 1.8 + 0.4, vec3(1.0));
+        vec3 coolColor = vSunColor * 0.55;
+        vec3 col = mix(coolColor, hotColor, plasma);
+        col *= (0.7 + 0.3 * limb);
+        float spot = step(0.72, fbm(uv * 2.5 + time * 0.05));
+        col = mix(col, vSunColor * 0.25, spot * 0.5);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+    side: THREE.FrontSide,
+  });
+  starShaderMats.push(starMat);
 
   starInstancedMesh = new THREE.InstancedMesh(starGeo, starMat, N);
   // Set per-instance color
@@ -336,7 +305,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   // --- Outer halo layer ---
   const outerHaloMat = createBillboardMaterial(
     textures.glowSoft,
-    isMobileDevice ? 0.16 : 0.28,
+    isMobileDevice ? 0.25 : 0.28,
     true
   );
   outerHaloInstanced = new THREE.InstancedMesh(billboardGeo, outerHaloMat, N);
@@ -358,7 +327,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(outerHaloInstanced);
 
   // --- Mid glow layer ---
-  const midGlowMat = createBillboardMaterial(textures.glow, 0.22, true);
+  const midGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.35 : 0.22, true);
   midGlowInstanced = new THREE.InstancedMesh(billboardGeo, midGlowMat, N);
   midGlowInstanced.geometry.setAttribute(
     "instanceColor",
@@ -378,7 +347,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(midGlowInstanced);
 
   // --- Core layer ---
-  const coreBillboardMat = createBillboardMaterial(textures.glow, 0.55, true);
+  const coreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.65 : 0.55, true);
   coreInstanced = new THREE.InstancedMesh(billboardGeo, coreBillboardMat, N);
   coreInstanced.geometry.setAttribute(
     "instanceColor",
