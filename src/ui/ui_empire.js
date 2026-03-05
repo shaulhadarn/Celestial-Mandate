@@ -37,6 +37,25 @@ export function initEmpireHub() {
     if (hubDiplomacy) hubDiplomacy.addEventListener('click', () => {
         showNotification('No civilizations encountered yet', 'info');
     });
+
+    // Settings — open settings panel from hub
+    const hubSettings = document.getElementById('hub-settings');
+    if (hubSettings) hubSettings.addEventListener('click', () => {
+        empirePanel.classList.add('hidden');
+        const settingsPanel = document.getElementById('settings-panel');
+        if (settingsPanel) settingsPanel.classList.remove('hidden');
+    });
+
+    // On mobile, hide empire hub button when panel is open to avoid overlap
+    const hubBtn = document.getElementById('btn-empire-hub');
+    if (hubBtn) {
+        const observer = new MutationObserver(() => {
+            if (window.innerWidth <= 768 && gameState.viewMode !== 'SYSTEM') {
+                hubBtn.style.display = empirePanel.classList.contains('hidden') ? '' : 'none';
+            }
+        });
+        observer.observe(empirePanel, { attributes: true, attributeFilter: ['class'] });
+    }
 }
 
 /**

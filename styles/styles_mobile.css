@@ -558,17 +558,18 @@
     }
 
     .hub-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 8px;
     }
 
     .hub-item {
-        padding: 14px 10px;
+        padding: 12px 8px;
         clip-path: none;
         border-radius: 8px;
-        flex-direction: row;
-        gap: 10px;
-        justify-content: flex-start;
+        flex-direction: column;
+        gap: 6px;
+        justify-content: center;
+        align-items: center;
         -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
         touch-action: manipulation;
     }
@@ -584,19 +585,14 @@
         border-color: rgba(0, 242, 255, 0.5);
     }
 
-    .hub-item-wide {
-        grid-column: 1 / -1;
-        justify-content: center;
-    }
-
     .hub-icon {
-        font-size: 22px;
+        font-size: 24px;
         margin-bottom: 0;
     }
 
     .hub-label {
-        font-size: 11px;
-        letter-spacing: 1.5px;
+        font-size: 10px;
+        letter-spacing: 1px;
     }
 
     /* Colony View Adjustments */
