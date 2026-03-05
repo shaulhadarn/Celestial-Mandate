@@ -92,13 +92,37 @@ function _ensureModal() {
     `;
     document.body.appendChild(_modal);
 
+    // Start fully hidden (no display)
+    _modal.classList.add('evt-no-display');
+
     _modal.addEventListener('click', (e) => {
         if (e.target === _modal || e.target.classList.contains('evt-backdrop')) {
-            _modal.classList.add('hidden');
+            _closeModal();
         }
     });
 
     return _modal;
+}
+
+function _openModal() {
+    if (!_modal) return;
+    // Remove display:none, start invisible, then fade in
+    _modal.classList.remove('evt-no-display');
+    _modal.classList.add('hidden');
+    // Force reflow so the browser registers the hidden state before removing it
+    void _modal.offsetWidth;
+    _modal.classList.remove('hidden');
+}
+
+function _closeModal() {
+    if (!_modal) return;
+    _modal.classList.add('hidden');
+    // After fade-out transition completes, set display:none
+    setTimeout(() => {
+        if (_modal.classList.contains('hidden')) {
+            _modal.classList.add('evt-no-display');
+        }
+    }, 350);
 }
 
 /* ── Show event (random or chain step) ──────────────────────────────────── */
@@ -157,7 +181,7 @@ function _showEvent(evt, chainInfo) {
         `;
         btn.addEventListener('click', () => {
             if (choice.effect) applyEventChoice(choice.effect);
-            modal.classList.add('hidden');
+            _closeModal();
             showNotification(`${evt.title}: ${choice.label}`, 'info');
 
             // If this is a chain event, schedule next step
@@ -174,7 +198,7 @@ function _showEvent(evt, chainInfo) {
     // Trigger entrance animation
     const box = modal.querySelector('.evt-box');
     box.classList.remove('evt-enter');
-    modal.classList.remove('hidden');
+    _openModal();
     void box.offsetWidth;
     box.classList.add('evt-enter');
 }

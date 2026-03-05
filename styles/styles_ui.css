@@ -1224,9 +1224,16 @@
     justify-content: center;
     z-index: 10000;
     --evt-accent: #00f2ff;
+    opacity: 1;
+    transition: opacity 0.35s ease;
 }
 
-.event-modal.hidden { display: none; }
+.event-modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.event-modal.evt-no-display { display: none; }
 
 /* ── Backdrop ──────────────────────────────────────────────────────────── */
 .evt-backdrop {

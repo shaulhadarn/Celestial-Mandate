@@ -15,6 +15,24 @@ let cachedHyperlanes = [];
 // Saved OrbitControls state before entering planet exploration
 let savedControlsState = null;
 
+// --- View transition fade helpers (uses #scene-transition-overlay from index.html) ---
+function _fadeIn(durationMs = 400) {
+    const overlay = document.getElementById('scene-transition-overlay');
+    if (!overlay) return Promise.resolve();
+    overlay.querySelector('.transition-content').style.display = 'none';
+    overlay.style.transition = `opacity ${durationMs}ms ease`;
+    overlay.classList.add('active');
+    return new Promise(r => setTimeout(r, durationMs));
+}
+
+function _fadeOut(durationMs = 400) {
+    const overlay = document.getElementById('scene-transition-overlay');
+    if (!overlay) return Promise.resolve();
+    overlay.style.transition = `opacity ${durationMs}ms ease`;
+    overlay.classList.remove('active');
+    return new Promise(r => setTimeout(r, durationMs));
+}
+
 export async function init() {
     loadAssets();
     initSceneConfig();
@@ -101,6 +119,11 @@ function handleTap(event) {
     // Ignore taps on UI elements — prevents buttons from triggering 3D raycasts
     const target = event.target || event.srcElement;
     if (target && target.closest && target.closest('#ui-layer')) return;
+    // Block clicks when event modal (or any overlay) is open
+    if (target && target.closest && target.closest('#event-modal')) return;
+    // Also block if the event modal is visible (backdrop covers screen)
+    const evtModal = document.getElementById('event-modal');
+    if (evtModal && !evtModal.classList.contains('hidden') && !evtModal.classList.contains('evt-no-display')) return;
 
     // Update mouse coordinates for raycaster exactly at tap location
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -159,11 +182,16 @@ export function buildGalaxyVisuals(systems, hyperlanes) {
     createGalaxyVisuals(systems, cachedHyperlanes, groups.galaxy);
 }
 
-export function enterSystemView(systemId, instant = false) {
+export async function enterSystemView(systemId, instant = false) {
     // Safety check for R3F initialization
     if (!controls || !camera) {
         console.warn("enterSystemView: Scene not ready");
         return;
+    }
+
+    // Animated transition (skip fade on initial/instant load)
+    if (!instant) {
+        await _fadeIn();
     }
 
     gameState.viewMode = 'SYSTEM';
@@ -173,7 +201,7 @@ export function enterSystemView(systemId, instant = false) {
         scene.background = new THREE.Color(0x020408);
         scene.fog = new THREE.FogExp2(0x020408, 0.0015);
     }
-    
+
     // Re-enable OrbitControls — boost speeds for tighter system-scale interaction
     if (controls) {
         controls.enabled = true;
@@ -195,7 +223,7 @@ export function enterSystemView(systemId, instant = false) {
 
     const sys = getSystem(systemId);
     if (!sys) return;
-    
+
     // Build new system visuals
     createSystemVisuals(sys, groups.system);
 
@@ -213,9 +241,15 @@ export function enterSystemView(systemId, instant = false) {
 
     // Force R3F to render frames immediately — fixes mobile black screen on view switch
     _forceFrames(6);
+
+    if (!instant) {
+        await _fadeOut();
+    }
 }
 
-export function returnToGalaxyView() {
+export async function returnToGalaxyView() {
+    await _fadeIn();
+
     gameState.viewMode = 'GALAXY';
 
     // Reset background and fog to deep space defaults
@@ -236,7 +270,7 @@ export function returnToGalaxyView() {
         controls.panSpeed = 0.8;
         controls.zoomSpeed = 0.8;
     }
-    
+
     buildGalaxyVisuals(gameState.systems, cachedHyperlanes);
 
     groups.galaxy.visible = true;
@@ -245,7 +279,7 @@ export function returnToGalaxyView() {
 
     // Clean up system view GPU resources
     disposeGroup(groups.system);
-    planetMeshes.length = 0; 
+    planetMeshes.length = 0;
 
     // Restore Camera
     if (gameState.selectedSystemId !== null) {
@@ -258,8 +292,9 @@ export function returnToGalaxyView() {
     controls.maxDistance = 400;
 
     // Force R3F to render frames immediately — fixes mobile black screen on return
-    // (frameloop:"demand" won't auto-render until invalidate is called)
     _forceFrames(6);
+
+    await _fadeOut();
 }
 
 function _forceFrames(count) {
