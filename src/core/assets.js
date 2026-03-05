@@ -125,31 +125,36 @@ let musicElement = null;
 let musicGainNode = null;
 
 export function startMusic() {
-    if (musicElement) return; // already playing
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    try {
+        if (musicElement) return; // already playing
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
 
-    musicElement = new Audio('assets/9.Counter Point - Master of Epic.mp3');
-    musicElement.loop = true;
-    musicElement.volume = 1.0;
+        musicElement = new Audio(encodeURI('assets/9.Counter Point - Master of Epic.mp3'));
+        musicElement.loop = true;
+        musicElement.crossOrigin = 'anonymous';
+        musicElement.volume = 1.0;
 
-    const source = audioCtx.createMediaElementSource(musicElement);
-    musicGainNode = audioCtx.createGain();
-    musicGainNode.gain.value = 0.35; // background level — not too loud
-    source.connect(musicGainNode);
-    musicGainNode.connect(audioCtx.destination);
+        const source = audioCtx.createMediaElementSource(musicElement);
+        musicGainNode = audioCtx.createGain();
+        musicGainNode.gain.value = 0.35; // background level — not too loud
+        source.connect(musicGainNode);
+        musicGainNode.connect(audioCtx.destination);
 
-    musicElement.play().catch(() => {
-        // Browser blocked autoplay — will retry on next user interaction
-        const resume = () => {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            musicElement.play().catch(() => {});
-            window.removeEventListener('click', resume);
-            window.removeEventListener('touchstart', resume);
-        };
-        window.addEventListener('click', resume, { once: true });
-        window.addEventListener('touchstart', resume, { once: true });
-    });
+        musicElement.play().catch(() => {
+            // Browser blocked autoplay — will retry on next user interaction
+            const resume = () => {
+                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                if (musicElement) musicElement.play().catch(() => {});
+            };
+            window.addEventListener('click', resume, { once: true });
+            window.addEventListener('touchstart', resume, { once: true });
+        });
+    } catch (e) {
+        console.warn('Music init failed (non-fatal):', e);
+        musicElement = null;
+        musicGainNode = null;
+    }
 }
 
 export function setMusicVolume(vol) {

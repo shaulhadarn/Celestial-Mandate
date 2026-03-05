@@ -16,18 +16,26 @@ let cachedHyperlanes = [];
 let savedControlsState = null;
 
 // --- View transition fade helpers (uses #scene-transition-overlay from index.html) ---
+let _fadeSafetyTimer = null;
+
 function _fadeIn(durationMs = 400) {
     const overlay = document.getElementById('scene-transition-overlay');
     if (!overlay) return Promise.resolve();
+    if (_fadeSafetyTimer) clearTimeout(_fadeSafetyTimer);
     overlay.querySelector('.transition-content').style.display = 'none';
     overlay.style.transition = `opacity ${durationMs}ms ease`;
     overlay.classList.add('active');
+    // Safety: auto-remove overlay after 3s max in case something goes wrong
+    _fadeSafetyTimer = setTimeout(() => {
+        overlay.classList.remove('active');
+    }, 3000);
     return new Promise(r => setTimeout(r, durationMs));
 }
 
 function _fadeOut(durationMs = 400) {
     const overlay = document.getElementById('scene-transition-overlay');
     if (!overlay) return Promise.resolve();
+    if (_fadeSafetyTimer) { clearTimeout(_fadeSafetyTimer); _fadeSafetyTimer = null; }
     overlay.style.transition = `opacity ${durationMs}ms ease`;
     overlay.classList.remove('active');
     return new Promise(r => setTimeout(r, durationMs));
@@ -189,112 +197,122 @@ export async function enterSystemView(systemId, instant = false) {
         return;
     }
 
-    // Animated transition (skip fade on initial/instant load)
-    if (!instant) {
-        await _fadeIn();
-    }
+    try {
+        // Animated transition (skip fade on initial/instant load)
+        if (!instant) {
+            await _fadeIn();
+        }
 
-    gameState.viewMode = 'SYSTEM';
+        gameState.viewMode = 'SYSTEM';
 
-    // Reset background and fog to deep space defaults
-    if (scene) {
-        scene.background = new THREE.Color(0x020408);
-        scene.fog = new THREE.FogExp2(0x020408, 0.0015);
-    }
+        // Reset background and fog to deep space defaults
+        if (scene) {
+            scene.background = new THREE.Color(0x020408);
+            scene.fog = new THREE.FogExp2(0x020408, 0.0015);
+        }
 
-    // Re-enable OrbitControls — boost speeds for tighter system-scale interaction
-    if (controls) {
-        controls.enabled = true;
-        controls.enableRotate = true;
-        controls.enableZoom = true;
-        controls.enablePan = true;
-        controls.minDistance = 10;
-        controls.maxDistance = 300;
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.12;
-        controls.rotateSpeed = 1.0;
-        controls.panSpeed = 1.4;
-        controls.zoomSpeed = 1.2;
-    }
+        // Re-enable OrbitControls — boost speeds for tighter system-scale interaction
+        if (controls) {
+            controls.enabled = true;
+            controls.enableRotate = true;
+            controls.enableZoom = true;
+            controls.enablePan = true;
+            controls.minDistance = 10;
+            controls.maxDistance = 300;
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.12;
+            controls.rotateSpeed = 1.0;
+            controls.panSpeed = 1.4;
+            controls.zoomSpeed = 1.2;
+        }
 
-    groups.galaxy.visible = false;
-    groups.system.visible = true;
-    groups.planet.visible = false; // Hide planetary view
+        groups.galaxy.visible = false;
+        groups.system.visible = true;
+        groups.planet.visible = false; // Hide planetary view
 
-    const sys = getSystem(systemId);
-    if (!sys) return;
+        const sys = getSystem(systemId);
+        if (!sys) { _fadeOut(); return; }
 
-    // Build new system visuals
-    createSystemVisuals(sys, groups.system);
+        // Build new system visuals
+        createSystemVisuals(sys, groups.system);
 
-    const targetPos = new THREE.Vector3(0, 0, 0);
+        const targetPos = new THREE.Vector3(0, 0, 0);
 
-    if (instant) {
-        // Instant camera jump
-        camera.position.set(0, 40, 50);
-        controls.target.copy(targetPos);
-        controls.update();
-    } else {
-        // Animate camera
-        animateCamera(targetPos, 50, 40);
-    }
+        if (instant) {
+            // Instant camera jump
+            camera.position.set(0, 40, 50);
+            controls.target.copy(targetPos);
+            controls.update();
+        } else {
+            // Animate camera
+            animateCamera(targetPos, 50, 40);
+        }
 
-    // Force R3F to render frames immediately — fixes mobile black screen on view switch
-    _forceFrames(6);
+        // Force R3F to render frames immediately — fixes mobile black screen on view switch
+        _forceFrames(6);
 
-    if (!instant) {
-        await _fadeOut();
+        if (!instant) {
+            await _fadeOut();
+        }
+    } catch (e) {
+        console.error('enterSystemView error:', e);
+        _fadeOut();
     }
 }
 
 export async function returnToGalaxyView() {
-    await _fadeIn();
+    try {
+        await _fadeIn();
 
-    gameState.viewMode = 'GALAXY';
+        gameState.viewMode = 'GALAXY';
 
-    // Reset background and fog to deep space defaults
-    if (scene) {
-        scene.background = new THREE.Color(0x020408);
-        scene.fog = new THREE.FogExp2(0x020408, 0.0015);
-    }
-
-    // Restore OrbitControls to galaxy defaults
-    if (controls) {
-        controls.enabled = true;
-        controls.enableRotate = true;
-        controls.enableZoom = true;
-        controls.enablePan = true;
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.rotateSpeed = 0.6;
-        controls.panSpeed = 0.8;
-        controls.zoomSpeed = 0.8;
-    }
-
-    buildGalaxyVisuals(gameState.systems, cachedHyperlanes);
-
-    groups.galaxy.visible = true;
-    groups.system.visible = false;
-    groups.planet.visible = false;
-
-    // Clean up system view GPU resources
-    disposeGroup(groups.system);
-    planetMeshes.length = 0;
-
-    // Restore Camera
-    if (gameState.selectedSystemId !== null) {
-        const sys = getSystem(gameState.selectedSystemId);
-        if (sys) {
-            focusCamera(sys.position, 60);
+        // Reset background and fog to deep space defaults
+        if (scene) {
+            scene.background = new THREE.Color(0x020408);
+            scene.fog = new THREE.FogExp2(0x020408, 0.0015);
         }
+
+        // Restore OrbitControls to galaxy defaults
+        if (controls) {
+            controls.enabled = true;
+            controls.enableRotate = true;
+            controls.enableZoom = true;
+            controls.enablePan = true;
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.rotateSpeed = 0.6;
+            controls.panSpeed = 0.8;
+            controls.zoomSpeed = 0.8;
+        }
+
+        buildGalaxyVisuals(gameState.systems, cachedHyperlanes);
+
+        groups.galaxy.visible = true;
+        groups.system.visible = false;
+        groups.planet.visible = false;
+
+        // Clean up system view GPU resources
+        disposeGroup(groups.system);
+        planetMeshes.length = 0;
+
+        // Restore Camera
+        if (gameState.selectedSystemId !== null) {
+            const sys = getSystem(gameState.selectedSystemId);
+            if (sys) {
+                focusCamera(sys.position, 60);
+            }
+        }
+        controls.minDistance = 20;
+        controls.maxDistance = 400;
+
+        // Force R3F to render frames immediately — fixes mobile black screen on return
+        _forceFrames(6);
+
+        await _fadeOut();
+    } catch (e) {
+        console.error('returnToGalaxyView error:', e);
+        _fadeOut();
     }
-    controls.minDistance = 20;
-    controls.maxDistance = 400;
-
-    // Force R3F to render frames immediately — fixes mobile black screen on return
-    _forceFrames(6);
-
-    await _fadeOut();
 }
 
 function _forceFrames(count) {
