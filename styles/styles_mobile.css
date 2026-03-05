@@ -439,27 +439,31 @@
         display: none !important;
     }
 
-    /* View toggle — compact */
+    /* View toggle (Return to Galaxy) — mobile */
     #btn-view-toggle {
-        height: 34px;
-        padding: 0 14px;
-        font-size: 10px;
-        letter-spacing: 1px;
+        height: 40px;
+        padding: 0 18px;
+        font-size: 12px;
+        letter-spacing: 1.5px;
         clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+        -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
+        touch-action: manipulation;
     }
 
-    /* Empire hub button — mobile optimized */
+    /* Empire hub button — mobile */
     #btn-empire-hub {
-        height: 34px;
-        padding: 0 12px 0 9px;
-        font-size: 10px;
-        letter-spacing: 1.5px;
-        gap: 6px;
+        height: 40px;
+        padding: 0 16px 0 12px;
+        font-size: 12px;
+        letter-spacing: 2px;
+        gap: 7px;
         clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+        -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
+        touch-action: manipulation;
     }
 
     #btn-empire-hub::before {
-        font-size: 14px;
+        font-size: 16px;
     }
 
     .mobile-only {

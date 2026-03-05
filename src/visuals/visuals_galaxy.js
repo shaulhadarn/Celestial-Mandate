@@ -167,7 +167,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     _rotYs[i] = Math.random() * Math.PI;
     _coronaRotYs[i] = 0;
     _coronaRotZs[i] = 0;
-    _glowBaseScales[i] = isMobileDevice ? 9 + Math.random() * 2 : 14 + Math.random() * 4;
+    _glowBaseScales[i] = isMobileDevice ? 12 + Math.random() * 3 : 14 + Math.random() * 4;
     _glowPulseOffsets[i] = Math.random() * Math.PI * 2;
   });
 
@@ -366,7 +366,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(coreInstanced);
 
   // --- White-hot core layer (pure white, no instance color) ---
-  const hotCoreBillboardMat = createBillboardMaterial(textures.glow, 0.5, false);
+  const hotCoreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.6 : 0.5, false);
   hotCoreInstanced = new THREE.InstancedMesh(billboardGeo, hotCoreBillboardMat, N);
   // No instanceColor needed — shader uses vec3(1.0) for white
   systems.forEach((sys, i) => {
