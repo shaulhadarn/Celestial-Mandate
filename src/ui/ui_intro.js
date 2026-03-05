@@ -272,6 +272,7 @@ function _buildOverlay(civName) {
         <div class="intro-bg-stars"></div>
         <div class="intro-bg-nebula"></div>
         <div class="intro-bg-stars-dense"></div>
+        <div class="intro-particles" id="intro-particles"></div>
         <div class="intro-bg-vignette"></div>
         <div class="intro-content">
             <div class="intro-empire-name">${civName || 'Your Empire'}</div>
@@ -303,8 +304,37 @@ function _buildOverlay(civName) {
     };
     window.addEventListener('keydown', _keyHandler);
 
+    // Spawn floating star particles
+    _spawnParticles(_overlay.querySelector('#intro-particles'), _accent);
+
     // Animate in
     requestAnimationFrame(() => _overlay.classList.add('intro-visible'));
+}
+
+function _spawnParticles(container, accent) {
+    if (!container) return;
+    const count = window.innerWidth <= 768 ? 28 : 40;
+    const rnd = (min, max) => Math.random() * (max - min) + min;
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'intro-particle';
+        const size = rnd(1.5, 4.5);
+        // ~20% of particles use the accent colour for subtle tinting
+        const useAccent = Math.random() < 0.2;
+        p.style.cssText = `
+            width: ${size}px; height: ${size}px;
+            left: ${rnd(2, 98)}%; top: ${rnd(2, 98)}%;
+            background: radial-gradient(circle, ${useAccent ? accent : 'rgba(255,255,255,0.9)'} 0%, transparent 70%);
+            --p-dur: ${rnd(8, 18)}s;
+            --p-delay: ${rnd(0, 8)}s;
+            --p-opacity: ${rnd(0.2, 0.6)};
+            --p-dx1: ${rnd(-25, 25)}px; --p-dy1: ${rnd(-40, 40)}px;
+            --p-dx2: ${rnd(-30, 30)}px; --p-dy2: ${rnd(-50, 50)}px;
+            --p-dx3: ${rnd(-20, 20)}px; --p-dy3: ${rnd(-35, 35)}px;
+            --p-s1: ${rnd(0.8, 1.4)}; --p-s2: ${rnd(0.7, 1.2)};
+        `;
+        container.appendChild(p);
+    }
 }
 
 function _renderSlide() {

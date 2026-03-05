@@ -515,17 +515,64 @@
     50%       { box-shadow: 0 0 40px color-mix(in srgb, var(--intro-accent) 55%, transparent), inset 0 1px 0 color-mix(in srgb, var(--intro-accent) 40%, transparent); }
 }
 
+/* ── Floating star particles ─────────────────────────────────────────────────── */
+.intro-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.intro-particle {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 70%);
+    pointer-events: none;
+    will-change: transform, opacity;
+    animation: intro-particle-float var(--p-dur, 12s) var(--p-delay, 0s) ease-in-out infinite;
+}
+
+@keyframes intro-particle-float {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: var(--p-opacity, 0.4);
+    }
+    25% {
+        transform: translate(var(--p-dx1, 15px), var(--p-dy1, -30px)) scale(var(--p-s1, 1.2));
+        opacity: calc(var(--p-opacity, 0.4) * 1.6);
+    }
+    50% {
+        transform: translate(var(--p-dx2, -10px), var(--p-dy2, -55px)) scale(1);
+        opacity: var(--p-opacity, 0.4);
+    }
+    75% {
+        transform: translate(var(--p-dx3, 20px), var(--p-dy3, -25px)) scale(var(--p-s2, 0.8));
+        opacity: calc(var(--p-opacity, 0.4) * 1.3);
+    }
+    100% {
+        transform: translate(0, 0) scale(1);
+        opacity: var(--p-opacity, 0.4);
+    }
+}
+
 /* ── Mobile ──────────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+    #race-intro-overlay {
+        align-items: flex-end;
+        padding: 0 14px 18px;
+    }
+
     .intro-content {
-        padding: 30px 24px 24px;
-        min-height: 85vh;
+        padding: 28px 20px 22px;
+        min-height: auto;
+        max-height: 88vh;
         clip-path: none;
-        border-radius: 16px 16px 0 0;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        border-radius: 14px;
+        position: relative;
+        bottom: auto;
+        left: auto;
+        right: auto;
         width: 100%;
         box-sizing: border-box;
     }
@@ -560,5 +607,10 @@
     .intro-empire-name {
         font-size: 11px;
         letter-spacing: 5px;
+    }
+
+    .intro-slide-area {
+        gap: 14px;
+        padding: 16px 0;
     }
 }
