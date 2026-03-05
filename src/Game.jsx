@@ -7,9 +7,11 @@ import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { isMobile } from "./core/device.js";
 import { groups, setGlobalScene, setGlobalCamera, setGlobalRenderer, setGlobalControls, setGlobalComposer } from "./core/scene_config.js";
 import { updateFrame } from "./visuals/renderer.js";
-extend({ EffectComposer, RenderPass, UnrealBloomPass });
+extend({ EffectComposer, RenderPass, UnrealBloomPass, OutputPass });
 const SceneBindings = () => {
   const { scene, camera, gl } = useThree();
   useEffect(() => {
@@ -33,13 +35,28 @@ const GameLoop = () => {
   const { gl, scene, camera, size } = useThree();
   const composer = useRef();
   useEffect(() => {
-    const comp = new EffectComposer(gl);
+    const rtWidth = isMobile ? Math.floor(size.width / 2) : size.width;
+    const rtHeight = isMobile ? Math.floor(size.height / 2) : size.height;
+    const rtParams = {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat,
+        type: isMobile ? THREE.UnsignedByteType : THREE.HalfFloatType
+    };
+    const renderTarget = new THREE.WebGLRenderTarget(rtWidth, rtHeight, rtParams);
+    const comp = new EffectComposer(gl, renderTarget);
     comp.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(size.width, size.height), 0.8, 0.5, 0.6);
-    bloomPass.threshold = 0.6; // Lowered threshold so more things glow
-    bloomPass.strength = 0.9; // Increased strength to make it brighter
-    bloomPass.radius = 0.6; // Slightly larger glow radius
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(rtWidth, rtHeight),
+        isMobile ? 0.5 : 0.8,   // strength
+        isMobile ? 0.3 : 0.5,   // radius
+        isMobile ? 0.8 : 0.6    // threshold (higher = less bloom = faster)
+    );
+    bloomPass.threshold = isMobile ? 0.8 : 0.6;
+    bloomPass.strength = isMobile ? 0.5 : 0.9;
+    bloomPass.radius = isMobile ? 0.3 : 0.6;
     comp.addPass(bloomPass);
+    comp.addPass(new OutputPass());
     composer.current = comp;
     setGlobalComposer(comp);
     return () => {

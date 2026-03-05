@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState, events } from '../core/state.js';
 import { disposeGroup } from '../core/dispose.js';
-import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
+import { getTerrainHeight, getTerrainHeightFast, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
 import { getSkyColor, createPlanetProps, createCreatures } from './visuals_planet_environment.js';
 import { renderColonyGroundBuildings } from './visuals_planet_colony.js';
@@ -27,6 +27,7 @@ let cameraDistance = 18;
 const CAMERA_DISTANCE_MIN = 5;
 const CAMERA_DISTANCE_MAX = 60;
 const CAMERA_HEIGHT_OFFSET = 2;
+let dustMesh = null; // cached reference for per-frame time uniform update
 let isMouseDown = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
@@ -177,6 +178,7 @@ initExplorationMouseControls();
 export function createPlanetVisuals(planetData, group) {
     planetProps = [];
     creatures.length = 0;
+    dustMesh = null;
     currentPlanetData = planetData;
     explorationGroup = group;
     disposeGroup(group);
@@ -234,16 +236,63 @@ export function createPlanetVisuals(planetData, group) {
     // 4. Props
     planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
 
-    // 5. Particles — mobile: 60 instead of 200 (fewer point sprites = fewer overdraw passes)
-    const particleGeo = new THREE.BufferGeometry();
-    const pCount = isMobileDevice ? 60 : 200;
-    const pPos = new Float32Array(pCount * 3);
-    for(let i=0; i<pCount*3; i++) pPos[i] = (Math.random() - 0.5) * 200;
-    particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-    const pMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, transparent: true, opacity: 0.4, map: textures.glow, blending: THREE.AdditiveBlending, depthWrite: false });
-    const p = new THREE.Points(particleGeo, pMat);
-    p.userData = { isDust: true };
-    group.add(p);
+    // 5. Particles — GPU-animated dust (ShaderMaterial: drift + twinkle in vertex/fragment shader)
+    // Mobile: 60 instead of 200 (fewer point sprites = fewer overdraw passes)
+    {
+        const particleGeo = new THREE.BufferGeometry();
+        const pCount = isMobileDevice ? 60 : 200;
+        const pPos = new Float32Array(pCount * 3);
+        const pOffset = new Float32Array(pCount); // per-particle phase offset
+        for (let i = 0; i < pCount; i++) {
+            pPos[i * 3]     = (Math.random() - 0.5) * 200;
+            pPos[i * 3 + 1] = (Math.random() - 0.5) * 200;
+            pPos[i * 3 + 2] = (Math.random() - 0.5) * 200;
+            pOffset[i] = Math.random() * Math.PI * 2;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        particleGeo.setAttribute('aOffset', new THREE.BufferAttribute(pOffset, 1));
+
+        const dustShaderMat = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0.0 },
+                uMap: { value: textures.glow },
+            },
+            vertexShader: /* glsl */`
+                attribute float aOffset;
+                uniform float uTime;
+                varying float vTwinkle;
+                void main() {
+                    vec3 pos = position;
+                    // Per-particle Y drift based on time + unique offset
+                    pos.y += sin(uTime * 0.5 + aOffset) * 5.0;
+                    // Slight XZ sway
+                    pos.x += sin(uTime * 0.3 + aOffset * 1.7) * 1.5;
+                    pos.z += cos(uTime * 0.25 + aOffset * 2.3) * 1.5;
+                    // Twinkle factor passed to fragment shader
+                    vTwinkle = 0.3 + 0.7 * (0.5 + 0.5 * sin(uTime * 2.0 + aOffset * 3.0));
+                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                    gl_PointSize = 4.0 / -mvPosition.z * 100.0;
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: /* glsl */`
+                uniform sampler2D uMap;
+                varying float vTwinkle;
+                void main() {
+                    vec4 tex = texture2D(uMap, gl_PointCoord);
+                    gl_FragColor = vec4(1.0, 1.0, 1.0, tex.a * 0.4 * vTwinkle);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        });
+
+        const p = new THREE.Points(particleGeo, dustShaderMat);
+        p.userData = { isDust: true };
+        dustMesh = p;
+        group.add(p);
+    }
 
     // 6. Colony (hidden on landing - exploration starts with drone only)
     colonyBuildingsGroup = new THREE.Group();
@@ -330,10 +379,10 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 3. Apply Movement with slope collision ---
     const nextPos = playerMesh.position.clone().add(velocity.clone().multiplyScalar(dt));
     // Sample a small grid at next position to get worst-case terrain height
-    let nextGroundH = getTerrainHeight(nextPos.x, nextPos.z);
+    let nextGroundH = getTerrainHeightFast(nextPos.x, nextPos.z);
     const NS = 3;
     for (const [ox, oz] of [[-NS,0],[NS,0],[0,-NS],[0,NS]]) {
-        nextGroundH = Math.max(nextGroundH, getTerrainHeight(nextPos.x + ox, nextPos.z + oz));
+        nextGroundH = Math.max(nextGroundH, getTerrainHeightFast(nextPos.x + ox, nextPos.z + oz));
     }
     nextGroundH += 1.2; // noise margin
     // Only block if terrain at next step is above drone's current Y (would clip into slope)
@@ -376,7 +425,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     const pz = playerMesh.position.z;
 
     // Sample terrain at current pos + wide grid + ahead in velocity direction
-    let groundH = getTerrainHeight(px, pz);
+    let groundH = getTerrainHeightFast(px, pz);
     const R = 5; // sample radius
     const sampleOffsets = [
         [-R,0],[R,0],[0,-R],[0,R],
@@ -384,7 +433,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         [-R*0.5,0],[R*0.5,0],[0,-R*0.5],[0,R*0.5]
     ];
     for (const [ox, oz] of sampleOffsets) {
-        groundH = Math.max(groundH, getTerrainHeight(px + ox, pz + oz));
+        groundH = Math.max(groundH, getTerrainHeightFast(px + ox, pz + oz));
     }
     // Look ahead in velocity direction to pre-empt rising slopes
     const velLen = velocity.length();
@@ -392,8 +441,8 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         const lookAhead = 8;
         const vx = velocity.x / velLen;
         const vz = velocity.z / velLen;
-        groundH = Math.max(groundH, getTerrainHeight(px + vx * lookAhead, pz + vz * lookAhead));
-        groundH = Math.max(groundH, getTerrainHeight(px + vx * lookAhead * 0.5, pz + vz * lookAhead * 0.5));
+        groundH = Math.max(groundH, getTerrainHeightFast(px + vx * lookAhead, pz + vz * lookAhead));
+        groundH = Math.max(groundH, getTerrainHeightFast(px + vx * lookAhead * 0.5, pz + vz * lookAhead * 0.5));
     }
     // Add margin for mesh micro-noise (±0.4 per vertex)
     groundH += 1.2;
@@ -435,7 +484,10 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     }
 
     // --- 8. Dust & Creatures ---
-    group.children.forEach(child => { if (child.isPoints && child.userData.isDust) { child.rotation.y += 0.05 * dt; child.position.y = Math.sin(time * 0.5) * 5; } });
+    // Dust particles: just update the time uniform — all animation runs on GPU
+    if (dustMesh && dustMesh.material.uniforms) {
+        dustMesh.material.uniforms.uTime.value = time;
+    }
 
     creatures.forEach(c => {
         const ud = c.userData;
@@ -450,7 +502,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
         c.position.x = THREE.MathUtils.lerp(c.position.x, targetX, 0.5 * dt);
         c.position.z = THREE.MathUtils.lerp(c.position.z, targetZ, 0.5 * dt);
-        c.position.y = getTerrainHeight(c.position.x, c.position.z) + bscale * 0.9
+        c.position.y = getTerrainHeightFast(c.position.x, c.position.z) + bscale * 0.9
                        + Math.abs(Math.sin(ud.phase * 4)) * bob;
 
         // Face movement direction

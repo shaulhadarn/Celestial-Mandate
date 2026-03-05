@@ -59,18 +59,42 @@ export function initRenderer() {
     }).catch(e => console.warn('Could not load OrbitControls', e));
 
     // Post-Processing Setup
-    // On mobile: skip EffectComposer entirely — its internal HalfFloat render targets
-    // are not reliably supported on mobile GPUs and produce white square tile artifacts.
-    // The render loop in renderer.js falls through to renderer.render() when composer===null.
+    // Mobile: use UnsignedByteType render targets at half resolution to avoid
+    // white tile artifacts caused by HalfFloat on mobile GPUs.
+    // Desktop: use HalfFloat for full-quality HDR bloom.
     if (isMobile) {
-        composer = null;
+        const mobileRtParams = {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            format: THREE.RGBAFormat,
+            type: THREE.UnsignedByteType
+        };
+        const mobileRT = new THREE.WebGLRenderTarget(
+            Math.floor(window.innerWidth / 2),
+            Math.floor(window.innerHeight / 2),
+            mobileRtParams
+        );
+        composer = new EffectComposer(renderer, mobileRT);
+        composer.setSize(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2));
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
+
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2)),
+            0.5,   // strength (gentler for mobile GPU budget)
+            0.3,   // radius
+            0.8    // threshold (higher = less bloom = faster)
+        );
+        composer.addPass(bloomPass);
+
+        const outputPass = new OutputPass();
+        composer.addPass(outputPass);
     } else {
         composer = new EffectComposer(renderer);
         composer.setSize(window.innerWidth, window.innerHeight);
         const renderPass = new RenderPass(scene, camera);
         composer.addPass(renderPass);
 
-        // Desktop only: bloom post-processing
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(window.innerWidth, window.innerHeight),
             0.8,   // strength
@@ -79,7 +103,6 @@ export function initRenderer() {
         );
         composer.addPass(bloomPass);
 
-        // OutputPass handles sRGB conversion (required in Three r152+)
         const outputPass = new OutputPass();
         composer.addPass(outputPass);
     }
@@ -93,7 +116,11 @@ export function initRenderer() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+        if (composer) {
+            const cw = isMobile ? Math.floor(window.innerWidth / 2) : window.innerWidth;
+            const ch = isMobile ? Math.floor(window.innerHeight / 2) : window.innerHeight;
+            composer.setSize(cw, ch);
+        }
     });
 }
 
@@ -164,8 +191,32 @@ function recreateRenderer() {
         });
     }
 
-    // Rebuild composer for bloom on desktop
-    if (!isMobile) {
+    // Rebuild composer for bloom
+    if (isMobile) {
+        const mobileRtParams = {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            format: THREE.RGBAFormat,
+            type: THREE.UnsignedByteType
+        };
+        const mobileRT = new THREE.WebGLRenderTarget(
+            Math.floor(window.innerWidth / 2),
+            Math.floor(window.innerHeight / 2),
+            mobileRtParams
+        );
+        composer = new EffectComposer(renderer, mobileRT);
+        composer.setSize(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2));
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2)),
+            0.5, 0.3, 0.8
+        );
+        bloomPass.enabled = config.bloom;
+        composer.addPass(bloomPass);
+        const outputPass = new OutputPass();
+        composer.addPass(outputPass);
+    } else {
         composer = new EffectComposer(renderer);
         composer.setSize(window.innerWidth, window.innerHeight);
         const renderPass = new RenderPass(scene, camera);
@@ -212,9 +263,9 @@ export function setGraphicsPreset(level) {
     return config;
 }
 
-function applyGraphicsConfig() {
-    // Bloom — only toggle on desktop; mobile has no composer at all
-    if (!isMobile && composer) {
+export function applyGraphicsConfig() {
+    // Bloom — toggle on both desktop and mobile (mobile now has a composer)
+    if (composer) {
         composer.passes.forEach(pass => {
             if (pass instanceof UnrealBloomPass) pass.enabled = config.bloom;
         });
@@ -243,7 +294,7 @@ function applyGraphicsConfig() {
 
     // Ultra Sharp: supersample at 2x device pixel ratio
     const ultraMultiplier = config.ultraSharp ? 2.0 : 1.0;
-    // Mobile has no bloom composer, so ultra can safely go higher; normal mode stays capped at 1.5
+    // Mobile bloom uses half-res UnsignedByte RT; ultra can safely go higher; normal mode stays capped at 1.5
     const maxRatio = isMobile ? (config.ultraSharp ? 2.5 : 1.5) : 4.0;
     const pixelRatio = Math.min(basePixelRatio * config.scale * ultraMultiplier, maxRatio);
     renderer.setPixelRatio(pixelRatio);
@@ -261,13 +312,15 @@ function applyGraphicsConfig() {
         }
     }
 
-    // Update Composer size + pixel ratio — composer is null on mobile, skip entirely
-    if (!isMobile && composer) {
+    // Update Composer size + pixel ratio
+    if (composer) {
+        const compWidth = isMobile ? Math.floor(width / 2) : width;
+        const compHeight = isMobile ? Math.floor(height / 2) : height;
         composer.setPixelRatio(pixelRatio);
-        composer.setSize(width, height);
+        composer.setSize(compWidth, compHeight);
         composer.passes.forEach(pass => {
             if (pass instanceof UnrealBloomPass) {
-                pass.resolution.set(width, height);
+                pass.resolution.set(compWidth, compHeight);
             }
         });
     }

@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
-import { groups, setGlobalScene, setGlobalCamera, setGlobalRenderer, setGlobalControls, setGlobalComposer } from "./core/scene_config.js";
+import { groups, setGlobalScene, setGlobalCamera, setGlobalRenderer, setGlobalControls, setGlobalComposer, getGraphicsConfig, applyGraphicsConfig } from "./core/scene_config.js";
 import { updateFrame, buildGalaxyVisuals } from "./visuals/renderer.js";
 import { gameState } from "./core/state.js";
 import { isMobile as isMobileDevice } from "./core/device.js";
@@ -26,6 +26,8 @@ const SceneBindings = () => {
       gl.shadowMap.enabled = true;
       gl.shadowMap.type = THREE.PCFSoftShadowMap;
     }
+    // Apply graphics config (ultra sharp pixel ratio, anisotropy, etc.) on startup
+    applyGraphicsConfig();
     scene.background = new THREE.Color(132104);
     scene.fog = new THREE.FogExp2(132104, 15e-4);
     // Start with galaxy hidden — focusHome will call enterSystemView which sets visibility correctly
@@ -170,9 +172,9 @@ const Game = () => {
     {
       shadows: !isMobileDevice,
       frameloop: "always",
-      dpr: isMobileDevice ? [1, 1.25] : [1, 2],
+      dpr: isMobileDevice ? [1, 2.5] : [1, 4],
       gl: {
-        antialias: !isMobileDevice,
+        antialias: getGraphicsConfig().antialias,
         alpha: true,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,

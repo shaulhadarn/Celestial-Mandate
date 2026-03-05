@@ -1,4 +1,4 @@
-/* Updated: Fixed floating rocks — lowered Y offset so rocks sit partially embedded in terrain instead of hovering */
+/* Updated: InstancedMesh batching for rocks/crystals to reduce draw calls from 150+ to ~5 */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
@@ -34,7 +34,7 @@ export function getPropColor(type) {
     }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// -- Helpers ------------------------------------------------------------------
 function mat(color, emissive, emissiveIntensity, transparent, opacity, roughness) {
     if (isMobileDevice) {
         return new THREE.MeshLambertMaterial({
@@ -49,7 +49,7 @@ function mat(color, emissive, emissiveIntensity, transparent, opacity, roughness
     });
 }
 
-// ── Vegetation configs per planet type ───────────────────────────────────────
+// -- Vegetation configs per planet type ---------------------------------------
 function getVegetationConfig(type) {
     switch (type) {
         case 'Terran':
@@ -87,7 +87,7 @@ function getVegetationConfig(type) {
     }
 }
 
-// ── Build a tree mesh ─────────────────────────────────────────────────────────
+// -- Build a tree mesh --------------------------------------------------------
 function makeTree(treeColor, trunkColor, scale) {
     const g = new THREE.Group();
     const trunkH = 3 * scale;
@@ -113,7 +113,7 @@ function makeTree(treeColor, trunkColor, scale) {
     return g;
 }
 
-// ── Build a bush mesh ─────────────────────────────────────────────────────────
+// -- Build a bush mesh --------------------------------------------------------
 function makeBush(color, scale) {
     const g = new THREE.Group();
     const bushMat = mat(color, 0, 0, false, 1, 0.9);
@@ -130,7 +130,7 @@ function makeBush(color, scale) {
     return g;
 }
 
-// ── Build an alien plant (tall glowing stalk with orb top) ────────────────────
+// -- Build an alien plant (tall glowing stalk with orb top) -------------------
 function makeAlienPlant(color, glowColor, scale) {
     const g = new THREE.Group();
     // Stalk
@@ -174,7 +174,14 @@ function makeAlienPlant(color, glowColor, scale) {
     return g;
 }
 
-// ── Props (rocks + crystals) ──────────────────────────────────────────────────
+// -- Temp objects for matrix composition (reused to avoid GC pressure) --------
+const _position = new THREE.Vector3();
+const _quaternion = new THREE.Quaternion();
+const _scale = new THREE.Vector3();
+const _euler = new THREE.Euler();
+const _matrix = new THREE.Matrix4();
+
+// -- Props (rocks + crystals) via InstancedMesh batching ----------------------
 export function createPlanetProps(planetType, group, heightFn) {
     const props = [];
     const propColor = getPropColor(planetType);
@@ -185,6 +192,11 @@ export function createPlanetProps(planetType, group, heightFn) {
     const propGeo   = new THREE.DodecahedronGeometry(1, 0);
     const crystalGeo = new THREE.ConeGeometry(0.5, 3, 4);
 
+    // ---- Pass 1: generate all prop data and count rocks vs crystals ----------
+    const propData = [];
+    let rockCount = 0;
+    let crystalCount = 0;
+
     for (let i = 0; i < propCount; i++) {
         const r = 30 + Math.random() * 300;
         const theta = Math.random() * Math.PI * 2;
@@ -194,27 +206,76 @@ export function createPlanetProps(planetType, group, heightFn) {
 
         const isCrystal = Math.random() > 0.9;
         const scale = 0.5 + Math.random() * (isCrystal ? 1.5 : 3);
-        const mesh = new THREE.Mesh(isCrystal ? crystalGeo : propGeo, isCrystal ? crystalMat : propMat);
-
         const halfHeight = isCrystal ? (3 * scale) / 2 : (1 * scale) / 2;
         const meshY = yBase + (isCrystal ? 1.2 * scale : 0.25 * scale);
 
-        mesh.position.set(x, meshY, z);
-        mesh.scale.setScalar(scale);
-        mesh.rotation.set(Math.random() * 0.2, Math.random() * Math.PI, Math.random() * 0.2);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        group.add(mesh);
-        props.push({ x, z, r: (isCrystal ? 1 : 1.5) * scale, topY: meshY + halfHeight });
+        const rotX = Math.random() * 0.2;
+        const rotY = Math.random() * Math.PI;
+        const rotZ = Math.random() * 0.2;
 
-        if (isCrystal && !isMobileDevice) {
-            const light = new THREE.PointLight(0x00f2ff, 2, 8);
-            light.position.set(0, -1, 0);
-            mesh.add(light);
+        if (isCrystal) {
+            crystalCount++;
+        } else {
+            rockCount++;
         }
+
+        propData.push({ x, z, meshY, scale, rotX, rotY, rotZ, isCrystal, halfHeight });
     }
 
-    // ── Vegetation ────────────────────────────────────────────────────────────
+    // ---- Pass 2: build InstancedMesh for rocks ------------------------------
+    const rockInstancedMesh = new THREE.InstancedMesh(propGeo, propMat, rockCount);
+    rockInstancedMesh.castShadow = true;
+    rockInstancedMesh.receiveShadow = true;
+
+    // ---- Pass 2b: build InstancedMesh for crystals --------------------------
+    const crystalInstancedMesh = new THREE.InstancedMesh(crystalGeo, crystalMat, crystalCount);
+    crystalInstancedMesh.castShadow = true;
+    crystalInstancedMesh.receiveShadow = true;
+
+    let rockIdx = 0;
+    let crystalIdx = 0;
+
+    for (let i = 0; i < propData.length; i++) {
+        const d = propData[i];
+
+        _position.set(d.x, d.meshY, d.z);
+        _euler.set(d.rotX, d.rotY, d.rotZ);
+        _quaternion.setFromEuler(_euler);
+        _scale.set(d.scale, d.scale, d.scale);
+        _matrix.compose(_position, _quaternion, _scale);
+
+        if (d.isCrystal) {
+            crystalInstancedMesh.setMatrixAt(crystalIdx, _matrix);
+            crystalIdx++;
+
+            // Crystal point lights (desktop only, kept as individual lights)
+            if (!isMobileDevice) {
+                const light = new THREE.PointLight(0x00f2ff, 2, 8);
+                light.position.set(d.x, d.meshY - 1, d.z);
+                group.add(light);
+            }
+        } else {
+            rockInstancedMesh.setMatrixAt(rockIdx, _matrix);
+            rockIdx++;
+        }
+
+        // Collision data — same format as before
+        props.push({
+            x: d.x,
+            z: d.z,
+            r: (d.isCrystal ? 1 : 1.5) * d.scale,
+            topY: d.meshY + d.halfHeight
+        });
+    }
+
+    // Mark instance attribute buffers as needing upload
+    rockInstancedMesh.instanceMatrix.needsUpdate = true;
+    crystalInstancedMesh.instanceMatrix.needsUpdate = true;
+
+    group.add(rockInstancedMesh);
+    group.add(crystalInstancedMesh);
+
+    // ---- Vegetation (kept as Groups — only 30-70 objects) -------------------
     const vegCfg = getVegetationConfig(planetType);
     if (vegCfg.hasVeg) {
         const vegCount = isMobileDevice ? 30 : 70;
@@ -247,7 +308,7 @@ export function createPlanetProps(planetType, group, heightFn) {
     return props;
 }
 
-// ── Alien species definitions ─────────────────────────────────────────────────
+// -- Alien species definitions ------------------------------------------------
 function getSpeciesConfigs(planetType) {
     // Species A — large slow grazer
     const speciesA = {
@@ -368,7 +429,7 @@ function buildCreatureMesh(cfg) {
     return g;
 }
 
-// ── Public: create creatures (2 species) ─────────────────────────────────────
+// -- Public: create creatures (2 species) -------------------------------------
 export function createCreatures(type, group, heightFn) {
     if (['Barren', 'Tomb'].includes(type)) return [];
     const creatures = [];

@@ -425,127 +425,19 @@ export function updateSystemAnimations(time) {
     });
 }
 
-function _makeSpaceBackgroundTexture() {
-    const W = 2048, H = 1024;
-    const c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const ctx = c.getContext('2d');
-
-    // ── 1. Deep space base gradient ──────────────────────────────────────────
-    const base = ctx.createLinearGradient(0, 0, W, H);
-    base.addColorStop(0.0,  '#00010a');
-    base.addColorStop(0.35, '#010310');
-    base.addColorStop(0.65, '#020515');
-    base.addColorStop(1.0,  '#000208');
-    ctx.fillStyle = base;
-    ctx.fillRect(0, 0, W, H);
-
-    // ── 2. Milky Way diagonal band ───────────────────────────────────────────
-    ctx.save();
-    ctx.translate(W * 0.5, H * 0.5);
-    ctx.rotate(-0.28);
-    const band = ctx.createLinearGradient(0, -H * 0.55, 0, H * 0.55);
-    band.addColorStop(0.0,  'rgba(180,200,255,0)');
-    band.addColorStop(0.35, 'rgba(160,185,255,0.055)');
-    band.addColorStop(0.5,  'rgba(200,215,255,0.10)');
-    band.addColorStop(0.65, 'rgba(160,185,255,0.055)');
-    band.addColorStop(1.0,  'rgba(180,200,255,0)');
-    ctx.fillStyle = band;
-    ctx.fillRect(-W, -H, W * 2, H * 2);
-    // Star-cluster blobs along the band
-    for (let i = 0; i < 80; i++) {
-        const bx = (Math.random() - 0.5) * W * 1.4;
-        const by = (Math.random() - 0.5) * H * 0.28;
-        const br = 8 + Math.random() * 40;
-        const bg2 = ctx.createRadialGradient(bx, by, 0, bx, by, br);
-        bg2.addColorStop(0, 'rgba(255,255,255,0.14)');
-        bg2.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = bg2;
-        ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.restore();
-
-    // ── 3. Large nebula clouds (always cover full canvas) ────────────────────
-    const nebulas = [
-        // [cx%, cy%, rx%, ry%, r, g, b, alpha]
-        [ 0.15, 0.20, 0.38, 0.30,  30,  60, 180, 0.28 ],  // blue top-left
-        [ 0.80, 0.15, 0.35, 0.28, 120,  20, 180, 0.24 ],  // purple top-right
-        [ 0.70, 0.75, 0.40, 0.32,  20, 110,  80, 0.22 ],  // teal bottom-right
-        [ 0.20, 0.80, 0.36, 0.28, 180,  40,  20, 0.20 ],  // red bottom-left
-        [ 0.50, 0.45, 0.45, 0.38,  60,  30, 150, 0.16 ],  // indigo center
-        [ 0.88, 0.50, 0.30, 0.35,  20,  80, 160, 0.18 ],  // cyan right
-        [ 0.10, 0.55, 0.28, 0.30, 140,  80,  20, 0.16 ],  // amber left
-        [ 0.55, 0.10, 0.32, 0.25,  80, 160,  60, 0.14 ],  // lime top-center
-        [ 0.35, 0.60, 0.30, 0.28, 200,  60, 120, 0.15 ],  // pink mid
-        [ 0.75, 0.35, 0.28, 0.32,  60, 160, 200, 0.17 ],  // sky-blue right
-    ];
-
-    nebulas.forEach(([cxp, cyp, rxp, ryp, r, g, b, alpha]) => {
-        const ncx = cxp * W, ncy = cyp * H;
-        const nrx = rxp * W, nry = ryp * H;
-        // Elliptical gradient via scale transform
-        ctx.save();
-        ctx.translate(ncx, ncy);
-        ctx.scale(1, nry / nrx);
-        const ng = ctx.createRadialGradient(0, 0, 0, 0, 0, nrx);
-        ng.addColorStop(0.0, `rgba(${r},${g},${b},${alpha})`);
-        ng.addColorStop(0.3, `rgba(${r},${g},${b},${(alpha * 0.55).toFixed(3)})`);
-        ng.addColorStop(0.65,`rgba(${r},${g},${b},${(alpha * 0.18).toFixed(3)})`);
-        ng.addColorStop(1.0, `rgba(${r},${g},${b},0)`);
-        ctx.fillStyle = ng;
-        ctx.beginPath(); ctx.arc(0, 0, nrx, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-
-        // Bright inner core
-        ctx.save();
-        ctx.translate(ncx, ncy);
-        ctx.scale(1, nry / nrx);
-        const core = ctx.createRadialGradient(0, 0, 0, 0, 0, nrx * 0.22);
-        core.addColorStop(0, `rgba(${Math.min(r+80,255)},${Math.min(g+80,255)},${Math.min(b+80,255)},${(alpha * 0.7).toFixed(3)})`);
-        core.addColorStop(1, `rgba(${r},${g},${b},0)`);
-        ctx.fillStyle = core;
-        ctx.beginPath(); ctx.arc(0, 0, nrx * 0.22, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-    });
-
-    // ── 4. Accent wisps (smaller bright patches) ─────────────────────────────
-    const wisps = [
-        [ 0.42, 0.22, 0.14, 0.12,  80, 140, 255, 0.30 ],
-        [ 0.62, 0.68, 0.12, 0.10, 255,  80, 120, 0.26 ],
-        [ 0.28, 0.42, 0.13, 0.11,  80, 255, 200, 0.24 ],
-        [ 0.78, 0.82, 0.11, 0.09, 255, 180,  60, 0.22 ],
-        [ 0.90, 0.28, 0.12, 0.10, 160,  80, 255, 0.24 ],
-        [ 0.08, 0.35, 0.10, 0.09, 255, 220,  80, 0.20 ],
-    ];
-
-    wisps.forEach(([cxp, cyp, rxp, ryp, r, g, b, alpha]) => {
-        const ncx = cxp * W, ncy = cyp * H;
-        const nrx = rxp * W, nry = ryp * H;
-        ctx.save();
-        ctx.translate(ncx, ncy);
-        ctx.scale(1, nry / nrx);
-        const wg = ctx.createRadialGradient(0, 0, 0, 0, 0, nrx);
-        wg.addColorStop(0,   `rgba(${r},${g},${b},${alpha})`);
-        wg.addColorStop(0.5, `rgba(${r},${g},${b},${(alpha * 0.3).toFixed(3)})`);
-        wg.addColorStop(1,   `rgba(${r},${g},${b},0)`);
-        ctx.fillStyle = wg;
-        ctx.beginPath(); ctx.arc(0, 0, nrx, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-    });
-
-    const tex = new THREE.CanvasTexture(c);
-    tex.minFilter = THREE.LinearFilter;
-    return tex;
-}
-
 function createSystemBackground(group) {
-    // ── 1. Dense layered starfield ────────────────────────────────────────────
+    // ── Merged starfield + bright clusters into a single draw call ─────────
     const starCount = isMobileDevice ? 2500 : 5000;
-    const posArray = new Float32Array(starCount * 3);
-    const colArray = new Float32Array(starCount * 3);
-    const sizeArray = new Float32Array(starCount);
+    const clusterCount = isMobileDevice ? 25 : 60;
+    const totalCount = starCount + clusterCount;
+
+    const posArray  = new Float32Array(totalCount * 3);
+    const colArray  = new Float32Array(totalCount * 3);
+    const sizeArray = new Float32Array(totalCount);
+    const layerArray = new Float32Array(totalCount); // 0 = background, 1 = cluster
     const color = new THREE.Color();
 
+    // ── Background stars ──────────────────────────────────────────────────────
     for (let i = 0; i < starCount; i++) {
         const r = 350 + Math.random() * 450;
         const theta = Math.random() * Math.PI * 2;
@@ -566,38 +458,69 @@ function createSystemBackground(group) {
         colArray[i*3+1] = color.g;
         colArray[i*3+2] = color.b;
 
-        // Size variation: most tiny, a few large
         const sz = Math.random();
         sizeArray[i] = sz > 0.97 ? 3.5 : sz > 0.90 ? 2.2 : sz > 0.70 ? 1.5 : 0.9;
+        layerArray[i] = 0.0;
     }
 
-    const starGeo = new THREE.BufferGeometry();
-    starGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    starGeo.setAttribute('color',    new THREE.BufferAttribute(colArray, 3));
-    starGeo.setAttribute('size',     new THREE.BufferAttribute(sizeArray, 1));
+    // ── Foreground cluster stars ──────────────────────────────────────────────
+    const clusterColors = [0xffffff, 0xffeebb, 0xaaddff, 0xffccaa, 0xccddff];
+    for (let i = 0; i < clusterCount; i++) {
+        const idx = starCount + i;
+        const r = 200 + Math.random() * 180;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        posArray[idx*3]   = r * Math.sin(phi) * Math.cos(theta);
+        posArray[idx*3+1] = r * Math.sin(phi) * Math.sin(theta);
+        posArray[idx*3+2] = r * Math.cos(phi);
+        const c = new THREE.Color(clusterColors[Math.floor(Math.random() * clusterColors.length)]);
+        colArray[idx*3]   = c.r;
+        colArray[idx*3+1] = c.g;
+        colArray[idx*3+2] = c.b;
+        sizeArray[idx] = 2.5 + Math.random() * 4.0;
+        layerArray[idx] = 1.0;
+    }
 
-    const starMat = new THREE.ShaderMaterial({
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    geo.setAttribute('color',    new THREE.BufferAttribute(colArray, 3));
+    geo.setAttribute('size',     new THREE.BufferAttribute(sizeArray, 1));
+    geo.setAttribute('layer',    new THREE.BufferAttribute(layerArray, 1));
+
+    const mat = new THREE.ShaderMaterial({
         uniforms: {},
         vertexShader: `
             precision highp float;
             attribute vec3 color;
             attribute float size;
+            attribute float layer;
             varying vec3 vColor;
+            varying float vLayer;
             void main() {
                 vColor = color;
+                vLayer = layer;
                 vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = size * (320.0 / -mvPosition.z);
+                // background stars use 320 divisor, clusters use 300
+                float scale = mix(320.0, 300.0, layer);
+                gl_PointSize = size * (scale / -mvPosition.z);
                 gl_Position = projectionMatrix * mvPosition;
             }
         `,
         fragmentShader: `
             precision highp float;
             varying vec3 vColor;
+            varying float vLayer;
             void main() {
                 vec2 coord = gl_PointCoord - vec2(0.5);
                 float d = length(coord);
                 if (d > 0.5) discard;
-                float alpha = (1.0 - d * 2.0) * 0.95;
+                // Background stars: simple linear falloff
+                float bgAlpha = (1.0 - d * 2.0) * 0.95;
+                // Cluster stars: core + halo glow
+                float core = smoothstep(0.5, 0.0, d);
+                float halo = smoothstep(0.5, 0.1, d) * 0.4;
+                float clAlpha = core + halo;
+                float alpha = mix(bgAlpha, clAlpha, vLayer);
                 gl_FragColor = vec4(vColor, alpha);
             }
         `,
@@ -606,64 +529,5 @@ function createSystemBackground(group) {
         blending: THREE.AdditiveBlending,
     });
 
-    group.add(new THREE.Points(starGeo, starMat));
-
-    // ── 2. Bright foreground star clusters ───────────────────────────────────
-    const clusterCount = isMobileDevice ? 25 : 60;
-    const cPosArray  = new Float32Array(clusterCount * 3);
-    const cColArray  = new Float32Array(clusterCount * 3);
-    const cSizeArray = new Float32Array(clusterCount);
-    const clusterColors = [0xffffff, 0xffeebb, 0xaaddff, 0xffccaa, 0xccddff];
-
-    for (let i = 0; i < clusterCount; i++) {
-        const r = 200 + Math.random() * 180;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        cPosArray[i*3]   = r * Math.sin(phi) * Math.cos(theta);
-        cPosArray[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
-        cPosArray[i*3+2] = r * Math.cos(phi);
-        const c = new THREE.Color(clusterColors[Math.floor(Math.random() * clusterColors.length)]);
-        cColArray[i*3]   = c.r;
-        cColArray[i*3+1] = c.g;
-        cColArray[i*3+2] = c.b;
-        cSizeArray[i] = 2.5 + Math.random() * 4.0;
-    }
-
-    const clusterGeo = new THREE.BufferGeometry();
-    clusterGeo.setAttribute('position', new THREE.BufferAttribute(cPosArray, 3));
-    clusterGeo.setAttribute('color',    new THREE.BufferAttribute(cColArray, 3));
-    clusterGeo.setAttribute('size',     new THREE.BufferAttribute(cSizeArray, 1));
-
-    const clusterMat = new THREE.ShaderMaterial({
-        uniforms: {},
-        vertexShader: `
-            precision highp float;
-            attribute vec3 color;
-            attribute float size;
-            varying vec3 vColor;
-            void main() {
-                vColor = color;
-                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = size * (300.0 / -mvPosition.z);
-                gl_Position = projectionMatrix * mvPosition;
-            }
-        `,
-        fragmentShader: `
-            precision highp float;
-            varying vec3 vColor;
-            void main() {
-                vec2 coord = gl_PointCoord - vec2(0.5);
-                float d = length(coord);
-                if (d > 0.5) discard;
-                float core = smoothstep(0.5, 0.0, d);
-                float halo = smoothstep(0.5, 0.1, d) * 0.4;
-                gl_FragColor = vec4(vColor, core + halo);
-            }
-        `,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-    });
-
-    group.add(new THREE.Points(clusterGeo, clusterMat));
+    group.add(new THREE.Points(geo, mat));
 }

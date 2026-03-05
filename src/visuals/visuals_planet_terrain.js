@@ -3,6 +3,63 @@ import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
 
+/* ── Pre-baked height grid for fast per-frame lookups ─────────────────────── */
+const GRID_SIZE = 512;
+const GRID_EXTENT = 500; // terrain spans -500 to 500 on both axes
+let heightGrid = null;
+
+/**
+ * Pre-compute all terrain heights into a flat Float32Array grid.
+ * Called once from createTerrainMesh() so per-frame physics can use
+ * getTerrainHeightFast() (bilinear interpolation) instead of trig math.
+ */
+export function bakeHeightGrid() {
+    heightGrid = new Float32Array(GRID_SIZE * GRID_SIZE);
+    const step = (GRID_EXTENT * 2) / (GRID_SIZE - 1);
+    for (let j = 0; j < GRID_SIZE; j++) {
+        for (let i = 0; i < GRID_SIZE; i++) {
+            const x = -GRID_EXTENT + i * step;
+            const z = -GRID_EXTENT + j * step;
+            heightGrid[j * GRID_SIZE + i] = getTerrainHeight(x, z);
+        }
+    }
+}
+
+/**
+ * Fast terrain height via bilinear interpolation from the baked grid.
+ * No trig — just array lookups and lerps. Falls back to getTerrainHeight()
+ * if the grid hasn't been baked yet or coordinates are out of range.
+ */
+export function getTerrainHeightFast(x, z) {
+    if (!heightGrid) return getTerrainHeight(x, z);
+
+    // Map world coords to grid coords
+    const invStep = (GRID_SIZE - 1) / (GRID_EXTENT * 2);
+    const gx = (x + GRID_EXTENT) * invStep;
+    const gz = (z + GRID_EXTENT) * invStep;
+
+    // Out-of-bounds: fall back to analytic function
+    if (gx < 0 || gx >= GRID_SIZE - 1 || gz < 0 || gz >= GRID_SIZE - 1) {
+        return getTerrainHeight(x, z);
+    }
+
+    const ix = gx | 0; // floor via bitwise OR
+    const iz = gz | 0;
+    const fx = gx - ix; // fractional part
+    const fz = gz - iz;
+
+    const idx = iz * GRID_SIZE + ix;
+    const h00 = heightGrid[idx];
+    const h10 = heightGrid[idx + 1];
+    const h01 = heightGrid[idx + GRID_SIZE];
+    const h11 = heightGrid[idx + GRID_SIZE + 1];
+
+    // Bilinear interpolation
+    const h0 = h00 + (h10 - h00) * fx;
+    const h1 = h01 + (h11 - h01) * fx;
+    return h0 + (h1 - h0) * fz;
+}
+
 /**
  * Procedural terrain height math.
  * Uses layered sine waves (pseudo-fBm) for more natural, rugged terrain.
@@ -138,6 +195,10 @@ export function createTerrainMesh(planetType) {
     const terrain = new THREE.Mesh(groundGeo, groundMat);
     terrain.rotation.x = -Math.PI / 2;
     terrain.receiveShadow = true;
+
+    // Bake height grid after terrain is created so per-frame physics can use fast lookups
+    bakeHeightGrid();
+
     return terrain;
 }
 

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { isMobile } from '../core/device.js';
 import { createHullTexture, createGlowTexture } from '../core/splash_assets.js';
 import { createSplashScreenShip, createCapitalFleet, resetShip } from './splash_ships.js';
-import { trailParticles, spawnTrailParticle, updateTrailParticles } from './splash_particles.js';
+import { trailParticles, spawnTrailParticle, updateTrailParticles, disposeTrailPool } from './splash_particles.js';
 
 // Modular Imports
 import { setupSplashLighting } from './splash_lighting.js';
@@ -279,11 +279,7 @@ export function stopSplashPlanet() {
     }
     window.removeEventListener('resize', onResize);
     
-    trailParticles.forEach(p => {
-        scene.remove(p.sprite);
-        p.sprite.material.dispose();
-    });
-    trailParticles.length = 0;
+    disposeTrailPool(scene);
 
     satellites.forEach(sat => {
         scene.remove(sat);
