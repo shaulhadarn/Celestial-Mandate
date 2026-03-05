@@ -82,8 +82,10 @@ const GameLoop = () => {
   }, [gl, scene, camera, size]);
   useFrame((state, delta) => {
     updateFrame(state, delta);
-    if (!isMobileDevice && composer.current) {
+    if (composer.current) {
       composer.current.render();
+    } else {
+      gl.render(scene, camera);
     }
   }, 1);
   return null;
