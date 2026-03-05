@@ -328,7 +328,15 @@ function updateTopBar() {
 
     if (gameState.viewMode === 'SYSTEM') {
         toggleBtn.innerText = "Return to Galaxy";
-        toggleBtn.classList.remove('hidden');
+        // On mobile, hide the button when any bottom panel/modal is open
+        const anyPanelOpen = !document.getElementById('system-panel').classList.contains('hidden')
+            || !document.getElementById('planet-panel').classList.contains('hidden')
+            || !document.getElementById('empire-panel').classList.contains('hidden');
+        if (window.innerWidth <= 768 && anyPanelOpen) {
+            toggleBtn.classList.add('hidden');
+        } else {
+            toggleBtn.classList.remove('hidden');
+        }
         hubBtn.classList.add('hidden');
     } else {
         toggleBtn.classList.add('hidden');
