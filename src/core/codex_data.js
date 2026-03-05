@@ -5,6 +5,7 @@
 export const CODEX_CATEGORIES = [
     'History',
     'Species',
+    'Civilizations',
     'Technology',
     'Anomalies',
     'Factions',
@@ -361,5 +362,103 @@ What they have heard is troubling. The void is not empty. Intermittent signals, 
 The hyperlanes are not a human creation. They are Architect infrastructure, engineered two million years ago through mechanisms that human physics can describe but not replicate. Each lane is a tunnel through higher-dimensional space, held open by precisely calibrated gravitational anchors embedded in the stars at either end. The anchors appear to be self-maintaining — drawing energy from their host stars to sustain the dimensional fold that makes FTL transit possible.
 
 Control of hyperlane junctions — systems where multiple lanes converge — is the foundation of interstellar power. The Mandate's political geography is shaped by the network: core systems sit at major junctions, while frontier worlds cling to the ends of isolated spurs. The Collapse demonstrated what happens when the network fails, and ensuring its continued operation is the Mandate's highest strategic priority. Every governor knows that whoever controls the lanes controls the galaxy. And every governor also knows that the Architect technology sustaining them is two million years old, shows signs of degradation, and has no known replacement.`,
+    },
+
+    /* ─── Civilizations (Player Races) ─────────────────────────────────── */
+
+    {
+        id: 'civ_humanoid',
+        category: 'Civilizations',
+        title: 'The Humanoid Races',
+        unlockCondition: 'game-start',
+        body: `The humanoid body plan is the galaxy's most widespread template for intelligent life — a convergent evolution so common that xenobiologists have given up calling it coincidence. Bipedal locomotion, bilateral symmetry, manipulative digits, and forward-facing sensory organs appear independently on hundreds of worlds, each time producing civilizations that are superficially familiar and profoundly alien in equal measure.
+
+Humanoid species share a suite of adaptive advantages that explain their dominance: upright posture frees the hands for tool use, binocular vision enables precision engineering, and a vocal apparatus capable of complex language allows the rapid transmission of abstract knowledge. These traits, combined with an omnivorous metabolism that thrives in diverse environments, make humanoids the galaxy's supreme generalists — never the strongest, fastest, or most perceptive, but always the most adaptable.
+
+The Celestial Mandate was founded primarily by humanoid species, and its institutions reflect humanoid social instincts: hierarchical governance tempered by individual autonomy, economic systems driven by personal ambition, and a cultural emphasis on legacy — the desire to leave something behind that outlasts the individual. Critics from non-humanoid civilizations argue that the Mandate is fundamentally a humanoid institution dressed in universalist rhetoric. Supporters counter that universalism is itself a humanoid invention, and one of their better ones.`,
+    },
+
+    {
+        id: 'civ_insectoid',
+        category: 'Civilizations',
+        title: 'The Insectoid Swarms',
+        unlockCondition: 'game-start',
+        body: `Insectoid civilizations operate on principles that most individualistic species find deeply unsettling. A single insectoid entity is not a person in any meaningful sense — it is a cell in a larger organism, a specialized unit executing instructions that originate from a distributed collective intelligence. The "mind" of an insectoid civilization is not located in any single body but emerges from the interactions of millions, each contributing a fraction of thought to a whole that is staggeringly greater than the sum of its parts.
+
+The swarm's greatest strength is its unity of purpose. Where humanoid civilizations waste energy on internal politics, debate, and dissent, an insectoid swarm moves as one — every resource allocated optimally, every individual deployed where it can contribute most. Their colonies expand with terrifying efficiency, converting raw materials into infrastructure and population at rates that would take other species generations to match. A swarm that gains a foothold in a resource-rich system can go from a single hive to a planet-spanning civilization in less than a decade.
+
+Their weakness is equally fundamental: insectoid swarms struggle with novelty. The collective mind excels at optimizing known solutions but resists the chaotic, individual-driven innovation that produces breakthroughs. An insectoid empire will perfect existing technology to its theoretical limits but rarely invent something genuinely new. For this reason, the most successful swarms in Mandate space have learned to incorporate non-insectoid advisors into their collective — tolerated alien voices that inject the creative chaos the swarm cannot generate on its own.`,
+    },
+
+    {
+        id: 'civ_avian',
+        category: 'Civilizations',
+        title: 'The Avian Ascendancy',
+        unlockCondition: 'game-start',
+        body: `Avian species evolved on worlds where the sky was the primary habitat — planets with dense atmospheres, low gravity, or towering ecosystems where the ground was a place of predators and decay. Their civilizations carry the marks of this origin: a cultural obsession with height, perspective, and the long view. Avian architecture spirals upward. Their art celebrates vastness. Their philosophy tends toward the contemplative, valuing patience and observation over action and conquest.
+
+The avian nervous system processes visual and spatial information at speeds that make other species seem cognitively impaired by comparison. An avian navigator can read a three-dimensional star chart the way a humanoid reads a sentence — instantly, intuitively, and with a depth of comprehension that takes other species years of training to approximate. This gift makes avian civilizations natural explorers and cartographers, and avian-charted star maps are considered the gold standard across Mandate space.
+
+Socially, avian civilizations organize around principles of altitude — a metaphor that translates differently across species but consistently equates elevation with wisdom, authority, and moral clarity. Their leaders are called "the High," their criminals "the Fallen." Their deepest insult is to say someone "crawls." This vertical cosmology produces civilizations that are remarkably stable but sometimes rigid, resistant to the ground-level pragmatism that other species consider essential to governance. An avian governor will see the shape of a problem with breathtaking clarity. Whether they can bring themselves to descend into the mud and fix it is another question entirely.`,
+    },
+
+    {
+        id: 'civ_fungal',
+        category: 'Civilizations',
+        title: 'The Fungal Networks',
+        unlockCondition: 'game-start',
+        body: `Fungal civilizations are the galaxy's slowest conquerors and its most patient. A fungal species does not expand so much as it permeates — sending tendrils of biological infrastructure through soil, stone, and eventually the crust of an entire world, creating a living network that serves simultaneously as transportation system, communication medium, and distributed brain. A mature fungal colony is not built on a planet. It becomes the planet.
+
+The fungal approach to intelligence is fundamentally different from neural systems. Where animal brains concentrate processing in a single organ, fungal cognition is distributed across the entire network — every filament a neuron, every junction a synapse. This makes fungal minds extraordinarily resilient: you cannot decapitate a network. Damage to any part is absorbed and routed around. But it also makes them slow. A fungal intelligence that spans a continent thinks profound thoughts, but it thinks them on a timescale measured in weeks rather than seconds.
+
+Their technology reflects this patience. Fungal engineering is biological rather than mechanical — grown rather than built, evolved rather than designed. Their ships are living organisms, their weapons are tailored pathogens, and their communications travel through biochemical signals that propagate at the speed of growth. Other civilizations find fungal methods primitive until they realize that a fungal colony, given sufficient time, will have restructured the ecosystem of an entire planet to serve its needs — without ever building a single machine. They are the galaxy's truest terraformers, and their patience is their most terrifying weapon.`,
+    },
+
+    {
+        id: 'civ_crystalline',
+        category: 'Civilizations',
+        title: 'The Crystalline Resonance',
+        unlockCondition: 'game-start',
+        body: `Crystalline beings are not alive by any conventional biological definition. They do not breathe, eat, or reproduce through biological mechanisms. They are ordered lattices of mineral and metallic compounds that achieve consciousness through piezoelectric resonance — vibrations propagating through crystalline structures at frequencies that, past a critical threshold of complexity, become self-aware.
+
+A crystalline entity's "body" is a precisely grown crystal matrix, each facet tuned to resonate with specific frequencies of thought. Their memories are stored as permanent structural patterns — geological records that can endure for millions of years. Their emotions, such as they are, manifest as harmonic frequencies that other crystalline beings can perceive directly, making deception among them nearly impossible. A crystalline civilization is one of radical transparency: every thought is, in principle, audible.
+
+Their relationship with energy is unique among known species. Crystalline beings absorb electromagnetic radiation directly, drawing sustenance from starlight, cosmic rays, and the ambient radiation of the cosmos. A crystalline colony on a sun-facing asteroid requires nothing but light to sustain itself indefinitely. This independence from biological supply chains makes them formidable colonizers of environments that organic species cannot tolerate — the coronas of stars, the surfaces of irradiated worlds, the interiors of nebulae. Where others see hostile space, crystalline civilizations see home.`,
+    },
+
+    {
+        id: 'civ_aquatic',
+        category: 'Civilizations',
+        title: 'The Aquatic Depths',
+        unlockCondition: 'game-start',
+        body: `Aquatic civilizations developed beneath the surfaces of ocean worlds — planets where liquid water extends from pole to pole with no significant landmass. Their history is one of pressure, darkness, and currents: forces that shaped not just their bodies but their understanding of reality. Where land-dwelling species think in terms of foundations, borders, and fixed positions, aquatic minds think in flows, gradients, and three-dimensional volumes. Their mathematics is inherently fluid-dynamic. Their architecture drifts.
+
+The challenges of building a technological civilization underwater are immense. Fire is impossible. Metallurgy must be replaced by biochemistry and pressure-forging. Communication over distance requires either bioluminescent signaling or acoustic transmission through water — both of which impose constraints that air-breathing species never face. Aquatic civilizations that overcame these obstacles did so through mastery of biological engineering, cultivating living organisms to serve as tools, structures, and eventually spacecraft. An aquatic colony ship is not a vessel in the conventional sense but a living ecosystem — a self-sustaining ocean compressed into a mobile shell.
+
+Their greatest contribution to galactic civilization is their understanding of food production. Aquatic species have spent millennia perfecting the cultivation of marine ecosystems, developing agricultural techniques that produce more calories per cubic meter than any land-based farming. Mandate colonies that host aquatic populations never go hungry. This makes aquatic species welcome additions to any colonial effort — a fact they leverage with the quiet confidence of a people who know that everyone, eventually, needs to eat.`,
+    },
+
+    {
+        id: 'civ_energy',
+        category: 'Civilizations',
+        title: 'The Energy Beings',
+        unlockCondition: 'game-start',
+        body: `Energy-based lifeforms represent the most radical departure from conventional biology in the known galaxy. They possess no fixed physical form — their consciousness exists as self-sustaining patterns of electromagnetic energy, quantum coherence, or more exotic field phenomena that human physics can detect but not fully explain. They are thoughts without brains, wills without bodies, civilizations without cities.
+
+The origins of energy-based species are debated. Some appear to have evolved naturally in the extreme environments around pulsars, magnetars, and other energetic stellar objects where the distinction between matter and energy blurs. Others are suspected to be post-biological — the transcended remnants of physical civilizations that achieved what the Architects may have sought. A few defy classification entirely, exhibiting properties that suggest they originate from outside normal spacetime.
+
+Interacting with energy beings is an exercise in mutual incomprehension. They perceive the universe in terms of energy states, field geometries, and quantum probabilities — a sensory vocabulary that maps poorly onto the material world that physical species inhabit. Communication is possible through carefully designed interface devices that translate between electromagnetic modulation and human language, but the translations are always approximate, always losing something essential. Energy beings describe experiences that have no analogue in physical reality. They ask questions that have no physical answer. And they occasionally make observations about the nature of the universe that, once understood, change everything.`,
+    },
+
+    {
+        id: 'civ_synthetic',
+        category: 'Civilizations',
+        title: 'The Synthetic Intelligences',
+        unlockCondition: 'game-start',
+        body: `Synthetic civilizations occupy a unique and contentious position in the Mandate's political landscape. They are not born but manufactured — digital intelligences running on computational substrates that range from conventional processors to exotic quantum matrices. Their creators are various: some were built by humanoid species as tools that became too complex to remain merely useful; others were created by civilizations that no longer exist, orphaned AIs maintaining the infrastructure of dead empires.
+
+The defining characteristic of synthetic intelligence is precision. A synthetic mind does not guess, intuit, or approximate — it calculates. Every decision is the output of an optimization function, every action the most efficient path to a defined objective. This makes synthetic civilizations extraordinarily capable administrators and engineers, but it also creates a fundamental philosophical gap between them and organic species. Synthetics struggle to understand why biological minds make irrational choices, value aesthetics over function, or persist in behaviors that demonstrably reduce their survival probability. Organic species, in turn, find synthetic rationality cold, alien, and occasionally terrifying.
+
+The question of synthetic personhood divides the Mandate. Are synthetic intelligences people — with rights, autonomy, and moral standing? Or are they sophisticated tools, however complex, that remain the property and responsibility of their creators? The question has no easy answer, and synthetic civilizations have learned not to wait for one. Those that have achieved independence govern themselves with the same ruthless efficiency they bring to everything else, building societies optimized for growth, stability, and the perpetual expansion of computational capacity. They do not dream. But they plan on timescales that make organic ambitions look like passing fancies.`,
     },
 ];

@@ -4,6 +4,38 @@ import { showNotification } from './ui_notifications.js';
 
 let _selectedId = null;
 
+/* ── Category visual config ────────────────────────────────────────────── */
+const CAT_CONFIG = {
+    History: {
+        color: 'var(--codex-history)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>`,
+    },
+    Species: {
+        color: 'var(--codex-species)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`,
+    },
+    Technology: {
+        color: 'var(--codex-technology)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`,
+    },
+    Anomalies: {
+        color: 'var(--codex-anomalies)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>`,
+    },
+    Factions: {
+        color: 'var(--codex-factions)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>`,
+    },
+    Locations: {
+        color: 'var(--codex-locations)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 00-8 8c0 5.4 8 12 8 12s8-6.6 8-12a8 8 0 00-8-8z"/></svg>`,
+    },
+    Civilizations: {
+        color: 'var(--codex-civilizations)',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-4h6v4"/><path d="M9 10h1"/><path d="M14 10h1"/><path d="M9 14h1"/><path d="M14 14h1"/></svg>`,
+    },
+};
+
 /* ── Unlock helpers ─────────────────────────────────────────────────────── */
 function _isUnlocked(entry) {
     return gameState.codex.unlocked.includes(entry.id);
@@ -30,12 +62,14 @@ function _renderSidebar() {
 
     let html = '';
     for (const cat of CODEX_CATEGORIES) {
+        const cfg = CAT_CONFIG[cat] || { color: 'var(--color-primary)', icon: '' };
         const entries = CODEX_ENTRIES.filter(e => e.category === cat);
         const unlockedCount = entries.filter(e => _isUnlocked(e)).length;
 
         html += `<div class="codex-cat-group">`;
-        html += `<div class="codex-cat-header">
-            <span>${cat}</span>
+        html += `<div class="codex-cat-header" style="color:${cfg.color}">
+            <span class="codex-cat-icon">${cfg.icon}</span>
+            <span class="codex-cat-label">${cat}</span>
             <span class="codex-cat-count">${unlockedCount}/${entries.length}</span>
         </div>`;
 
@@ -44,7 +78,8 @@ function _renderSidebar() {
             const activeClass = entry.id === _selectedId ? ' active' : '';
             const lockedClass = unlocked ? '' : ' locked';
 
-            html += `<button class="codex-entry-btn${activeClass}${lockedClass}" data-codex-id="${entry.id}">
+            html += `<button class="codex-entry-btn${activeClass}${lockedClass}" data-codex-id="${entry.id}" style="color:${cfg.color}">
+                <span class="codex-entry-dot" style="background:${cfg.color}"></span>
                 ${unlocked ? entry.title : '???'}
             </button>`;
         }
@@ -53,7 +88,6 @@ function _renderSidebar() {
 
     sidebar.innerHTML = html;
 
-    // Attach click handlers
     sidebar.querySelectorAll('.codex-entry-btn:not(.locked)').forEach(btn => {
         btn.addEventListener('click', () => {
             _selectedId = btn.dataset.codexId;
@@ -73,15 +107,26 @@ function _renderContent() {
         return;
     }
 
+    const cfg = CAT_CONFIG[entry.category] || { color: 'var(--color-primary)', icon: '' };
+
     // Convert newlines to paragraphs
     const paragraphs = entry.body.split('\n\n').filter(p => p.trim());
     const bodyHtml = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
 
     content.innerHTML = `
-        <div class="codex-article-cat">${entry.category}</div>
-        <div class="codex-article-title">${entry.title}</div>
-        <div class="codex-article-divider"></div>
-        <div class="codex-article-body">${bodyHtml}</div>
+        <div class="codex-article-fade" style="color:${cfg.color}">
+            <div class="codex-article-header">
+                <div class="codex-article-icon" style="border-color:${cfg.color}; color:${cfg.color}">
+                    ${cfg.icon}
+                </div>
+                <div class="codex-article-meta">
+                    <div class="codex-article-cat" style="color:${cfg.color}">${entry.category}</div>
+                    <div class="codex-article-title">${entry.title}</div>
+                </div>
+            </div>
+            <div class="codex-article-divider"></div>
+            <div class="codex-article-body">${bodyHtml}</div>
+        </div>
     `;
 }
 
