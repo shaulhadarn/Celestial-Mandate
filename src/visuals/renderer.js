@@ -54,7 +54,7 @@ export async function init() {
         return target.closest('#ui-layer') || target.closest('#splash-screen') ||
                target.closest('#creation-screen') || target.closest('#loading-screen') ||
                target.closest('#race-intro-overlay') || target.closest('#event-modal') ||
-               target.closest('#scene-transition-overlay');
+               target.closest('#scene-transition-overlay') || target.closest('#settings-panel');
     };
     window.addEventListener('touchmove', (e) => {
         // Only block default when touching the 3D canvas (not UI overlays)
