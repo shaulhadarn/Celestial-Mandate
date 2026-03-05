@@ -191,5 +191,9 @@ export const CIVICS = [
     { id: "digital_consciousness", name: "Digital Consciousness", icon: "💾", desc: "Leaders are immortal", req: "Machine Intelligence" },
     { id: "devouring_swarm", name: "Devouring Swarm", icon: "🌋", desc: "Total War capability", req: "Hive Mind" },
     { id: "determined_exterminator", name: "Determined Exterminator", icon: "🔫", desc: "Combat Bonus +25%", req: "Machine Intelligence" },
-    { id: "private_prospectors", name: "Private Prospectors", icon: "🛠️", desc: "Colony Ships cost Energy", req: "Mega-Corporation" }
+    { id: "private_prospectors", name: "Private Prospectors", icon: "🛠️", desc: "Colony Ships cost Energy", req: "Mega-Corporation" },
+    { id: "stellar_cartographers", name: "Stellar Cartographers", icon: "🗺️", desc: "Sensor Range +50%" },
+    { id: "void_architects", name: "Void Architects", icon: "🏗️", desc: "Build Speed +20%" },
+    { id: "gene_sculptors", name: "Gene Sculptors", icon: "🧬", desc: "Trait Points +1" },
+    { id: "fleet_doctrine", name: "Fleet Doctrine", icon: "⚓", desc: "Fleet Capacity +25%" }
 ];
