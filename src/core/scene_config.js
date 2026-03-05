@@ -118,9 +118,8 @@ export function getGraphicsConfig() { return { ...config }; }
 
 export function updateGraphicsSetting(key, value) {
     config[key] = value;
-    if (key === 'antialias') {
-        recreateRenderer();
-    }
+    // antialias is baked into the WebGL context — can't change without recreating canvas.
+    // R3F owns the canvas, so skip recreateRenderer() to avoid destroying it.
     applyGraphicsConfig();
 }
 
@@ -206,7 +205,9 @@ export function setGraphicsPreset(level) {
         config.ultraSharp = false;
         config.antialias = false;
     }
-    if (prevAA !== config.antialias) recreateRenderer();
+    // Note: antialias is baked into the WebGL context at creation time.
+    // R3F manages the canvas — calling recreateRenderer() would destroy it.
+    // Skip recreateRenderer(); applyGraphicsConfig handles pixel ratio, shadows, etc.
     applyGraphicsConfig();
     return config;
 }
@@ -242,7 +243,8 @@ function applyGraphicsConfig() {
 
     // Ultra Sharp: supersample at 2x device pixel ratio
     const ultraMultiplier = config.ultraSharp ? 2.0 : 1.0;
-    const maxRatio = isMobile ? 1.5 : 4.0; // cap mobile to prevent bloom tile artifacts
+    // Mobile has no bloom composer, so ultra can safely go higher; normal mode stays capped at 1.5
+    const maxRatio = isMobile ? (config.ultraSharp ? 2.5 : 1.5) : 4.0;
     const pixelRatio = Math.min(basePixelRatio * config.scale * ultraMultiplier, maxRatio);
     renderer.setPixelRatio(pixelRatio);
 
