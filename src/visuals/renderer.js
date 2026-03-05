@@ -301,11 +301,11 @@ export async function returnToGalaxyView() {
         disposeGroup(groups.system);
         planetMeshes.length = 0;
 
-        // Restore Camera
+        // Restore Camera — center on the system we just left, zoomed out to show neighbors
         if (gameState.selectedSystemId !== null) {
             const sys = getSystem(gameState.selectedSystemId);
             if (sys) {
-                focusCamera(sys.position, 60);
+                focusCamera(sys.position, 120);
             }
         }
         controls.minDistance = 20;
