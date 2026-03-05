@@ -51,7 +51,11 @@ export function updateSelectionPanel() {
             });
         }
 
-        sysPanel.classList.remove('hidden');
+        // Only show system panel when selecting a NEW system, not on every update
+        // (e.g. deselecting a planet should not force the system panel open)
+        if (isNewSystem) {
+            sysPanel.classList.remove('hidden');
+        }
         renderStarList(sys.id);
     }
 

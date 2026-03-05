@@ -113,9 +113,7 @@ export function initUI() {
 
     document.getElementById('btn-close-planet').addEventListener('click', () => {
         selectPlanet(null);
-        if (window.innerWidth <= 768 && gameState.selectedSystemId) {
-            document.getElementById('system-panel').classList.remove('hidden');
-        }
+        document.getElementById('planet-panel').classList.add('hidden');
     });
 
     const empirePanel = document.getElementById('empire-panel');

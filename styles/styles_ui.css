@@ -1450,16 +1450,23 @@
 }
 
 .evt-choice-btn {
+    appearance: none;
+    -webkit-appearance: none;
     display: flex;
     flex-direction: column;
     gap: 6px;
+    width: 100%;
     padding: 12px 16px;
     background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%);
     border: 1px solid rgba(255,255,255,0.08);
     border: 1px solid color-mix(in srgb, var(--evt-accent) 15%, transparent);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.92);
     cursor: pointer;
     transition: all 0.2s ease;
     font-family: var(--font-main);
+    font-size: 13px;
+    text-align: left;
     position: relative;
     overflow: hidden;
     opacity: 0;
@@ -1500,6 +1507,7 @@
     background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
     border-color: rgba(255,255,255,0.25);
     transform: translateX(2px) scale(0.98);
+    outline: none;
 }
 
 /* Choice row: marker + label */
@@ -1667,7 +1675,7 @@
     }
 
     .evt-choice-btn:hover {
-        background: inherit;
+        background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%);
         border-color: rgba(255,255,255,0.08);
         box-shadow: none;
         transform: none;
