@@ -541,27 +541,56 @@
     }
 
     #splash-screen .splash-menu {
-        width: 85%;
+        width: 88%;
         max-width: 340px;
-        gap: 12px;
-        padding: 25px 20px;
-        background: rgba(5, 12, 18, 0.85);
-        border: 1px solid rgba(0, 242, 255, 0.2);
-        box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border-radius: 12px;
+        gap: 10px;
+        padding: 28px 22px;
+        clip-path: none;
+        border-radius: 14px;
+        border: 1px solid rgba(0, 242, 255, 0.1);
+        background: linear-gradient(170deg, rgba(4, 14, 28, 0.8) 0%, rgba(2, 6, 14, 0.95) 100%);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.9), inset 0 1px 0 rgba(0, 242, 255, 0.1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         flex-shrink: 0;
     }
 
+    #splash-screen .splash-menu::before {
+        border-radius: 14px 14px 0 0;
+    }
+
     #splash-screen .menu-btn {
-        padding: 14px 20px !important;
-        font-size: 16px !important;
+        height: 50px;
+        font-size: 14px !important;
+        letter-spacing: 4px;
         width: 100%;
-        background: rgba(20, 30, 40, 0.8) !important;
-        backdrop-filter: blur(8px);
+        clip-path: none;
+        border-radius: 8px;
         margin: 0;
-        border-radius: 4px;
+        -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
+        touch-action: manipulation;
+    }
+
+    #splash-screen .menu-btn.primary {
+        height: 54px;
+        font-size: 15px !important;
+        letter-spacing: 5px;
+        border-radius: 8px;
+    }
+
+    /* Disable hover effects on touch — use active instead */
+    #splash-screen .menu-btn:hover {
+        transform: none;
+        letter-spacing: 4px;
+        box-shadow: none;
+    }
+    #splash-screen .menu-btn.primary:hover {
+        letter-spacing: 5px;
+    }
+    #splash-screen .menu-btn:active {
+        transform: scale(0.97);
+        background: linear-gradient(135deg, rgba(0, 100, 140, 0.15) 0%, rgba(4, 12, 24, 0.9) 100%) !important;
+        border-color: rgba(0, 242, 255, 0.5) !important;
     }
     
     #splash-screen .splash-footer {
@@ -632,6 +661,83 @@
         letter-spacing: 2px;
         font-family: 'Rajdhani', sans-serif;
     }
+
+    /* ── Event Modal — Mobile Overrides ────────────────────────────────────── */
+    .evt-box {
+        max-width: none;
+        width: auto;
+        margin: 10px;
+        max-height: 82vh;
+    }
+
+    .evt-header {
+        gap: 10px;
+        padding: 14px 14px 10px;
+    }
+
+    .evt-icon-wrap {
+        width: 38px;
+        height: 38px;
+    }
+
+    .evt-icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .evt-category {
+        font-size: 8px;
+        letter-spacing: 2px;
+    }
+
+    .evt-title {
+        font-size: 15px;
+    }
+
+    .evt-desc {
+        padding: 8px 14px 12px;
+        font-size: 13px;
+        line-height: 1.55;
+    }
+
+    .evt-choices {
+        padding: 0 14px 16px;
+        gap: 10px;
+    }
+
+    .evt-choice-btn {
+        padding: 14px 14px;
+        gap: 8px;
+        -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
+        touch-action: manipulation;
+    }
+
+    .evt-choice-label {
+        font-size: 14px;
+    }
+
+    .evt-choice-effects {
+        padding-left: 15px;
+        gap: 6px;
+    }
+
+    .evt-eff-chip {
+        font-size: 11px;
+        padding: 3px 8px;
+    }
+
+    .evt-res-icon {
+        width: 13px;
+        height: 13px;
+    }
+
+    .evt-chain-bar {
+        padding: 6px 14px;
+    }
+
+    .evt-separator {
+        padding: 0 14px;
+    }
 }
 
 /* ── EXTRA SMALL PHONES (≤390px — iPhone SE, small Androids) ─────────────── */
@@ -688,5 +794,36 @@
 
     #system-panel {
         max-height: 50vh;
+    }
+
+    .evt-box {
+        margin: 6px;
+        max-height: 85vh;
+    }
+
+    .evt-header {
+        gap: 8px;
+        padding: 10px 10px 8px;
+    }
+
+    .evt-title {
+        font-size: 14px;
+    }
+
+    .evt-desc {
+        padding: 6px 10px 10px;
+        font-size: 12px;
+    }
+
+    .evt-choices {
+        padding: 0 10px 12px;
+    }
+
+    .evt-choice-btn {
+        padding: 12px 10px;
+    }
+
+    .evt-choice-label {
+        font-size: 13px;
     }
 }

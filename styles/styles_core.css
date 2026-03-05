@@ -112,7 +112,7 @@ body, html {
     display: flex;
     flex-direction: column;
     gap: 60px;
-    animation: fadeInScale 1.5s ease;
+    animation: fadeInScale 0.8s ease;
 }
 
 .splash-content::before {
@@ -154,115 +154,157 @@ body, html {
 .splash-menu {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    width: 340px;
+    gap: 14px;
+    width: 360px;
     margin: 0 auto;
     position: relative;
-    padding: 45px 35px;
-    background: linear-gradient(180deg, rgba(4, 12, 24, 0.6) 0%, rgba(2, 6, 12, 0.8) 100%);
-    border: 1px solid rgba(0, 242, 255, 0.1);
-    border-top: 1px solid rgba(0, 242, 255, 0.4);
-    border-bottom: 1px solid rgba(0, 242, 255, 0.2);
-    backdrop-filter: blur(12px);
-    border-radius: 4px;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.9), inset 0 1px 20px rgba(0, 242, 255, 0.05);
+    padding: 40px 32px;
+    background: linear-gradient(170deg, rgba(4, 14, 28, 0.75) 0%, rgba(2, 6, 14, 0.92) 100%);
+    border: 1px solid rgba(0, 242, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 2px;
+    box-shadow:
+        0 40px 80px rgba(0,0,0,0.95),
+        0 0 1px rgba(0, 242, 255, 0.3),
+        inset 0 1px 0 rgba(0, 242, 255, 0.12),
+        inset 0 -1px 0 rgba(0, 242, 255, 0.06);
+    clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
 }
 
+/* Top accent line */
 .splash-menu::before {
     content: '';
     position: absolute;
-    top: -1px; left: 10%; width: 80%; height: 1px;
-    background: linear-gradient(90deg, transparent, #00f2ff, transparent);
-    box-shadow: 0 0 15px #00f2ff;
+    top: 0; left: 12%; width: 76%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 242, 255, 0.9), transparent);
+    box-shadow: 0 0 12px rgba(0, 242, 255, 0.5), 0 0 30px rgba(0, 242, 255, 0.2);
 }
 
+/* Bottom subtle accent */
+.splash-menu::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 20%; width: 60%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 242, 255, 0.3), transparent);
+}
+
+.splash-menu-bg { display: none; }
+
 .menu-btn {
-    padding: 16px 30px !important;
-    font-size: 1.15rem !important;
-    background: 
-        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 242, 255, 0.03) 2px, rgba(0, 242, 255, 0.03) 4px),
-        linear-gradient(180deg, rgba(2, 10, 20, 0.6) 0%, rgba(4, 15, 30, 0.9) 100%) !important;
-    border: none !important;
-    color: #88bbdd !important;
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 0 !important;
+    height: 54px;
+    font-family: var(--font-main);
+    font-size: 15px !important;
+    font-weight: 700;
+    background: linear-gradient(135deg, rgba(8, 20, 36, 0.7) 0%, rgba(4, 12, 24, 0.9) 100%) !important;
+    border: 1px solid rgba(0, 242, 255, 0.12) !important;
+    border-bottom: 2px solid rgba(0, 242, 255, 0.25) !important;
+    color: rgba(160, 200, 230, 0.95) !important;
     text-transform: uppercase;
-    letter-spacing: 4px;
-    font-weight: 500;
-    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
+    letter-spacing: 5px;
+    transition: all 0.35s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
     position: relative;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
     cursor: pointer;
+    clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
 }
 
-/* Inner Glowing Border */
+/* Inner glow overlay */
 .menu-btn::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    border: 1px solid rgba(0, 242, 255, 0.3);
-    border-bottom: 2px solid rgba(0, 242, 255, 0.5);
-    clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 242, 255, 0.04) 0%, transparent 50%, rgba(0, 242, 255, 0.02) 100%);
+    opacity: 1;
+    transition: opacity 0.35s ease;
     pointer-events: none;
-    transition: all 0.3s ease;
-    box-shadow: inset 0 0 15px rgba(0, 242, 255, 0.1);
 }
 
-/* Animated Light Sweep */
+/* Animated light sweep */
 .menu-btn::after {
     content: '';
     position: absolute;
-    top: -50%; left: -100%; width: 50%; height: 200%;
-    background: linear-gradient(90deg, transparent, rgba(0, 242, 255, 0.4), transparent);
-    transition: all 0.6s ease;
-    transform: rotate(35deg);
+    top: -60%; left: -120%; width: 60%; height: 220%;
+    background: linear-gradient(100deg, transparent 30%, rgba(0, 242, 255, 0.15) 50%, transparent 70%);
+    transition: left 0.7s cubic-bezier(0.165, 0.84, 0.44, 1);
+    transform: rotate(25deg);
     pointer-events: none;
 }
 
+/* Primary CTA button */
 .menu-btn.primary {
+    height: 58px;
     color: #ffffff !important;
-    background: 
-        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 242, 255, 0.05) 2px, rgba(0, 242, 255, 0.05) 4px),
-        linear-gradient(180deg, rgba(0, 180, 255, 0.15) 0%, rgba(2, 10, 20, 0.9) 100%) !important;
-    text-shadow: 0 0 10px rgba(0, 242, 255, 0.8);
+    font-size: 16px !important;
+    font-weight: 800;
+    letter-spacing: 6px;
+    background: linear-gradient(135deg, rgba(0, 100, 140, 0.25) 0%, rgba(0, 60, 100, 0.4) 50%, rgba(2, 12, 24, 0.95) 100%) !important;
+    border: 1px solid rgba(0, 242, 255, 0.35) !important;
+    border-bottom: 2px solid rgba(0, 242, 255, 0.7) !important;
+    text-shadow: 0 0 14px rgba(0, 242, 255, 0.7), 0 0 30px rgba(0, 242, 255, 0.3);
+    box-shadow:
+        0 0 20px rgba(0, 242, 255, 0.08),
+        inset 0 1px 0 rgba(0, 242, 255, 0.15);
+    animation: menuPrimaryPulse 3s ease-in-out infinite;
 }
 
 .menu-btn.primary::before {
-    border-color: rgba(0, 242, 255, 0.8);
-    border-bottom-width: 3px;
-    box-shadow: inset 0 0 20px rgba(0, 242, 255, 0.2);
-    animation: primaryPulse 2s infinite ease-in-out;
+    background: linear-gradient(180deg, rgba(0, 242, 255, 0.08) 0%, transparent 40%, rgba(0, 242, 255, 0.04) 100%);
 }
 
-@keyframes primaryPulse {
-    0% { box-shadow: inset 0 0 20px rgba(0, 242, 255, 0.2), 0 0 5px rgba(0, 242, 255, 0.1); }
-    50% { box-shadow: inset 0 0 30px rgba(0, 242, 255, 0.4), 0 0 15px rgba(0, 242, 255, 0.3); }
-    100% { box-shadow: inset 0 0 20px rgba(0, 242, 255, 0.2), 0 0 5px rgba(0, 242, 255, 0.1); }
+@keyframes menuPrimaryPulse {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(0, 242, 255, 0.08), inset 0 1px 0 rgba(0, 242, 255, 0.15);
+        border-bottom-color: rgba(0, 242, 255, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 35px rgba(0, 242, 255, 0.2), 0 0 60px rgba(0, 242, 255, 0.06), inset 0 1px 0 rgba(0, 242, 255, 0.25);
+        border-bottom-color: rgba(0, 242, 255, 1);
+    }
 }
 
+/* Hover states */
 .menu-btn:hover {
     color: #ffffff !important;
-    transform: scale(1.03) translateY(-2px);
-    letter-spacing: 6px;
-    text-shadow: 0 0 15px rgba(0, 242, 255, 1);
+    letter-spacing: 7px;
+    border-color: rgba(0, 242, 255, 0.5) !important;
+    border-bottom-color: rgba(0, 242, 255, 0.8) !important;
+    text-shadow: 0 0 12px rgba(0, 242, 255, 0.9);
+    box-shadow: 0 4px 30px rgba(0, 242, 255, 0.12), inset 0 0 20px rgba(0, 242, 255, 0.06);
+    transform: translateY(-2px);
 }
 
 .menu-btn:hover::before {
-    border-color: rgba(0, 242, 255, 1);
-    border-bottom-width: 3px;
-    box-shadow: inset 0 0 30px rgba(0, 242, 255, 0.4);
+    background: linear-gradient(180deg, rgba(0, 242, 255, 0.1) 0%, rgba(0, 242, 255, 0.02) 50%, rgba(0, 242, 255, 0.06) 100%);
 }
 
 .menu-btn:hover::after {
     left: 200%;
-    transition: all 0.6s ease;
 }
 
 .menu-btn:active {
-    transform: scale(0.98) translateY(2px);
-    filter: brightness(0.8);
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.1), inset 0 2px 8px rgba(0, 0, 0, 0.4);
+    transition-duration: 0.1s !important;
+}
+
+/* Staggered entrance animation for buttons */
+.menu-btn:nth-child(1) { animation: menuBtnIn 0.5s 0.3s ease both; }
+.menu-btn:nth-child(2) { animation: menuBtnIn 0.5s 0.45s ease both; }
+.menu-btn:nth-child(3) { animation: menuBtnIn 0.5s 0.6s ease both; }
+
+/* Primary gets its pulse AFTER entrance */
+.menu-btn.primary:nth-child(1) { animation: menuBtnIn 0.5s 0.3s ease both, menuPrimaryPulse 3s 0.8s ease-in-out infinite; }
+
+@keyframes menuBtnIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .splash-footer {
@@ -388,6 +430,6 @@ body, html {
 }
 
 @keyframes fadeInScale {
-    from { opacity: 0; transform: scale(1.1); }
+    from { opacity: 0; transform: scale(1.04); }
     to { opacity: 1; transform: scale(1); }
 }

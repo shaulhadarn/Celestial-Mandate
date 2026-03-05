@@ -33,6 +33,12 @@
             }
         }
     </script>
+    <!-- Critical inline styles to prevent any flash on load -->
+    <style>
+        html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+        #game-container { opacity: 0; }
+        #splash-screen { opacity: 1; }
+    </style>
 </head>
 <body>
     <div id="game-container"></div>

@@ -35,9 +35,22 @@ async function start() {
   });
   console.log("Celestial Mandate Initialized - Awaiting Species Creation");
 }
+function fadeOutSplash() {
+  const splash = document.getElementById("splash-screen");
+  splash.style.opacity = "0";
+  splash.style.pointerEvents = "none";
+  const container = document.getElementById("game-container");
+  container.style.transition = "opacity 0.8s ease";
+  container.style.opacity = "1";
+  setTimeout(() => {
+    splash.classList.add("hidden");
+    splash.style.opacity = "";
+    splash.style.pointerEvents = "";
+  }, 1000);
+}
 function startGame(playerCiv) {
   gameState.playerCivilization = playerCiv;
-  document.getElementById("splash-screen").classList.add("hidden");
+  fadeOutSplash();
   document.getElementById("creation-screen").classList.add("hidden");
   document.getElementById("ui-layer").classList.remove("hidden");
   const container = document.getElementById("game-container");
@@ -66,7 +79,7 @@ function startGame(playerCiv) {
 }
 function startLoadedGame() {
   gameState.playerCivilization = gameState.playerCivilization || {};
-  document.getElementById("splash-screen").classList.add("hidden");
+  fadeOutSplash();
   document.getElementById("creation-screen").classList.add("hidden");
   document.getElementById("ui-layer").classList.remove("hidden");
   const container = document.getElementById("game-container");

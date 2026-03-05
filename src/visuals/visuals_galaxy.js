@@ -203,7 +203,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
         void main() {
           vUv = uv;
           vCol = instanceColor;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * modelViewMatrix * instancePos;
         }
       `,
       fragmentShader: /* glsl */ `
@@ -231,7 +232,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
           vUv = uv;
           vNormal = normalize(normalMatrix * normal);
           vSunColor = instanceColor;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * modelViewMatrix * instancePos;
         }
       `,
       fragmentShader: /* glsl */ `
@@ -290,58 +292,27 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   // ── C. Instanced corona shells ────────────────────────────────────────────
   const coronaGeo = new THREE.SphereGeometry(2.4, 32, 32);
   const coronaColors = colors.slice(); // same colors as stars
-  let coronaMat;
-  if (isMobileDevice) {
-    coronaMat = new THREE.ShaderMaterial({
-      vertexShader: /* glsl */ `
-        attribute vec3 instanceColor;
-        varying vec3 vCol;
-        void main() {
-          vCol = instanceColor;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        varying vec3 vCol;
-        void main() {
-          gl_FragColor = vec4(vCol, 0.2);
-        }
-      `,
-      transparent: true,
-      side: THREE.BackSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-  } else {
-    coronaMat = new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.2,
-      side: THREE.BackSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    // For non-mobile corona, we use a ShaderMaterial to read instanceColor
-    coronaMat = new THREE.ShaderMaterial({
-      vertexShader: /* glsl */ `
-        attribute vec3 instanceColor;
-        varying vec3 vCol;
-        void main() {
-          vCol = instanceColor;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: /* glsl */ `
-        varying vec3 vCol;
-        void main() {
-          gl_FragColor = vec4(vCol, 0.2);
-        }
-      `,
-      transparent: true,
-      side: THREE.BackSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-  }
+  const coronaMat = new THREE.ShaderMaterial({
+    vertexShader: /* glsl */ `
+      attribute vec3 instanceColor;
+      varying vec3 vCol;
+      void main() {
+        vCol = instanceColor;
+        vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * instancePos;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying vec3 vCol;
+      void main() {
+        gl_FragColor = vec4(vCol, 0.2);
+      }
+    `,
+    transparent: true,
+    side: THREE.BackSide,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
 
   coronaInstancedMesh = new THREE.InstancedMesh(coronaGeo, coronaMat, N);
   coronaInstancedMesh.geometry.setAttribute(
