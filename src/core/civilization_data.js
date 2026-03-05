@@ -107,7 +107,10 @@ export const TRAITS = [
     { id: "rapid_breeders", name: "Rapid Breeders", cost: 2, desc: "Growth Speed +10%" },
     { id: "psionic", name: "Psionic Potential", cost: 3, desc: "Research Speed +5%" },
     { id: "photosynthetic", name: "Photosynthetic", cost: 1, desc: "Uses Energy instead of Food" },
-    { id: "toxic_adapted", name: "Toxic Adapted", cost: 1, desc: "Habitability +20%" }
+    { id: "toxic_adapted", name: "Toxic Adapted", cost: 1, desc: "Habitability +20%" },
+    { id: "regenerative", name: "Regenerative", cost: 2, desc: "Colony Recovery +30%" },
+    { id: "hive_synapse", name: "Hive Synapse", cost: 2, desc: "Mining Output +15%" },
+    { id: "void_touched", name: "Void-Touched", cost: 3, desc: "Ship Combat Power +10%" }
 ];
 
 export const ARCHETYPES = [

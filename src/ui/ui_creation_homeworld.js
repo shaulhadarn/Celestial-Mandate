@@ -54,6 +54,37 @@ const TRAIT_SVGS = {
         <circle cx="14" cy="30" r="3" fill="currentColor" opacity="0.8" class="trait-svg-node"/>
         <circle cx="46" cy="30" r="3" fill="currentColor" opacity="0.8" class="trait-svg-node"/>
     </svg>`,
+    regenerative: `<svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" class="trait-svg">
+        <circle cx="30" cy="30" r="20" stroke="currentColor" stroke-width="1.5" fill="none" class="trait-svg-ring"/>
+        <path d="M30 14 A16 16 0 0 1 46 30" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none" class="trait-svg-spoke"/>
+        <path d="M46 30 A16 16 0 0 1 30 46" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7" class="trait-svg-spoke"/>
+        <path d="M30 46 A16 16 0 0 1 14 30" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.5" class="trait-svg-spoke"/>
+        <path d="M14 30 A16 16 0 0 1 30 14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.3" class="trait-svg-spoke"/>
+        <circle cx="30" cy="30" r="6" fill="currentColor" opacity="0.8" class="trait-svg-core"/>
+        <circle cx="30" cy="14" r="3" fill="currentColor" class="trait-svg-dot1"/>
+        <circle cx="46" cy="30" r="3" fill="currentColor" opacity="0.7" class="trait-svg-dot2"/>
+    </svg>`,
+    hive_synapse: `<svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" class="trait-svg">
+        <circle cx="30" cy="30" r="6" fill="currentColor" class="trait-svg-core"/>
+        <circle cx="16" cy="16" r="4" fill="currentColor" opacity="0.7" class="trait-svg-node"/>
+        <circle cx="44" cy="16" r="4" fill="currentColor" opacity="0.7" class="trait-svg-node"/>
+        <circle cx="16" cy="44" r="4" fill="currentColor" opacity="0.7" class="trait-svg-node"/>
+        <circle cx="44" cy="44" r="4" fill="currentColor" opacity="0.7" class="trait-svg-node"/>
+        <line x1="30" y1="30" x2="16" y2="16" stroke="currentColor" stroke-width="1.5" opacity="0.5" class="trait-svg-spoke"/>
+        <line x1="30" y1="30" x2="44" y2="16" stroke="currentColor" stroke-width="1.5" opacity="0.5" class="trait-svg-spoke"/>
+        <line x1="30" y1="30" x2="16" y2="44" stroke="currentColor" stroke-width="1.5" opacity="0.5" class="trait-svg-spoke"/>
+        <line x1="30" y1="30" x2="44" y2="44" stroke="currentColor" stroke-width="1.5" opacity="0.5" class="trait-svg-spoke"/>
+        <line x1="16" y1="16" x2="44" y2="16" stroke="currentColor" stroke-width="1" opacity="0.3" stroke-dasharray="3 2"/>
+        <line x1="44" y1="16" x2="44" y2="44" stroke="currentColor" stroke-width="1" opacity="0.3" stroke-dasharray="3 2"/>
+        <line x1="44" y1="44" x2="16" y2="44" stroke="currentColor" stroke-width="1" opacity="0.3" stroke-dasharray="3 2"/>
+        <line x1="16" y1="44" x2="16" y2="16" stroke="currentColor" stroke-width="1" opacity="0.3" stroke-dasharray="3 2"/>
+    </svg>`,
+    void_touched: `<svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" class="trait-svg">
+        <circle cx="30" cy="30" r="22" stroke="currentColor" stroke-width="1.5" fill="none" stroke-dasharray="5 4" class="trait-svg-orbit"/>
+        <circle cx="30" cy="30" r="14" stroke="currentColor" stroke-width="1" fill="none" opacity="0.4" class="trait-svg-orbit2"/>
+        <circle cx="30" cy="30" r="5" fill="currentColor" class="trait-svg-core"/>
+        <path d="M30 8 L32 16 L40 14 L34 20 L42 24 L34 24 L36 32 L30 26 L24 32 L26 24 L18 24 L26 20 L20 14 L28 16 Z" stroke="currentColor" stroke-width="1.5" fill="none" class="trait-svg-star"/>
+    </svg>`,
 };
 
 // ── Step 2: Homeworld ─────────────────────────────────────────────────────────

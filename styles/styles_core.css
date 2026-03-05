@@ -262,7 +262,6 @@ body, html {
     box-shadow:
         0 0 20px rgba(0, 242, 255, 0.08),
         inset 0 1px 0 rgba(0, 242, 255, 0.15);
-    animation: menuPrimaryPulse 3s ease-in-out infinite;
 }
 
 .menu-btn.primary::before {
@@ -306,12 +305,13 @@ body, html {
 }
 
 /* Staggered entrance animation for buttons — sequenced after menu container */
-.menu-btn:nth-child(1) { animation: menuBtnIn 0.6s 3.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.menu-btn:nth-child(2) { animation: menuBtnIn 0.6s 3.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.menu-btn:nth-child(3) { animation: menuBtnIn 0.6s 3.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* nth-child(2/3/4) because .splash-menu-bg is child 1 */
+.menu-btn:nth-child(2) { animation: menuBtnIn 0.6s 3.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.menu-btn:nth-child(3) { animation: menuBtnIn 0.6s 3.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.menu-btn:nth-child(4) { animation: menuBtnIn 0.6s 3.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 /* Primary gets its pulse AFTER entrance */
-.menu-btn.primary:nth-child(1) { animation: menuBtnIn 0.6s 3.1s cubic-bezier(0.16, 1, 0.3, 1) both, menuPrimaryPulse 3s 3.7s ease-in-out infinite; }
+.menu-btn.primary:nth-child(2) { animation: menuBtnIn 0.6s 3.1s cubic-bezier(0.16, 1, 0.3, 1) both, menuPrimaryPulse 3s 3.7s ease-in-out infinite; }
 
 @keyframes menuBtnIn {
     from { opacity: 0; transform: translateY(16px) scale(0.97); }
@@ -326,8 +326,8 @@ body, html {
 }
 
 @keyframes splashTaglineIn {
-    0%   { opacity: 0; transform: translateY(10px); letter-spacing: 8px; }
-    100% { opacity: 1; transform: translateY(0); letter-spacing: 4px; }
+    0%   { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes splashMenuIn {
