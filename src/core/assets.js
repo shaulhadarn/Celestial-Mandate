@@ -120,12 +120,17 @@ export function playSound(name) {
     source.start(0);
 }
 
-// --- Background Music ---
-let musicElement = null;
-let menuMusicElement = null;
-const FADE_DURATION = 1500; // ms for fade in/out
-const GAME_VOLUME = 0.35;
-const MENU_VOLUME = 0.30;
+// --- Background Music (2-track crossfade playlist) ---
+const TRACKS = [
+    encodeURI('assets/Shaul Hadar - Time To Profit Demo.mp3'),
+    encodeURI('assets/9.Counter Point - Master of Epic.mp3'),
+];
+const FADE_DURATION = 2000; // ms
+const MUSIC_VOLUME = 0.35;
+let _currentAudio = null;
+let _trackIndex = 0;
+let _musicStarted = false;
+let _userVolume = MUSIC_VOLUME;
 
 function _fadeAudio(audio, fromVol, toVol, duration = FADE_DURATION) {
     return new Promise(resolve => {
@@ -155,43 +160,60 @@ function _playWithRetry(audio) {
     });
 }
 
+async function _playTrack(index) {
+    const audio = new Audio(TRACKS[index]);
+    audio.loop = false;
+    audio.volume = 0;
+    _currentAudio = audio;
+    _trackIndex = index;
+
+    // When track ends, crossfade to next
+    audio.addEventListener('ended', () => {
+        _advanceTrack();
+    });
+
+    _playWithRetry(audio);
+    await _fadeAudio(audio, 0, _userVolume);
+}
+
+async function _advanceTrack() {
+    const old = _currentAudio;
+    const nextIndex = (_trackIndex + 1) % TRACKS.length;
+
+    // Fade out current
+    if (old) {
+        await _fadeAudio(old, old.volume, 0);
+        old.pause();
+        old.src = '';
+    }
+
+    // Play next
+    await _playTrack(nextIndex);
+}
+
 export function startMenuMusic() {
+    if (_musicStarted) return;
+    _musicStarted = true;
     try {
-        if (menuMusicElement) return;
-        menuMusicElement = new Audio(encodeURI('assets/Shaul Hadar - Time To Profit Demo.mp3'));
-        menuMusicElement.loop = true;
-        menuMusicElement.volume = 0;
-        _playWithRetry(menuMusicElement);
-        _fadeAudio(menuMusicElement, 0, MENU_VOLUME);
+        _playTrack(0);
     } catch (e) {
-        console.warn('Menu music init failed (non-fatal):', e);
-        menuMusicElement = null;
+        console.warn('Music init failed (non-fatal):', e);
     }
 }
 
-export async function startMusic() {
+export function startMusic() {
+    // No-op — music is already running from startMenuMusic and will keep cycling
+    if (_musicStarted) return;
+    // Fallback if startMenuMusic was never called
+    _musicStarted = true;
     try {
-        if (musicElement) return;
-
-        // Fade out menu music first
-        if (menuMusicElement) {
-            await _fadeAudio(menuMusicElement, menuMusicElement.volume, 0);
-            menuMusicElement.pause();
-            menuMusicElement.src = '';
-            menuMusicElement = null;
-        }
-
-        musicElement = new Audio(encodeURI('assets/9.Counter Point - Master of Epic.mp3'));
-        musicElement.loop = true;
-        musicElement.volume = 0;
-        _playWithRetry(musicElement);
-        _fadeAudio(musicElement, 0, GAME_VOLUME);
+        _playTrack(0);
     } catch (e) {
         console.warn('Music init failed (non-fatal):', e);
-        musicElement = null;
     }
 }
 
 export function setMusicVolume(vol) {
-    if (musicElement) musicElement.volume = Math.max(0, Math.min(1, vol));
+    _userVolume = Math.max(0, Math.min(1, vol));
+    if (_currentAudio) _currentAudio.volume = _userVolume;
 }
