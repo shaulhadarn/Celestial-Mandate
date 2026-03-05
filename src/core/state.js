@@ -636,6 +636,7 @@ export function colonizePlanet(planetId) {
     };
     events.dispatchEvent(new CustomEvent('colony-founded', { detail: { planetId } }));
     events.dispatchEvent(new CustomEvent('resources-updated'));
+    events.dispatchEvent(new CustomEvent('selection-changed'));
     return true;
 }
 

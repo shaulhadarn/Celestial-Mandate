@@ -126,7 +126,7 @@ function renderColoniesOverview() {
 
     // Wire up Go to Colony buttons
     content.querySelectorAll('.colony-goto-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             const rawSysId = btn.dataset.systemId;
             if (rawSysId === '' || rawSysId == null) return;
             const systemId = parseInt(rawSysId, 10);
@@ -136,9 +136,9 @@ function renderColoniesOverview() {
             // 1. Close the colonies overlay panel
             document.getElementById('colonies-panel').classList.add('hidden');
 
-            // 2. If currently in galaxy view, switch to system view first
+            // 2. If currently in galaxy view, switch to system view first (await so viewMode is SYSTEM)
             if (gameState.viewMode === 'GALAXY' || gameState.viewMode !== 'SYSTEM' || gameState.selectedSystemId !== systemId) {
-                enterSystemView(systemId);
+                await enterSystemView(systemId);
             }
 
             // 3. Select system then planet — these fire 'selection-changed' which calls updateSelectionPanel

@@ -436,8 +436,9 @@ async function returnToSystemViewFromPlanet() {
     updateSelectionPanel();
 
     if (window.innerWidth <= 768) {
+        // Hide system panel on mobile to avoid clutter, but keep planet panel
+        // visible so the user can still see the planet they just explored
         document.getElementById('system-panel').classList.add('hidden');
-        document.getElementById('planet-panel').classList.add('hidden');
     }
 
     // Brief pause for scene to render a frame

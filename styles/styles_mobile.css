@@ -485,6 +485,34 @@
         display: none !important;
     }
 
+    /* Hide WASD text on mobile — not relevant for touch controls */
+    #exploration-controls > div:first-child {
+        display: none !important;
+    }
+
+    /* Move Return to Orbit button away from joystick zone on mobile */
+    #exploration-controls {
+        position: fixed;
+        top: auto;
+        bottom: 16px;
+        right: 12px;
+        left: auto;
+        transform: none;
+        z-index: 1001;
+    }
+
+    #btn-exit-planet {
+        margin-top: 0 !important;
+        height: 42px;
+        padding: 0 16px;
+        font-size: 12px;
+        letter-spacing: 1.5px;
+        border-radius: 8px;
+        clip-path: none;
+        -webkit-tap-highlight-color: rgba(255, 170, 0, 0.15);
+        touch-action: manipulation;
+    }
+
     /* View toggle (Return to Galaxy) — mobile */
     #btn-view-toggle {
         height: 40px;

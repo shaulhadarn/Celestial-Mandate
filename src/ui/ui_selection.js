@@ -82,6 +82,7 @@ export function updateSelectionPanel() {
             const isSurveyed = sys ? sys.surveyed : false;
             const colony = gameState.colonies[planet.id];
 
+            // Always explicitly set land button state for the current planet
             const landBtn = document.getElementById('btn-land');
             if (landBtn) {
                 if (planet.type === 'Gas Giant') {
@@ -101,7 +102,7 @@ export function updateSelectionPanel() {
                     }
                 }
             }
-            
+
             if (!isSurveyed && !colony) {
                 document.getElementById('planet-class').innerText = "Unknown";
                 document.getElementById('planet-size').innerText = "?";
@@ -109,7 +110,7 @@ export function updateSelectionPanel() {
                 document.getElementById('planet-class').innerText = planet.type;
                 document.getElementById('planet-size').innerText = Math.floor(planet.size * 10);
             }
-            
+
             planetPanel.classList.remove('hidden');
 
             const preColony = document.getElementById('planet-actions-pre');
@@ -119,7 +120,7 @@ export function updateSelectionPanel() {
             if (colony) {
                 preColony.style.display = 'none';
                 colonyView.classList.remove('hidden');
-                
+
                 const nameLabel = document.getElementById('planet-name');
                 if(!nameLabel.innerText.includes('🏗️')) nameLabel.innerText += " 🏗️";
 
@@ -128,7 +129,7 @@ export function updateSelectionPanel() {
                 preColony.style.display = 'block';
                 preColony.classList.remove('hidden');
                 colonyView.classList.add('hidden');
-                
+
                 if (!isSurveyed) {
                     colonizeBtn.disabled = true;
                     colonizeBtn.innerText = "Survey System First";
@@ -139,6 +140,11 @@ export function updateSelectionPanel() {
                     colonizeBtn.style.opacity = "1";
                 }
             }
+        } else {
+            // Planet not found in index — reset land button and hide panel
+            const landBtn = document.getElementById('btn-land');
+            if (landBtn) landBtn.style.display = 'none';
+            planetPanel.classList.add('hidden');
         }
     } else {
         planetPanel.classList.add('hidden');

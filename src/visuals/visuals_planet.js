@@ -80,34 +80,11 @@ function initExplorationMouseControls() {
         if (gameState.viewMode !== 'EXPLORATION') return;
 
         if (e.touches.length >= 2) {
-            const t0 = e.touches[0];
-            const t1 = e.touches[1];
-            const t0InJoystick = isInJoystickZone(t0.clientX);
-            const t1InJoystick = isInJoystickZone(t1.clientX);
-
-            if (t0InJoystick && t1InJoystick) {
-                // Both in joystick zone — ignore, let nipplejs handle
-                e.preventDefault();
-                return;
-            }
-
-            if (t0InJoystick !== t1InJoystick) {
-                // One finger on dpad, other on camera zone — start camera drag (not pinch)
-                const camTouch = t0InJoystick ? t1 : t0;
-                isPinching = false;
-                isMouseDown = true;
-                cameraDragTouchId = camTouch.identifier;
-                lastMouseX = camTouch.clientX;
-                lastMouseY = camTouch.clientY;
-                e.preventDefault();
-                return;
-            }
-
-            // Both fingers outside joystick = pinch zoom — cancel any active camera drag
+            // Two fingers anywhere = pinch zoom — cancel any active camera drag
             isMouseDown = false;
             cameraDragTouchId = null;
             isPinching = true;
-            pinchStartDist = getTouchDistance(t0, t1);
+            pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
             e.preventDefault();
             return;
         }
@@ -467,8 +444,10 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 7. Shadow ---
     if (playerMesh.userData.shadowMesh) {
         const sm = playerMesh.userData.shadowMesh;
-        sm.position.set(playerMesh.position.x, groundH + 0.12, playerMesh.position.z);
-        const dist = playerMesh.position.y - groundH;
+        // Use raw terrain height (without the +1.2 noise margin) so shadow sits on ground
+        const rawGroundH = getTerrainHeightFast(px, pz) + 0.15;
+        sm.position.set(playerMesh.position.x, rawGroundH, playerMesh.position.z);
+        const dist = playerMesh.position.y - rawGroundH;
         sm.scale.setScalar(1.2 + (dist * 0.12));
         sm.material.opacity = Math.max(0, 0.7 - (dist * 0.08));
     }
