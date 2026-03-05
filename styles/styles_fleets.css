@@ -473,6 +473,16 @@
     justify-content: center;
     backdrop-filter: blur(6px);
     padding: 20px;
+    opacity: 1;
+    transition: opacity 0.25s ease, visibility 0s 0s;
+    visibility: visible;
+}
+
+.ship-modal-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0s 0.25s;
 }
 
 .ship-modal-box {
@@ -485,9 +495,18 @@
     max-height: 88vh;
     overflow-y: auto;
     box-shadow: 0 0 60px rgba(0, 200, 255, 0.12), 0 0 120px rgba(0, 0, 0, 0.8);
-    animation: shipModalIn 0.22s ease;
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                opacity 0.25s ease;
 }
 
+.ship-modal-overlay.hidden .ship-modal-box {
+    transform: scale(0.95) translateY(12px);
+    opacity: 0;
+}
+
+/* Entrance animation only on first show */
 @keyframes shipModalIn {
     from { opacity: 0; transform: scale(0.93) translateY(16px); }
     to   { opacity: 1; transform: scale(1) translateY(0); }
@@ -713,4 +732,84 @@
     padding: 12px 16px;
     border-radius: 0 6px 6px 0;
     margin-top: 6px;
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .ship-modal-overlay {
+        padding: 10px;
+    }
+
+    .ship-modal-box {
+        max-width: none;
+        max-height: 85vh;
+        border-radius: 12px;
+    }
+
+    .ship-modal-close {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+        top: 10px;
+        right: 10px;
+    }
+
+    .ship-modal-header {
+        gap: 12px;
+        padding: 16px 16px 12px;
+    }
+
+    .ship-modal-icon {
+        font-size: 40px;
+    }
+
+    .ship-modal-name {
+        font-size: 17px;
+    }
+
+    .ship-modal-body {
+        padding: 12px 16px 18px;
+    }
+
+    .ship-modal-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .ship-stat-cell {
+        padding: 8px 6px;
+    }
+
+    .ship-stat-value {
+        font-size: 13px;
+    }
+
+    .ship-cap-label {
+        width: 60px;
+        font-size: 8px;
+    }
+
+    .ship-modal-story {
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+
+    /* Fleet grid — 2 columns on mobile */
+    .fleet-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 6px;
+    }
+
+    .fleet-card {
+        padding: 10px 8px;
+    }
+
+    /* Fleet action buttons — bigger touch targets */
+    .fleet-action-btn {
+        min-height: 40px;
+        font-size: 12px;
+        padding: 8px 12px;
+        -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
+        touch-action: manipulation;
+    }
 }

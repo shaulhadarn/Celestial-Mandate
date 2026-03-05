@@ -473,30 +473,56 @@
     #empire-panel {
         z-index: 110;
         height: auto !important;
-        max-height: 68vh !important;
+        max-height: 55vh !important;
     }
 
     #empire-panel .panel-content {
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         min-height: 0;
+        padding: 10px 12px 14px;
     }
 
     .hub-grid {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 5px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
     }
 
     .hub-item {
-        padding: 10px 5px;
+        padding: 14px 10px;
+        clip-path: none;
+        border-radius: 8px;
+        flex-direction: row;
+        gap: 10px;
+        justify-content: flex-start;
+        -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
+        touch-action: manipulation;
+    }
+
+    .hub-item:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .hub-item:active {
+        transform: scale(0.97);
+        background: rgba(0, 242, 255, 0.12);
+        border-color: rgba(0, 242, 255, 0.5);
+    }
+
+    .hub-item-wide {
+        grid-column: 1 / -1;
+        justify-content: center;
     }
 
     .hub-icon {
-        font-size: 18px;
+        font-size: 22px;
+        margin-bottom: 0;
     }
 
     .hub-label {
-        font-size: 10px;
+        font-size: 11px;
+        letter-spacing: 1.5px;
     }
 
     /* Colony View Adjustments */
@@ -648,8 +674,8 @@
     }
 
     #notifications {
-        top: auto;
-        bottom: 70%;
+        top: 60px;
+        bottom: auto;
         left: 50%;
         transform: translateX(-50%);
         width: 90%;

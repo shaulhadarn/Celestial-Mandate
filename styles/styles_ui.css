@@ -357,13 +357,16 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     overflow: hidden;
-    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.19,1,0.22,1);
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.19,1,0.22,1), visibility 0s 0s;
+    visibility: visible;
 }
 
 #settings-panel.hidden {
     opacity: 0;
     transform: translate(-50%, -48%) scale(0.96);
     pointer-events: none;
+    visibility: hidden;
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.19,1,0.22,1), visibility 0s 0.25s;
 }
 
 /* Header */
