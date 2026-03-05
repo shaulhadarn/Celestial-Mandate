@@ -566,277 +566,218 @@ export function updateGalaxyAnimations(time, group) {
 function createAtmosphere(group) {
   atmosphereGroup = new THREE.Group();
 
-  // ── 1. Deep background starfield (12000 distant points, multi-tint) ────────
-  const starCount = 12000;
-  const positions = new Float32Array(starCount * 3);
-  const sizes     = new Float32Array(starCount);
-  const offsets   = new Float32Array(starCount);
-  const colors    = new Float32Array(starCount * 3);
+  if (!isMobileDevice) {
+    // ── 1. Deep background starfield (12000 distant points, multi-tint) ──────
+    const starCount = 12000;
+    const positions = new Float32Array(starCount * 3);
+    const sizes     = new Float32Array(starCount);
+    const offsets   = new Float32Array(starCount);
+    const colors    = new Float32Array(starCount * 3);
 
-  // Subtle star color palette: blue-white, warm white, cool blue, faint red
-  const starPalette = [
-    new THREE.Color(0xd0e8ff), // blue-white
-    new THREE.Color(0xfff5e0), // warm white
-    new THREE.Color(0xaaccff), // cool blue
-    new THREE.Color(0xffd0c0), // faint red-orange
-    new THREE.Color(0xffffff), // pure white
-  ];
-
-  for (let i = 0; i < starCount; i++) {
-    const r     = 500 + Math.random() * 1800;
-    const theta = Math.random() * Math.PI * 2;
-    const phi   = Math.acos(2 * Math.random() - 1);
-    positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-    positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-    positions[i * 3 + 2] = r * Math.cos(phi);
-    sizes[i]   = 0.3 + Math.random() * 2.2;
-    offsets[i] = Math.random() * Math.PI * 2;
-    const c = starPalette[Math.floor(Math.random() * starPalette.length)];
-    colors[i * 3]     = c.r;
-    colors[i * 3 + 1] = c.g;
-    colors[i * 3 + 2] = c.b;
-  }
-
-  const starGeo = new THREE.BufferGeometry();
-  starGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  starGeo.setAttribute("size",     new THREE.BufferAttribute(sizes, 1));
-  starGeo.setAttribute("offset",   new THREE.BufferAttribute(offsets, 1));
-  starGeo.setAttribute("color",    new THREE.BufferAttribute(colors, 3));
-
-  const starMat = new THREE.ShaderMaterial({
-    uniforms: { time: { value: 0 } },
-    vertexShader: `
-      precision highp float;
-      attribute float size;
-      attribute float offset;
-      attribute vec3 color;
-      varying float vOffset;
-      varying vec3  vColor;
-      void main() {
-        vOffset = offset;
-        vColor  = color;
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (300.0 / -mvPosition.z);
-        gl_Position  = projectionMatrix * mvPosition;
-      }
-    `,
-    fragmentShader: `
-      precision highp float;
-      uniform float time;
-      varying float vOffset;
-      varying vec3  vColor;
-      void main() {
-        vec2 coord = gl_PointCoord - vec2(0.5);
-        float d = length(coord);
-        if (d > 0.5) discard;
-        float alpha = (1.0 - d * 2.0) * (0.45 + 0.55 * sin(time * 1.2 + vOffset));
-        gl_FragColor = vec4(vColor, alpha * 0.85);
-      }
-    `,
-    transparent: true,
-    depthWrite:  false,
-    blending:    THREE.AdditiveBlending,
-  });
-
-  const starPoints = new THREE.Points(starGeo, starMat);
-  starPoints.userData.isStarfield = true;
-  atmosphereGroup.add(starPoints);
-
-  // ── 2. Dense galactic-plane star band (extra stars near y=0) ───────────────
-  const bandCount = 3000;
-  const bPos  = new Float32Array(bandCount * 3);
-  const bSize = new Float32Array(bandCount);
-  const bOff  = new Float32Array(bandCount);
-
-  for (let i = 0; i < bandCount; i++) {
-    const r     = 300 + Math.random() * 900;
-    const theta = Math.random() * Math.PI * 2;
-    bPos[i * 3]     = Math.cos(theta) * r;
-    bPos[i * 3 + 1] = (Math.random() - 0.5) * 60; // flat band
-    bPos[i * 3 + 2] = Math.sin(theta) * r;
-    bSize[i] = 0.2 + Math.random() * 1.2;
-    bOff[i]  = Math.random() * Math.PI * 2;
-  }
-
-  const bandGeo = new THREE.BufferGeometry();
-  bandGeo.setAttribute("position", new THREE.BufferAttribute(bPos, 3));
-  bandGeo.setAttribute("size",     new THREE.BufferAttribute(bSize, 1));
-  bandGeo.setAttribute("offset",   new THREE.BufferAttribute(bOff, 1));
-
-  const bandMat = new THREE.ShaderMaterial({
-    uniforms: {
-      time:  { value: 0 },
-      color: { value: new THREE.Color(0xaabbdd) },
-    },
-    vertexShader: `
-      precision highp float;
-      attribute float size;
-      attribute float offset;
-      varying float vOffset;
-      void main() {
-        vOffset = offset;
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = size * (300.0 / -mvPosition.z);
-        gl_Position  = projectionMatrix * mvPosition;
-      }
-    `,
-    fragmentShader: `
-      precision highp float;
-      uniform float time;
-      uniform vec3  color;
-      varying float vOffset;
-      void main() {
-        vec2 coord = gl_PointCoord - vec2(0.5);
-        float d = length(coord);
-        if (d > 0.5) discard;
-        float alpha = (1.0 - d * 2.0) * (0.3 + 0.4 * sin(time * 0.8 + vOffset));
-        gl_FragColor = vec4(color, alpha * 0.6);
-      }
-    `,
-    transparent: true,
-    depthWrite:  false,
-    blending:    THREE.AdditiveBlending,
-  });
-
-  const bandPoints = new THREE.Points(bandGeo, bandMat);
-  bandPoints.userData.isStarfield = true;
-  atmosphereGroup.add(bandPoints);
-
-  // ── 3/4. Nebula sprites ────────────────────────────────────────────────────
-  if (isMobileDevice) {
-    // Mobile: fewer, smaller nebula sprites to avoid GPU artifacts
-    const mobileNebulaDefs = [
-      { color: 0x1122cc, opacity: 0.06, sMin: 150, sMax: 300 },
-      { color: 0x4411aa, opacity: 0.05, sMin: 140, sMax: 280 },
-      { color: 0x881166, opacity: 0.04, sMin: 130, sMax: 260 },
-      { color: 0x0d3366, opacity: 0.06, sMin: 160, sMax: 320 },
-      { color: 0x003355, opacity: 0.05, sMin: 140, sMax: 280 },
-      { color: 0x110033, opacity: 0.07, sMin: 200, sMax: 400 },
+    const starPalette = [
+      new THREE.Color(0xd0e8ff),
+      new THREE.Color(0xfff5e0),
+      new THREE.Color(0xaaccff),
+      new THREE.Color(0xffd0c0),
+      new THREE.Color(0xffffff),
     ];
 
-    mobileNebulaDefs.forEach(def => {
+    for (let i = 0; i < starCount; i++) {
+      const r     = 500 + Math.random() * 1800;
+      const theta = Math.random() * Math.PI * 2;
+      const phi   = Math.acos(2 * Math.random() - 1);
+      positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+      sizes[i]   = 0.3 + Math.random() * 2.2;
+      offsets[i] = Math.random() * Math.PI * 2;
+      const c = starPalette[Math.floor(Math.random() * starPalette.length)];
+      colors[i * 3]     = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
+    }
+
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    starGeo.setAttribute("size",     new THREE.BufferAttribute(sizes, 1));
+    starGeo.setAttribute("offset",   new THREE.BufferAttribute(offsets, 1));
+    starGeo.setAttribute("color",    new THREE.BufferAttribute(colors, 3));
+
+    const starMat = new THREE.ShaderMaterial({
+      uniforms: { time: { value: 0 } },
+      vertexShader: `
+        precision highp float;
+        attribute float size;
+        attribute float offset;
+        attribute vec3 color;
+        varying float vOffset;
+        varying vec3  vColor;
+        void main() {
+          vOffset = offset;
+          vColor  = color;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (300.0 / -mvPosition.z);
+          gl_Position  = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        uniform float time;
+        varying float vOffset;
+        varying vec3  vColor;
+        void main() {
+          vec2 coord = gl_PointCoord - vec2(0.5);
+          float d = length(coord);
+          if (d > 0.5) discard;
+          float alpha = (1.0 - d * 2.0) * (0.45 + 0.55 * sin(time * 1.2 + vOffset));
+          gl_FragColor = vec4(vColor, alpha * 0.85);
+        }
+      `,
+      transparent: true,
+      depthWrite:  false,
+      blending:    THREE.AdditiveBlending,
+    });
+
+    const starPoints = new THREE.Points(starGeo, starMat);
+    starPoints.userData.isStarfield = true;
+    atmosphereGroup.add(starPoints);
+
+    // ── 2. Dense galactic-plane star band (extra stars near y=0) ─────────────
+    const bandCount = 3000;
+    const bPos  = new Float32Array(bandCount * 3);
+    const bSize = new Float32Array(bandCount);
+    const bOff  = new Float32Array(bandCount);
+
+    for (let i = 0; i < bandCount; i++) {
+      const r     = 300 + Math.random() * 900;
+      const theta = Math.random() * Math.PI * 2;
+      bPos[i * 3]     = Math.cos(theta) * r;
+      bPos[i * 3 + 1] = (Math.random() - 0.5) * 60;
+      bPos[i * 3 + 2] = Math.sin(theta) * r;
+      bSize[i] = 0.2 + Math.random() * 1.2;
+      bOff[i]  = Math.random() * Math.PI * 2;
+    }
+
+    const bandGeo = new THREE.BufferGeometry();
+    bandGeo.setAttribute("position", new THREE.BufferAttribute(bPos, 3));
+    bandGeo.setAttribute("size",     new THREE.BufferAttribute(bSize, 1));
+    bandGeo.setAttribute("offset",   new THREE.BufferAttribute(bOff, 1));
+
+    const bandMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time:  { value: 0 },
+        color: { value: new THREE.Color(0xaabbdd) },
+      },
+      vertexShader: `
+        precision highp float;
+        attribute float size;
+        attribute float offset;
+        varying float vOffset;
+        void main() {
+          vOffset = offset;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = size * (300.0 / -mvPosition.z);
+          gl_Position  = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        uniform float time;
+        uniform vec3  color;
+        varying float vOffset;
+        void main() {
+          vec2 coord = gl_PointCoord - vec2(0.5);
+          float d = length(coord);
+          if (d > 0.5) discard;
+          float alpha = (1.0 - d * 2.0) * (0.3 + 0.4 * sin(time * 0.8 + vOffset));
+          gl_FragColor = vec4(color, alpha * 0.6);
+        }
+      `,
+      transparent: true,
+      depthWrite:  false,
+      blending:    THREE.AdditiveBlending,
+    });
+
+    const bandPoints = new THREE.Points(bandGeo, bandMat);
+    bandPoints.userData.isStarfield = true;
+    atmosphereGroup.add(bandPoints);
+  }
+
+  // ── Nebula sprites ─────────────────────────────────────────────────────────
+  // Full desktop-quality nebula treatment on all devices
+  const nebulaDefs = [
+    { color: 0x1122cc, opMin: 0.07, opMax: 0.13, sMin: 300, sMax: 550 },
+    { color: 0x4411aa, opMin: 0.06, opMax: 0.11, sMin: 280, sMax: 500 },
+    { color: 0x881166, opMin: 0.05, opMax: 0.10, sMin: 250, sMax: 480 },
+    { color: 0x0d3366, opMin: 0.08, opMax: 0.14, sMin: 350, sMax: 600 },
+    { color: 0x220055, opMin: 0.07, opMax: 0.12, sMin: 300, sMax: 520 },
+    { color: 0x003355, opMin: 0.06, opMax: 0.11, sMin: 260, sMax: 460 },
+    { color: 0x551133, opMin: 0.05, opMax: 0.09, sMin: 200, sMax: 400 },
+    { color: 0x002244, opMin: 0.09, opMax: 0.15, sMin: 400, sMax: 700 },
+    { color: 0x330066, opMin: 0.06, opMax: 0.10, sMin: 280, sMax: 500 },
+    { color: 0x004433, opMin: 0.05, opMax: 0.09, sMin: 220, sMax: 420 },
+    { color: 0x441100, opMin: 0.04, opMax: 0.08, sMin: 200, sMax: 380 },
+    { color: 0x110033, opMin: 0.10, opMax: 0.18, sMin: 500, sMax: 900 },
+  ];
+
+  // Mobile: 2 instances per def instead of 3 to keep GPU load reasonable
+  const nebulaCount = isMobileDevice ? 2 : 3;
+
+  nebulaDefs.forEach(def => {
+    for (let j = 0; j < nebulaCount; j++) {
       const nebMat = new THREE.SpriteMaterial({
         map:         textures.glow,
         color:       def.color,
         transparent: true,
-        opacity:     def.opacity,
+        opacity:     def.opMin + Math.random() * (def.opMax - def.opMin),
         blending:    THREE.AdditiveBlending,
         depthWrite:  false,
       });
       const neb  = new THREE.Sprite(nebMat);
-      const dist  = 150 + Math.random() * 600;
+      const dist  = 150 + Math.random() * 800;
       const angle = Math.random() * Math.PI * 2;
       neb.position.set(
         Math.cos(angle) * dist,
-        (Math.random() - 0.5) * 200,
+        (Math.random() - 0.5) * 250,
         Math.sin(angle) * dist,
       );
       const s = def.sMin + Math.random() * (def.sMax - def.sMin);
       neb.scale.set(s, s, 1);
       atmosphereGroup.add(neb);
+    }
+  });
+
+  // Bright accent nebulas — tighter, more vivid, near galaxy center (all devices)
+  const accentDefs = [
+    { color: 0x2255ff, opacity: 0.12, size: 180 },
+    { color: 0xaa22ff, opacity: 0.10, size: 160 },
+    { color: 0xff2266, opacity: 0.08, size: 140 },
+    { color: 0x00aaff, opacity: 0.11, size: 170 },
+    { color: 0xff6600, opacity: 0.07, size: 130 },
+    { color: 0x22ffcc, opacity: 0.09, size: 150 },
+  ];
+
+  accentDefs.forEach(def => {
+    const mat = new THREE.SpriteMaterial({
+      map:         textures.glow,
+      color:       def.color,
+      transparent: true,
+      opacity:     def.opacity * (0.7 + Math.random() * 0.6),
+      blending:    THREE.AdditiveBlending,
+      depthWrite:  false,
     });
-
-    // Mobile accent nebulas — 3 vivid ones near center
-    const mobileAccents = [
-      { color: 0x2255ff, opacity: 0.08, size: 120 },
-      { color: 0xaa22ff, opacity: 0.06, size: 100 },
-      { color: 0x00aaff, opacity: 0.07, size: 110 },
-    ];
-
-    mobileAccents.forEach(def => {
-      const mat = new THREE.SpriteMaterial({
-        map:         textures.glow,
-        color:       def.color,
-        transparent: true,
-        opacity:     def.opacity,
-        blending:    THREE.AdditiveBlending,
-        depthWrite:  false,
-      });
-      const spr   = new THREE.Sprite(mat);
-      const dist  = 80 + Math.random() * 250;
-      const angle = Math.random() * Math.PI * 2;
-      spr.position.set(
-        Math.cos(angle) * dist,
-        (Math.random() - 0.5) * 80,
-        Math.sin(angle) * dist,
-      );
-      const s = def.size * (0.8 + Math.random() * 0.5);
-      spr.scale.set(s, s, 1);
-      atmosphereGroup.add(spr);
-    });
-  } else {
-    // Desktop: full nebula sprites — large background gas clouds
-    const nebulaDefs = [
-      { color: 0x1122cc, opMin: 0.07, opMax: 0.13, sMin: 300, sMax: 550 },
-      { color: 0x4411aa, opMin: 0.06, opMax: 0.11, sMin: 280, sMax: 500 },
-      { color: 0x881166, opMin: 0.05, opMax: 0.10, sMin: 250, sMax: 480 },
-      { color: 0x0d3366, opMin: 0.08, opMax: 0.14, sMin: 350, sMax: 600 },
-      { color: 0x220055, opMin: 0.07, opMax: 0.12, sMin: 300, sMax: 520 },
-      { color: 0x003355, opMin: 0.06, opMax: 0.11, sMin: 260, sMax: 460 },
-      { color: 0x551133, opMin: 0.05, opMax: 0.09, sMin: 200, sMax: 400 },
-      { color: 0x002244, opMin: 0.09, opMax: 0.15, sMin: 400, sMax: 700 },
-      { color: 0x330066, opMin: 0.06, opMax: 0.10, sMin: 280, sMax: 500 },
-      { color: 0x004433, opMin: 0.05, opMax: 0.09, sMin: 220, sMax: 420 },
-      { color: 0x441100, opMin: 0.04, opMax: 0.08, sMin: 200, sMax: 380 },
-      { color: 0x110033, opMin: 0.10, opMax: 0.18, sMin: 500, sMax: 900 },
-    ];
-
-    nebulaDefs.forEach(def => {
-      for (let j = 0; j < 3; j++) {
-        const nebMat = new THREE.SpriteMaterial({
-          map:         textures.glow,
-          color:       def.color,
-          transparent: true,
-          opacity:     def.opMin + Math.random() * (def.opMax - def.opMin),
-          blending:    THREE.AdditiveBlending,
-          depthWrite:  false,
-        });
-        const neb  = new THREE.Sprite(nebMat);
-        const dist  = 150 + Math.random() * 800;
-        const angle = Math.random() * Math.PI * 2;
-        neb.position.set(
-          Math.cos(angle) * dist,
-          (Math.random() - 0.5) * 250,
-          Math.sin(angle) * dist,
-        );
-        const s = def.sMin + Math.random() * (def.sMax - def.sMin);
-        neb.scale.set(s, s, 1);
-        atmosphereGroup.add(neb);
-      }
-    });
-
-    // Bright accent nebulas — tighter, more vivid, near galaxy center
-    const accentDefs = [
-      { color: 0x2255ff, opacity: 0.12, size: 180 },
-      { color: 0xaa22ff, opacity: 0.10, size: 160 },
-      { color: 0xff2266, opacity: 0.08, size: 140 },
-      { color: 0x00aaff, opacity: 0.11, size: 170 },
-      { color: 0xff6600, opacity: 0.07, size: 130 },
-      { color: 0x22ffcc, opacity: 0.09, size: 150 },
-    ];
-
-    accentDefs.forEach(def => {
-      const mat = new THREE.SpriteMaterial({
-        map:         textures.glow,
-        color:       def.color,
-        transparent: true,
-        opacity:     def.opacity * (0.7 + Math.random() * 0.6),
-        blending:    THREE.AdditiveBlending,
-        depthWrite:  false,
-      });
-      const spr   = new THREE.Sprite(mat);
-      const dist  = 80 + Math.random() * 350;
-      const angle = Math.random() * Math.PI * 2;
-      spr.position.set(
-        Math.cos(angle) * dist,
-        (Math.random() - 0.5) * 100,
-        Math.sin(angle) * dist,
-      );
-      const s = def.size * (0.8 + Math.random() * 0.6);
-      spr.scale.set(s, s, 1);
-      atmosphereGroup.add(spr);
-    });
-  }
+    const spr   = new THREE.Sprite(mat);
+    const dist  = 80 + Math.random() * 350;
+    const angle = Math.random() * Math.PI * 2;
+    spr.position.set(
+      Math.cos(angle) * dist,
+      (Math.random() - 0.5) * 100,
+      Math.sin(angle) * dist,
+    );
+    const s = def.size * (0.8 + Math.random() * 0.6);
+    spr.scale.set(s, s, 1);
+    atmosphereGroup.add(spr);
+  });
 
   group.add(atmosphereGroup);
 }
