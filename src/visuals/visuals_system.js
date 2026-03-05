@@ -292,19 +292,23 @@ export function createSystemVisuals(system, group) {
                 });
                 mesh.add(new THREE.Mesh(rimGeo, rimMat));
 
-                // Outer glow halo sprite
-                const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-                    map: textures.glow,
-                    color: atmosphereColor,
-                    transparent: true,
-                    opacity: 0.28,
-                    blending: THREE.AdditiveBlending, depthWrite: false
-                }));
-                glowSprite.scale.set(p.size * 5.5 * scale, p.size * 5.5 * scale, 1);
-                mesh.add(glowSprite);
             }
         }
         
+        // ── Universal planet glow — gives every planet a subtle luminous halo ──
+        const glowColor = atmosphereColor !== null ? atmosphereColor : matColor;
+        const planetGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow,
+            color: glowColor,
+            transparent: true,
+            opacity: isMobileDevice ? 0.15 : 0.22,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        }));
+        const glowScale = p.size * (atmosphereColor !== null ? 6.0 : 5.0) * scale;
+        planetGlow.scale.set(glowScale, glowScale, 1);
+        mesh.add(planetGlow);
+
         mesh.position.set(Math.cos(p.angle) * p.distance, 0, Math.sin(p.angle) * p.distance);
         mesh.userData = { id: p.id, data: p };
         
