@@ -49,17 +49,22 @@ export async function init() {
     window.addEventListener('mousedown', onPointerDown);
     window.addEventListener('mouseup', onPointerUp);
     // Touch support — passive:false is CRITICAL so preventDefault() can block browser scroll/pan
+    const _isUITouch = (target) => {
+        if (!target || !target.closest) return false;
+        return target.closest('#ui-layer') || target.closest('#splash-screen') ||
+               target.closest('#creation-screen') || target.closest('#loading-screen') ||
+               target.closest('#race-intro-overlay') || target.closest('#event-modal') ||
+               target.closest('#scene-transition-overlay');
+    };
     window.addEventListener('touchmove', (e) => {
-        // Only block default when touching the 3D canvas (not UI panels, splash screen, creation screen, loading screen, or race intro overlay)
-        const target = e.target || e.srcElement;
-        if (!target || !target.closest || (!target.closest('#ui-layer') && !target.closest('#splash-screen') && !target.closest('#creation-screen') && !target.closest('#loading-screen') && !target.closest('#race-intro-overlay'))) {
+        // Only block default when touching the 3D canvas (not UI overlays)
+        if (!_isUITouch(e.target || e.srcElement)) {
             e.preventDefault();
         }
         if (e.touches[0]) onMouseMove(e.touches[0]);
     }, { passive: false });
     window.addEventListener('touchstart', (e) => {
-        const target = e.target || e.srcElement;
-        if (!target || !target.closest || (!target.closest('#ui-layer') && !target.closest('#splash-screen') && !target.closest('#creation-screen') && !target.closest('#loading-screen') && !target.closest('#race-intro-overlay'))) {
+        if (!_isUITouch(e.target || e.srcElement)) {
             e.preventDefault();
         }
         if (e.touches[0]) onPointerDown(e.touches[0]);
