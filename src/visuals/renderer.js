@@ -149,9 +149,10 @@ function handleTap(event) {
         if (intersects.length > 0) {
             const sysId = intersects[0].object.userData.id;
             if (getSystem(sysId)) {
-                selectSystem(sysId);
                 playSound('select');
-                enterSystemView(sysId);
+                // Delay state selection until after fade — prevents bottom modal
+                // from flashing before the system view loads
+                enterSystemView(sysId).then(() => selectSystem(sysId));
             }
         }
     } else if (gameState.viewMode === 'SYSTEM') {

@@ -122,23 +122,70 @@ export function playSound(name) {
 
 // --- Background Music ---
 let musicElement = null;
+let menuMusicElement = null;
+const FADE_DURATION = 1500; // ms for fade in/out
+const GAME_VOLUME = 0.35;
+const MENU_VOLUME = 0.30;
 
-export function startMusic() {
+function _fadeAudio(audio, fromVol, toVol, duration = FADE_DURATION) {
+    return new Promise(resolve => {
+        if (!audio) { resolve(); return; }
+        const steps = 30;
+        const stepTime = duration / steps;
+        const volStep = (toVol - fromVol) / steps;
+        let current = 0;
+        audio.volume = Math.max(0, Math.min(1, fromVol));
+        const interval = setInterval(() => {
+            current++;
+            audio.volume = Math.max(0, Math.min(1, fromVol + volStep * current));
+            if (current >= steps) {
+                clearInterval(interval);
+                audio.volume = Math.max(0, Math.min(1, toVol));
+                resolve();
+            }
+        }, stepTime);
+    });
+}
+
+function _playWithRetry(audio) {
+    audio.play().catch(() => {
+        const resume = () => { if (audio) audio.play().catch(() => {}); };
+        window.addEventListener('click', resume, { once: true });
+        window.addEventListener('touchstart', resume, { once: true });
+    });
+}
+
+export function startMenuMusic() {
     try {
-        if (musicElement) return; // already playing
+        if (menuMusicElement) return;
+        menuMusicElement = new Audio(encodeURI('assets/Shaul Hadar - Time To Profit Demo.mp3'));
+        menuMusicElement.loop = true;
+        menuMusicElement.volume = 0;
+        _playWithRetry(menuMusicElement);
+        _fadeAudio(menuMusicElement, 0, MENU_VOLUME);
+    } catch (e) {
+        console.warn('Menu music init failed (non-fatal):', e);
+        menuMusicElement = null;
+    }
+}
+
+export async function startMusic() {
+    try {
+        if (musicElement) return;
+
+        // Fade out menu music first
+        if (menuMusicElement) {
+            await _fadeAudio(menuMusicElement, menuMusicElement.volume, 0);
+            menuMusicElement.pause();
+            menuMusicElement.src = '';
+            menuMusicElement = null;
+        }
 
         musicElement = new Audio(encodeURI('assets/9.Counter Point - Master of Epic.mp3'));
         musicElement.loop = true;
-        musicElement.volume = 0.35; // background level — not too loud
-
-        musicElement.play().catch(() => {
-            // Browser blocked autoplay — will retry on next user interaction
-            const resume = () => {
-                if (musicElement) musicElement.play().catch(() => {});
-            };
-            window.addEventListener('click', resume, { once: true });
-            window.addEventListener('touchstart', resume, { once: true });
-        });
+        musicElement.volume = 0;
+        _playWithRetry(musicElement);
+        _fadeAudio(musicElement, 0, GAME_VOLUME);
     } catch (e) {
         console.warn('Music init failed (non-fatal):', e);
         musicElement = null;

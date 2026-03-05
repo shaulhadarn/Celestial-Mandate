@@ -240,8 +240,8 @@ export function createSystemVisuals(system, group) {
                 emissiveIntensity = 0.1;
         }
 
-        // Higher resolution geometry on desktop for smooth circular edges
-        const segments = isMobileDevice ? 32 : 96;
+        // Higher resolution geometry — 48 on mobile for smooth edges, 96 on desktop
+        const segments = isMobileDevice ? 48 : 96;
         const pGeo = new THREE.SphereGeometry(p.size * 2 * scale, segments, segments);
 
         // Per-type physical material properties
@@ -259,10 +259,12 @@ export function createSystemVisuals(system, group) {
             default:            roughness = 0.85; break;
         }
 
+        // MeshStandardMaterial on all devices for PBR look (skip clearcoat on mobile)
         const pMat = isMobileDevice
-            ? new THREE.MeshLambertMaterial({
+            ? new THREE.MeshStandardMaterial({
                 map: tex, color: matColor,
-                emissive: new THREE.Color(emissiveColor), emissiveIntensity
+                roughness, metalness,
+                emissive: new THREE.Color(emissiveColor), emissiveIntensity,
               })
             : new THREE.MeshPhysicalMaterial({
                 map: tex, color: matColor,
@@ -273,26 +275,24 @@ export function createSystemVisuals(system, group) {
         const mesh = new THREE.Mesh(pGeo, pMat);
 
         if (atmosphereColor !== null) {
-            // Outer atmosphere shell
+            // Outer atmosphere shell — additive blending on all devices
             const atmoGeo = new THREE.SphereGeometry(p.size * 2.15 * scale, segments, segments);
             const atmoMat = new THREE.MeshBasicMaterial({
                 color: atmosphereColor, transparent: true,
-                opacity: isMobileDevice ? 0.12 : 0.08,
-                blending: isMobileDevice ? THREE.NormalBlending : THREE.AdditiveBlending,
+                opacity: isMobileDevice ? 0.10 : 0.08,
+                blending: THREE.AdditiveBlending,
                 side: THREE.BackSide, depthWrite: false
             });
             mesh.add(new THREE.Mesh(atmoGeo, atmoMat));
 
-            // Inner atmosphere rim (desktop only) — adds a bright limb glow
-            if (!isMobileDevice) {
-                const rimGeo = new THREE.SphereGeometry(p.size * 2.05 * scale, segments, segments);
-                const rimMat = new THREE.MeshBasicMaterial({
-                    color: atmosphereColor, transparent: true, opacity: 0.06,
-                    blending: THREE.AdditiveBlending, side: THREE.FrontSide, depthWrite: false
-                });
-                mesh.add(new THREE.Mesh(rimGeo, rimMat));
-
-            }
+            // Inner atmosphere rim — bright limb glow on all devices
+            const rimGeo = new THREE.SphereGeometry(p.size * 2.05 * scale, isMobileDevice ? 32 : segments, isMobileDevice ? 32 : segments);
+            const rimMat = new THREE.MeshBasicMaterial({
+                color: atmosphereColor, transparent: true,
+                opacity: isMobileDevice ? 0.05 : 0.06,
+                blending: THREE.AdditiveBlending, side: THREE.FrontSide, depthWrite: false
+            });
+            mesh.add(new THREE.Mesh(rimGeo, rimMat));
         }
         
         // ── Universal planet glow — gives every planet a subtle luminous halo ──

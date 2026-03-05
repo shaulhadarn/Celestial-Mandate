@@ -328,29 +328,25 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
           emissiveIntensity = 0.15;
       }
       
-      // Mobile: 16 segments vs 32 — 4x fewer triangles per planet, still looks smooth at galaxy zoom
-      const pSegs = isMobileDevice ? 16 : 32;
+      // 24 segments on mobile vs 32 desktop — smooth enough at galaxy zoom
+      const pSegs = isMobileDevice ? 24 : 32;
       const pGeo = new THREE.SphereGeometry(size, pSegs, pSegs);
 
-      const pMat = isMobileDevice
-        ? new THREE.MeshLambertMaterial({
-            map: tex, color: matColor,
-            emissive: new THREE.Color(emissiveColor), emissiveIntensity,
-          })
-        : new THREE.MeshStandardMaterial({
-            map: tex, color: matColor,
-            emissive: new THREE.Color(emissiveColor), emissiveIntensity,
-            roughness: p.type === "Ocean" || p.type === "Terran" ? 0.6 : 0.8,
-            metalness: p.type === "Ocean" ? 0.5 : 0.2,
-          });
+      // MeshStandardMaterial on all devices for PBR look
+      const pMat = new THREE.MeshStandardMaterial({
+          map: tex, color: matColor,
+          emissive: new THREE.Color(emissiveColor), emissiveIntensity,
+          roughness: p.type === "Ocean" || p.type === "Terran" ? 0.6 : 0.8,
+          metalness: p.type === "Ocean" ? 0.5 : 0.2,
+        });
       const pMesh = new THREE.Mesh(pGeo, pMat);
 
-      // Atmosphere rim — skip on mobile for additive blending cost
-      if (!isMobileDevice && (p.type === "Terran" || p.type === "Continental" || p.type === "Ocean" || p.type === "Gas Giant")) {
+      // Atmosphere rim on all devices
+      if (p.type === "Terran" || p.type === "Continental" || p.type === "Ocean" || p.type === "Gas Giant") {
         const atmoGeo = new THREE.SphereGeometry(size * 1.05, 16, 16);
         const atmoMat = new THREE.MeshBasicMaterial({
           color: p.type === "Gas Giant" ? 0xffaa55 : 0x55aaff,
-          transparent: true, opacity: 0.3,
+          transparent: true, opacity: isMobileDevice ? 0.2 : 0.3,
           blending: THREE.AdditiveBlending,
           side: THREE.BackSide
         });
