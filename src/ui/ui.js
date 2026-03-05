@@ -16,6 +16,7 @@ import { initFleetsUI } from './ui_fleets.js';
 import { initEventsUI } from './ui_events.js';
 import { initCodexUI } from './ui_codex.js';
 import { initMilestoneEvents } from '../core/milestone_events.js';
+import { startMenuMusic } from '../core/assets.js';
 
 // Re-export for other modules to use
 export { showNotification };
@@ -71,6 +72,7 @@ export function initUI() {
 
     if (splashStart) {
         splashStart.addEventListener('click', () => {
+            startMenuMusic();
             document.getElementById('settings-panel').classList.add('hidden');
             showLoadingScreen(() => {
                 document.getElementById('splash-screen').classList.add('hidden');
@@ -90,6 +92,7 @@ export function initUI() {
 
     if (splashLoad) {
         splashLoad.addEventListener('click', () => {
+            startMenuMusic();
             document.getElementById('settings-panel').classList.add('hidden');
             if (loadGame()) {
                 showLoadingScreen(() => {

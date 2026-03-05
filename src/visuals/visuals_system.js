@@ -151,14 +151,22 @@ export function createSystemVisuals(system, group) {
             _sunFlares.push(flare);
         });
     } else {
-        // Mobile: single simple glow
-        const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+        // Mobile: 2 corona layers (inner glow + mid halo) — lighter than desktop
+        _sunCorona1 = new THREE.Sprite(new THREE.SpriteMaterial({
             map: textures.glow, color: system.color,
-            transparent: true, opacity: 0.6,
+            transparent: true, opacity: 0.7,
             blending: THREE.AdditiveBlending, depthWrite: false
         }));
-        glow.scale.set(14, 14, 1);
-        group.add(glow);
+        _sunCorona1.scale.set(14, 14, 1);
+        group.add(_sunCorona1);
+
+        _sunCorona2 = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: system.color,
+            transparent: true, opacity: 0.3,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        _sunCorona2.scale.set(24, 24, 1);
+        group.add(_sunCorona2);
     }
 
     // Light — reduced intensity to avoid washing out planets
@@ -600,10 +608,8 @@ function createSystemBackground(group) {
 
     group.add(new THREE.Points(starGeo, starMat));
 
-    if (isMobileDevice) return; // skip heavy layers on mobile
-
     // ── 2. Bright foreground star clusters ───────────────────────────────────
-    const clusterCount = 60;
+    const clusterCount = isMobileDevice ? 25 : 60;
     const cPosArray  = new Float32Array(clusterCount * 3);
     const cColArray  = new Float32Array(clusterCount * 3);
     const cSizeArray = new Float32Array(clusterCount);

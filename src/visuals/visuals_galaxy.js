@@ -526,10 +526,12 @@ export function updateGalaxyAnimations(time, group) {
     atmosphereGroup.children.forEach((child, i) => {
       if (child.userData.isStarfield) {
         child.material.uniforms.time.value = time * 1.5; // Faster twinkling
-      } else if (child.isSprite && !isMobileDevice) {
-        // Nebula
-        child.rotation.z += 0.001 * (i % 2 === 0 ? 1 : -1); // Faster rotation
-        const s = child.scale.x + Math.sin(time + i) * 1.0; // Noticeable breathing
+      } else if (child.isSprite) {
+        // Nebula breathing and rotation — lighter on mobile
+        const rotSpeed = isMobileDevice ? 0.0005 : 0.001;
+        const breathAmp = isMobileDevice ? 0.4 : 1.0;
+        child.rotation.z += rotSpeed * (i % 2 === 0 ? 1 : -1);
+        const s = child.scale.x + Math.sin(time + i) * breathAmp;
         child.scale.set(s, s, 1);
       }
     });
@@ -700,13 +702,71 @@ function createAtmosphere(group) {
   bandPoints.userData.isStarfield = true;
   atmosphereGroup.add(bandPoints);
 
-  // ── 3/4. Nebula sprites (desktop only) ──────────────────────────────────────
-  // Large additive sprites are a known source of white/square artifacts on mobile GPUs.
-  if (!isMobileDevice) {
-    // ── 3. Nebula sprites — large background gas clouds ────────────────────────
-    // Extended palette: blues, purples, magentas, teals, warm oranges
+  // ── 3/4. Nebula sprites ────────────────────────────────────────────────────
+  if (isMobileDevice) {
+    // Mobile: fewer, smaller nebula sprites to avoid GPU artifacts
+    const mobileNebulaDefs = [
+      { color: 0x1122cc, opacity: 0.06, sMin: 150, sMax: 300 },
+      { color: 0x4411aa, opacity: 0.05, sMin: 140, sMax: 280 },
+      { color: 0x881166, opacity: 0.04, sMin: 130, sMax: 260 },
+      { color: 0x0d3366, opacity: 0.06, sMin: 160, sMax: 320 },
+      { color: 0x003355, opacity: 0.05, sMin: 140, sMax: 280 },
+      { color: 0x110033, opacity: 0.07, sMin: 200, sMax: 400 },
+    ];
+
+    mobileNebulaDefs.forEach(def => {
+      const nebMat = new THREE.SpriteMaterial({
+        map:         textures.glow,
+        color:       def.color,
+        transparent: true,
+        opacity:     def.opacity,
+        blending:    THREE.AdditiveBlending,
+        depthWrite:  false,
+      });
+      const neb  = new THREE.Sprite(nebMat);
+      const dist  = 150 + Math.random() * 600;
+      const angle = Math.random() * Math.PI * 2;
+      neb.position.set(
+        Math.cos(angle) * dist,
+        (Math.random() - 0.5) * 200,
+        Math.sin(angle) * dist,
+      );
+      const s = def.sMin + Math.random() * (def.sMax - def.sMin);
+      neb.scale.set(s, s, 1);
+      atmosphereGroup.add(neb);
+    });
+
+    // Mobile accent nebulas — 3 vivid ones near center
+    const mobileAccents = [
+      { color: 0x2255ff, opacity: 0.08, size: 120 },
+      { color: 0xaa22ff, opacity: 0.06, size: 100 },
+      { color: 0x00aaff, opacity: 0.07, size: 110 },
+    ];
+
+    mobileAccents.forEach(def => {
+      const mat = new THREE.SpriteMaterial({
+        map:         textures.glow,
+        color:       def.color,
+        transparent: true,
+        opacity:     def.opacity,
+        blending:    THREE.AdditiveBlending,
+        depthWrite:  false,
+      });
+      const spr   = new THREE.Sprite(mat);
+      const dist  = 80 + Math.random() * 250;
+      const angle = Math.random() * Math.PI * 2;
+      spr.position.set(
+        Math.cos(angle) * dist,
+        (Math.random() - 0.5) * 80,
+        Math.sin(angle) * dist,
+      );
+      const s = def.size * (0.8 + Math.random() * 0.5);
+      spr.scale.set(s, s, 1);
+      atmosphereGroup.add(spr);
+    });
+  } else {
+    // Desktop: full nebula sprites — large background gas clouds
     const nebulaDefs = [
-      // [ color,      minOpacity, maxOpacity, minSize, maxSize ]
       { color: 0x1122cc, opMin: 0.07, opMax: 0.13, sMin: 300, sMax: 550 },
       { color: 0x4411aa, opMin: 0.06, opMax: 0.11, sMin: 280, sMax: 500 },
       { color: 0x881166, opMin: 0.05, opMax: 0.10, sMin: 250, sMax: 480 },
@@ -716,12 +776,11 @@ function createAtmosphere(group) {
       { color: 0x551133, opMin: 0.05, opMax: 0.09, sMin: 200, sMax: 400 },
       { color: 0x002244, opMin: 0.09, opMax: 0.15, sMin: 400, sMax: 700 },
       { color: 0x330066, opMin: 0.06, opMax: 0.10, sMin: 280, sMax: 500 },
-      { color: 0x004433, opMin: 0.05, opMax: 0.09, sMin: 220, sMax: 420 }, // teal
-      { color: 0x441100, opMin: 0.04, opMax: 0.08, sMin: 200, sMax: 380 }, // warm dark orange
-      { color: 0x110033, opMin: 0.10, opMax: 0.18, sMin: 500, sMax: 900 }, // very large deep purple
+      { color: 0x004433, opMin: 0.05, opMax: 0.09, sMin: 220, sMax: 420 },
+      { color: 0x441100, opMin: 0.04, opMax: 0.08, sMin: 200, sMax: 380 },
+      { color: 0x110033, opMin: 0.10, opMax: 0.18, sMin: 500, sMax: 900 },
     ];
 
-    // Spawn 3 sprites per definition = 36 nebula sprites total
     nebulaDefs.forEach(def => {
       for (let j = 0; j < 3; j++) {
         const nebMat = new THREE.SpriteMaterial({
@@ -746,7 +805,7 @@ function createAtmosphere(group) {
       }
     });
 
-    // ── 4. Bright accent nebulas — tighter, more vivid, near galaxy center ─────
+    // Bright accent nebulas — tighter, more vivid, near galaxy center
     const accentDefs = [
       { color: 0x2255ff, opacity: 0.12, size: 180 },
       { color: 0xaa22ff, opacity: 0.10, size: 160 },
