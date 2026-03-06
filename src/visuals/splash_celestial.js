@@ -11,7 +11,8 @@ function getPlanetAnchor() {
 /**
  * Creates the moon and its associated glow sprites and atmosphere rim.
  */
-export function createSplashMoon(scene, glowTex) {
+export function createSplashMoon(scene, haloTextures) {
+    const { softGlowTex, haloRingTex } = haloTextures;
     const moonGeo = new THREE.SphereGeometry(1.2, 48, 48);
     const moonTex = createProceduralMoonTexture();
     moonTex.colorSpace = THREE.SRGBColorSpace;
@@ -31,27 +32,29 @@ export function createSplashMoon(scene, glowTex) {
     scene.add(moon);
 
     const moonGlowInner = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex,
+        map: softGlowTex,
         color: 0x9fd2ff,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false
     }));
-    moonGlowInner.scale.set(4.5, 4.5, 1);
-    moonGlowInner.userData.targetOpacity = 0.26;
+    moonGlowInner.scale.set(5.4, 5.1, 1);
+    moonGlowInner.userData.baseScale = new THREE.Vector2(5.4, 5.1);
+    moonGlowInner.userData.targetOpacity = 0.18;
     moon.add(moonGlowInner);
 
     const moonGlowOuter = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex,
+        map: haloRingTex,
         color: 0x4b7fff,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false
     }));
-    moonGlowOuter.scale.set(9.5, 9.5, 1);
-    moonGlowOuter.userData.targetOpacity = 0.13;
+    moonGlowOuter.scale.set(12, 11.3, 1);
+    moonGlowOuter.userData.baseScale = new THREE.Vector2(12, 11.3);
+    moonGlowOuter.userData.targetOpacity = 0.08;
     moon.add(moonGlowOuter);
 
     const moonRim = new THREE.Mesh(
@@ -73,8 +76,8 @@ export function createSplashMoon(scene, glowTex) {
                 varying vec3 vPosition;
                 void main() {
                     vec3 viewDir = normalize(-vPosition);
-                    float intensity = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.6);
-                    gl_FragColor = vec4(0.56, 0.73, 1.0, intensity * 0.32 * uOpacity);
+                    float intensity = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.15);
+                    gl_FragColor = vec4(0.56, 0.73, 1.0, intensity * 0.24 * uOpacity);
                 }
             `,
             transparent: true,

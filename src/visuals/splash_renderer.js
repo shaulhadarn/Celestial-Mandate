@@ -1,7 +1,13 @@
 /* Updated: Cinematic premium splash scene with layered starfields, nebula depth, and upgraded planet presentation */
 import * as THREE from 'three';
 import { isMobile } from '../core/device.js';
-import { createHullTexture, createGlowTexture, createNebulaTexture } from '../core/splash_assets.js';
+import {
+    createGlowTexture,
+    createHaloRingTexture,
+    createHullTexture,
+    createNebulaTexture,
+    createSoftGlowTexture
+} from '../core/splash_assets.js';
 import { createSplashScreenShip, createCapitalFleet, resetShip } from './splash_ships.js';
 import { spawnTrailParticle, updateTrailParticles, disposeTrailPool } from './splash_particles.js';
 import { setupSplashLighting } from './splash_lighting.js';
@@ -81,8 +87,17 @@ export function initSplashPlanet(containerId) {
     hullTexture.colorSpace = THREE.SRGBColorSpace;
     const glowTex = createGlowTexture();
     glowTex.colorSpace = THREE.SRGBColorSpace;
+    const softGlowTex = createSoftGlowTexture();
+    softGlowTex.colorSpace = THREE.SRGBColorSpace;
+    const haloRingTex = createHaloRingTexture();
+    haloRingTex.colorSpace = THREE.SRGBColorSpace;
 
-    const planetGroup = createSplashPlanetGroup(scene, renderer, glowTex, compactScene);
+    const planetGroup = createSplashPlanetGroup(
+        scene,
+        renderer,
+        { softGlowTex, haloRingTex },
+        compactScene
+    );
     planet = planetGroup.planet;
     clouds = planetGroup.clouds;
     cityLights = planetGroup.cityLights;
@@ -101,7 +116,7 @@ export function initSplashPlanet(containerId) {
     nebulaLayers = background.nebulaLayers;
     flareLayers = background.flareLayers;
 
-    const moonGroup = createSplashMoon(scene, glowTex);
+    const moonGroup = createSplashMoon(scene, { softGlowTex, haloRingTex });
     moon = moonGroup.moon;
     moonGlowInner = moonGroup.moonGlowInner;
     moonGlowOuter = moonGroup.moonGlowOuter;
@@ -166,12 +181,32 @@ export function initSplashPlanet(containerId) {
         innerGlow.material.opacity = globalFade * innerGlow.userData.targetOpacity * glowPulse;
         coronaGlow.material.opacity = globalFade * coronaGlow.userData.targetOpacity * (0.9 + Math.sin(timeSeconds * 0.53 + 1.2) * 0.12);
         outerGlow.material.opacity = globalFade * outerGlow.userData.targetOpacity * (0.9 + Math.cos(timeSeconds * 0.37) * 0.08);
+        if (innerGlow.userData.baseScale) {
+            const pulse = 0.985 + Math.sin(timeSeconds * 0.66) * 0.025;
+            innerGlow.scale.set(innerGlow.userData.baseScale.x * pulse, innerGlow.userData.baseScale.y * pulse, 1);
+        }
+        if (coronaGlow.userData.baseScale) {
+            const pulse = 0.975 + Math.sin(timeSeconds * 0.48 + 1.1) * 0.035;
+            coronaGlow.scale.set(coronaGlow.userData.baseScale.x * pulse, coronaGlow.userData.baseScale.y * pulse, 1);
+        }
+        if (outerGlow.userData.baseScale) {
+            const pulse = 0.988 + Math.cos(timeSeconds * 0.34) * 0.022;
+            outerGlow.scale.set(outerGlow.userData.baseScale.x * pulse, outerGlow.userData.baseScale.y * pulse, 1);
+        }
 
         if (moon) {
             moon.material.opacity = globalFade;
             moonGlowInner.material.opacity = globalFade * moonGlowInner.userData.targetOpacity * (0.92 + Math.sin(timeSeconds * 0.61) * 0.08);
             moonGlowOuter.material.opacity = globalFade * moonGlowOuter.userData.targetOpacity * (0.9 + Math.cos(timeSeconds * 0.45) * 0.1);
             moonRim.material.uniforms.uOpacity.value = globalFade * (0.9 + Math.sin(timeSeconds * 0.38) * 0.1);
+            if (moonGlowInner.userData.baseScale) {
+                const pulse = 0.986 + Math.sin(timeSeconds * 0.58) * 0.028;
+                moonGlowInner.scale.set(moonGlowInner.userData.baseScale.x * pulse, moonGlowInner.userData.baseScale.y * pulse, 1);
+            }
+            if (moonGlowOuter.userData.baseScale) {
+                const pulse = 0.99 + Math.cos(timeSeconds * 0.42 + 0.6) * 0.024;
+                moonGlowOuter.scale.set(moonGlowOuter.userData.baseScale.x * pulse, moonGlowOuter.userData.baseScale.y * pulse, 1);
+            }
         }
 
         starLayers.forEach((layer) => {
@@ -287,27 +322,33 @@ function buildSpaceBackground(currentScene, glowTex, compactScene) {
     const nebulaConfigs = compactScene
         ? [
             {
-                position: new THREE.Vector3(-16, 10, -105),
-                scale: new THREE.Vector3(88, 54, 1),
-                colors: ['rgba(0, 228, 255, 0.2)', 'rgba(28, 80, 255, 0.15)', 'rgba(255, 165, 118, 0.08)'],
-                opacity: 0.18
+                position: new THREE.Vector3(-22, 7, -112),
+                scale: new THREE.Vector3(112, 68, 1),
+                colors: ['rgba(0, 228, 255, 0.16)', 'rgba(28, 80, 255, 0.12)', 'rgba(255, 165, 118, 0.06)'],
+                opacity: 0.16
             },
             {
-                position: new THREE.Vector3(18, -7, -118),
+                position: new THREE.Vector3(20, -7, -118),
                 scale: new THREE.Vector3(102, 58, 1),
                 colors: ['rgba(255, 142, 88, 0.18)', 'rgba(102, 78, 255, 0.12)', 'rgba(0, 242, 255, 0.08)'],
                 opacity: 0.14
+            },
+            {
+                position: new THREE.Vector3(-6, -10, -132),
+                scale: new THREE.Vector3(120, 60, 1),
+                colors: ['rgba(0, 208, 255, 0.09)', 'rgba(70, 116, 255, 0.08)', 'rgba(255, 174, 118, 0.04)'],
+                opacity: 0.08
             }
         ]
         : [
             {
-                position: new THREE.Vector3(-18, 10, -105),
-                scale: new THREE.Vector3(92, 58, 1),
-                colors: ['rgba(0, 228, 255, 0.22)', 'rgba(28, 80, 255, 0.16)', 'rgba(255, 165, 118, 0.08)'],
-                opacity: 0.2
+                position: new THREE.Vector3(-30, 6, -112),
+                scale: new THREE.Vector3(132, 82, 1),
+                colors: ['rgba(0, 228, 255, 0.18)', 'rgba(28, 80, 255, 0.14)', 'rgba(255, 165, 118, 0.06)'],
+                opacity: 0.18
             },
             {
-                position: new THREE.Vector3(24, -8, -122),
+                position: new THREE.Vector3(25, -8, -122),
                 scale: new THREE.Vector3(108, 64, 1),
                 colors: ['rgba(255, 142, 88, 0.22)', 'rgba(102, 78, 255, 0.14)', 'rgba(0, 242, 255, 0.09)'],
                 opacity: 0.16
@@ -317,6 +358,12 @@ function buildSpaceBackground(currentScene, glowTex, compactScene) {
                 scale: new THREE.Vector3(140, 78, 1),
                 colors: ['rgba(54, 116, 255, 0.16)', 'rgba(0, 214, 255, 0.12)', 'rgba(255, 255, 255, 0.06)'],
                 opacity: 0.1
+            },
+            {
+                position: new THREE.Vector3(-8, -11, -136),
+                scale: new THREE.Vector3(132, 68, 1),
+                colors: ['rgba(0, 214, 255, 0.1)', 'rgba(74, 118, 255, 0.08)', 'rgba(255, 184, 126, 0.04)'],
+                opacity: 0.08
             }
         ];
 

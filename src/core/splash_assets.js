@@ -1,6 +1,15 @@
 /* Updated: Organized app hierarchy, moved to src/core folder, fixed imports and paths */
 import * as THREE from 'three';
 
+function clamp01(value) {
+    return Math.min(1, Math.max(0, value));
+}
+
+function smoothstep(edge0, edge1, value) {
+    const t = clamp01((value - edge0) / (edge1 - edge0));
+    return t * t * (3 - 2 * t);
+}
+
 export function createHullTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -270,11 +279,101 @@ export function createGlowTexture() {
     return new THREE.CanvasTexture(canvas);
 }
 
+export function createSoftGlowTexture() {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(size, size);
+    const data = imageData.data;
+    const center = size / 2;
+
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const dx = (x - center) / center;
+            const dy = (y - center) / center;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist >= 1) continue;
+
+            const angle = Math.atan2(dy, dx);
+            const breakup = 0.96
+                + Math.sin(angle * 5.0 + dist * 10.0) * 0.05
+                + Math.cos(angle * 9.0 - dist * 16.0) * 0.03;
+            const core = Math.pow(1 - dist, 2.45);
+            const midGlow = Math.exp(-Math.pow((dist - 0.38) / 0.26, 2.0)) * 0.34;
+            const edgeFade = 1 - smoothstep(0.76, 1.0, dist);
+            const alpha = clamp01((core * 0.92 + midGlow) * breakup * edgeFade);
+            const index = (y * size + x) * 4;
+
+            data[index] = 255;
+            data[index + 1] = 255;
+            data[index + 2] = 255;
+            data[index + 3] = Math.round(alpha * 255);
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    return tex;
+}
+
+export function createHaloRingTexture() {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(size, size);
+    const data = imageData.data;
+    const center = size / 2;
+
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const dx = (x - center) / center;
+            const dy = (y - center) / center;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist >= 1) continue;
+
+            const angle = Math.atan2(dy, dx);
+            const breakup = 0.94
+                + Math.sin(angle * 6.0 + dist * 12.0) * 0.06
+                + Math.cos(angle * 13.0 - dist * 20.0) * 0.04;
+            const ring = Math.exp(-Math.pow((dist - 0.69) / 0.16, 2.0));
+            const fill = Math.exp(-Math.pow((dist - 0.5) / 0.32, 2.0)) * 0.22;
+            const edgeFade = 1 - smoothstep(0.84, 1.0, dist);
+            const alpha = clamp01((ring * 0.88 + fill) * breakup * edgeFade);
+            const index = (y * size + x) * 4;
+
+            data[index] = 255;
+            data[index + 1] = 255;
+            data[index + 2] = 255;
+            data[index + 3] = Math.round(alpha * 255);
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
+    return tex;
+}
+
 export function createNebulaTexture(palette = []) {
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
     canvas.height = 1024;
     const ctx = canvas.getContext('2d');
+    const paintCanvas = document.createElement('canvas');
+    paintCanvas.width = canvas.width;
+    paintCanvas.height = canvas.height;
+    const paint = paintCanvas.getContext('2d');
 
     const colors = palette.length
         ? palette
@@ -284,33 +383,43 @@ export function createNebulaTexture(palette = []) {
             'rgba(255, 162, 110, 0.12)'
         ];
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.globalCompositeOperation = 'screen';
+    paint.clearRect(0, 0, canvas.width, canvas.height);
+    paint.globalCompositeOperation = 'screen';
 
-    for (let i = 0; i < 36; i++) {
+    for (let i = 0; i < 52; i++) {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
-        const radius = 80 + Math.random() * 210;
+        const radius = 70 + Math.random() * 190;
         const color = colors[Math.floor(Math.random() * colors.length)];
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        const stretchX = 1.05 + Math.random() * 1.1;
+        const stretchY = 0.42 + Math.random() * 0.74;
+        const rotation = Math.random() * Math.PI;
+        const gradient = paint.createRadialGradient(0, 0, 0, 0, 0, radius);
         gradient.addColorStop(0, color);
-        gradient.addColorStop(0.5, color);
+        gradient.addColorStop(0.36, color);
+        gradient.addColorStop(0.72, color);
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
+        paint.save();
+        paint.translate(x, y);
+        paint.rotate(rotation);
+        paint.scale(stretchX, stretchY);
+        paint.fillStyle = gradient;
+        paint.beginPath();
+        paint.arc(0, 0, radius, 0, Math.PI * 2);
+        paint.fill();
+        paint.restore();
     }
 
-    ctx.lineCap = 'round';
-    for (let i = 0; i < 16; i++) {
+    paint.lineCap = 'round';
+    paint.lineJoin = 'round';
+    for (let i = 0; i < 22; i++) {
         const color = colors[Math.floor(Math.random() * colors.length)];
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 26 + Math.random() * 74;
-        ctx.beginPath();
-        ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
-        ctx.bezierCurveTo(
+        paint.strokeStyle = color;
+        paint.lineWidth = 20 + Math.random() * 54;
+        paint.beginPath();
+        paint.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+        paint.bezierCurveTo(
             Math.random() * canvas.width,
             Math.random() * canvas.height,
             Math.random() * canvas.width,
@@ -318,8 +427,31 @@ export function createNebulaTexture(palette = []) {
             Math.random() * canvas.width,
             Math.random() * canvas.height
         );
-        ctx.stroke();
+        paint.stroke();
     }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(paintCanvas, 0, 0);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const edgeScale = Math.min(canvas.width, canvas.height);
+    for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+            const index = (y * canvas.width + x) * 4 + 3;
+            const edgeDistance = Math.min(x, canvas.width - 1 - x, y, canvas.height - 1 - y) / edgeScale;
+            const edgeFade = smoothstep(0.0, 0.19, edgeDistance);
+            const rx = (x - centerX) / centerX;
+            const ry = (y - centerY) / centerY;
+            const radialDistance = Math.sqrt(rx * rx + ry * ry);
+            const radialFade = 1 - smoothstep(0.7, 1.0, radialDistance);
+
+            data[index] = Math.round(data[index] * edgeFade * radialFade);
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.ClampToEdgeWrapping;

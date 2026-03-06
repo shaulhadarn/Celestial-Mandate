@@ -9,8 +9,9 @@ import {
 /**
  * Constructs the core planetary body, cloud layer, atmosphere shader, and glow sprites.
  */
-export function createSplashPlanetGroup(scene, renderer, glowTex, isMobile) {
+export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile) {
     const segments = isMobile ? 40 : 72;
+    const { softGlowTex } = haloTextures;
 
     const planetTex = createProceduralPlanetTexture();
     planetTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -141,21 +142,21 @@ export function createSplashPlanetGroup(scene, renderer, glowTex, isMobile) {
             uniform vec3 colorNight;
             varying vec3 vWorldNormal;
             varying vec3 vViewDir;
-            void main() {
-                vec3 normal = normalize(vWorldNormal);
-                vec3 viewDir = normalize(vViewDir);
-                vec3 lightDir = normalize(uLightDirection);
-                float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.8);
-                float sunFacing = max(dot(normal, lightDir), 0.0);
-                float twilight = smoothstep(0.0, 0.22, sunFacing) * (1.0 - smoothstep(0.22, 0.6, sunFacing));
-                float nightRim = pow(max(dot(normal, -lightDir), 0.0), 1.6) * fresnel;
-                float pulse = 0.94 + 0.06 * sin(uTime * 0.45);
-                vec3 finalColor = mix(colorNight, colorTwilight, twilight);
-                finalColor = mix(finalColor, colorDay, pow(sunFacing, 0.45));
-                float alpha = (fresnel * (0.28 + sunFacing * 0.9 + twilight * 1.25) + nightRim * 0.12) * uOpacity * pulse;
-                gl_FragColor = vec4(finalColor, alpha);
-            }
-        `,
+                void main() {
+                    vec3 normal = normalize(vWorldNormal);
+                    vec3 viewDir = normalize(vViewDir);
+                    vec3 lightDir = normalize(uLightDirection);
+                    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.05);
+                    float sunFacing = max(dot(normal, lightDir), 0.0);
+                    float twilight = smoothstep(0.0, 0.22, sunFacing) * (1.0 - smoothstep(0.22, 0.6, sunFacing));
+                    float nightRim = pow(max(dot(normal, -lightDir), 0.0), 1.6) * fresnel;
+                    float pulse = 0.94 + 0.06 * sin(uTime * 0.45);
+                    vec3 finalColor = mix(colorNight, colorTwilight, twilight);
+                    finalColor = mix(finalColor, colorDay, pow(sunFacing, 0.45));
+                    float alpha = (fresnel * (0.14 + sunFacing * 0.56 + twilight * 0.74) + nightRim * 0.05) * uOpacity * pulse;
+                    gl_FragColor = vec4(finalColor, alpha);
+                }
+            `,
         side: THREE.BackSide,
         blending: THREE.AdditiveBlending,
         transparent: true,
@@ -165,42 +166,45 @@ export function createSplashPlanetGroup(scene, renderer, glowTex, isMobile) {
     scene.add(atmosphere);
 
     const innerGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex,
+        map: softGlowTex,
         color: 0x1ad6ff,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false
     }));
-    innerGlow.scale.set(24, 24, 1);
-    innerGlow.userData.targetOpacity = 0.52;
-    innerGlow.userData.positionOffset = new THREE.Vector3(-0.1, 0.1, -1.5);
+    innerGlow.scale.set(26, 24, 1);
+    innerGlow.userData.baseScale = new THREE.Vector2(26, 24);
+    innerGlow.userData.targetOpacity = 0.34;
+    innerGlow.userData.positionOffset = new THREE.Vector3(-0.25, 0.08, -2.8);
     scene.add(innerGlow);
 
     const coronaGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex,
+        map: softGlowTex,
         color: 0xffa55d,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false
     }));
-    coronaGlow.scale.set(28, 28, 1);
-    coronaGlow.userData.targetOpacity = 0.18;
-    coronaGlow.userData.positionOffset = new THREE.Vector3(1.5, 0.9, -8);
+    coronaGlow.scale.set(34, 31, 1);
+    coronaGlow.userData.baseScale = new THREE.Vector2(34, 31);
+    coronaGlow.userData.targetOpacity = 0.12;
+    coronaGlow.userData.positionOffset = new THREE.Vector3(1.95, 0.72, -9.5);
     scene.add(coronaGlow);
 
     const outerGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex,
+        map: softGlowTex,
         color: 0x224dff,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false
     }));
-    outerGlow.scale.set(48, 48, 1);
-    outerGlow.userData.targetOpacity = 0.24;
-    outerGlow.userData.positionOffset = new THREE.Vector3(0.2, 0.05, -16);
+    outerGlow.scale.set(62, 60, 1);
+    outerGlow.userData.baseScale = new THREE.Vector2(62, 60);
+    outerGlow.userData.targetOpacity = 0.1;
+    outerGlow.userData.positionOffset = new THREE.Vector3(0.08, 0.04, -22);
     scene.add(outerGlow);
 
     return { planet, clouds, cityLights, atmosphere, innerGlow, coronaGlow, outerGlow };
