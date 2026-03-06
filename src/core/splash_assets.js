@@ -196,6 +196,64 @@ export function createProceduralCloudTexture() {
     return tex;
 }
 
+export function createProceduralCityLightsTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'lighter';
+
+    const drawCluster = (x, y, radius, color) => {
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(0.35, color);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    };
+
+    const clusterCount = 260;
+    for (let i = 0; i < clusterCount; i++) {
+        const x = Math.random() * canvas.width;
+        const latitudeBias = (Math.random() * 0.56 + 0.22) * canvas.height;
+        const y = latitudeBias + (Math.random() - 0.5) * 90;
+        const radius = 4 + Math.random() * 20;
+        const isCool = Math.random() > 0.7;
+        const color = isCool
+            ? `rgba(110, ${200 + Math.random() * 30}, 255, ${0.18 + Math.random() * 0.18})`
+            : `rgba(255, ${170 + Math.random() * 55}, ${95 + Math.random() * 40}, ${0.22 + Math.random() * 0.22})`;
+
+        drawCluster(x, y, radius, color);
+        drawCluster(x - canvas.width, y, radius, color);
+        drawCluster(x + canvas.width, y, radius, color);
+    }
+
+    for (let i = 0; i < 1800; i++) {
+        const x = Math.random() * canvas.width;
+        const y = (Math.random() * 0.64 + 0.18) * canvas.height;
+        const alpha = 0.12 + Math.random() * 0.35;
+        const size = Math.random() > 0.82 ? 2 : 1;
+        const fill = Math.random() > 0.76
+            ? `rgba(140, 220, 255, ${alpha * 0.9})`
+            : `rgba(255, ${190 + Math.random() * 40}, ${120 + Math.random() * 40}, ${alpha})`;
+
+        ctx.fillStyle = fill;
+        ctx.fillRect(x, y, size, size);
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return tex;
+}
+
 export function createGlowTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
@@ -210,6 +268,65 @@ export function createGlowTexture() {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 128, 128);
     return new THREE.CanvasTexture(canvas);
+}
+
+export function createNebulaTexture(palette = []) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+
+    const colors = palette.length
+        ? palette
+        : [
+            'rgba(0, 242, 255, 0.24)',
+            'rgba(42, 98, 255, 0.16)',
+            'rgba(255, 162, 110, 0.12)'
+        ];
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'screen';
+
+    for (let i = 0; i < 36; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const radius = 80 + Math.random() * 210;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(0.5, color);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 16; i++) {
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 26 + Math.random() * 74;
+        ctx.beginPath();
+        ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+        ctx.bezierCurveTo(
+            Math.random() * canvas.width,
+            Math.random() * canvas.height,
+            Math.random() * canvas.width,
+            Math.random() * canvas.height,
+            Math.random() * canvas.width,
+            Math.random() * canvas.height
+        );
+        ctx.stroke();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    return tex;
 }
 
 export function createProceduralMoonTexture() {

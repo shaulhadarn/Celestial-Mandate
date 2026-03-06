@@ -1,6 +1,12 @@
-/* Updated: Organized app hierarchy, moved to src/visuals folder, fixed imports and paths */
+/* Updated: Premium moon shading and orbital dressing for the splash scene */
 import * as THREE from 'three';
 import { createProceduralMoonTexture } from '../core/splash_assets.js';
+
+function getPlanetAnchor() {
+    return window.innerWidth > 768
+        ? { x: 4.5, y: 0.15 }
+        : { x: 0, y: 3.25 };
+}
 
 /**
  * Creates the moon and its associated glow sprites and atmosphere rim.
@@ -8,70 +14,108 @@ import { createProceduralMoonTexture } from '../core/splash_assets.js';
 export function createSplashMoon(scene, glowTex) {
     const moonGeo = new THREE.SphereGeometry(1.2, 48, 48);
     const moonTex = createProceduralMoonTexture();
-    const moonMat = new THREE.MeshBasicMaterial({ 
+    moonTex.colorSpace = THREE.SRGBColorSpace;
+
+    const moonMat = new THREE.MeshStandardMaterial({
         map: moonTex,
+        color: 0xd8dee8,
+        roughness: 0.96,
+        metalness: 0.02,
+        emissive: new THREE.Color(0x101722),
+        emissiveIntensity: 0.14,
         transparent: true,
         opacity: 0
     });
     const moon = new THREE.Mesh(moonGeo, moonMat);
-    moon.position.set(9, 2, 0);
+    moon.position.set(9.8, 2.3, 0);
     scene.add(moon);
-    
-    const moonGlowInner = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x88ccff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending }));
-    moonGlowInner.scale.set(4, 4, 1);
-    moonGlowInner.userData.targetOpacity = 0.4;
+
+    const moonGlowInner = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex,
+        color: 0x9fd2ff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    }));
+    moonGlowInner.scale.set(4.5, 4.5, 1);
+    moonGlowInner.userData.targetOpacity = 0.26;
     moon.add(moonGlowInner);
 
-    const moonGlowOuter = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x4488ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending }));
-    moonGlowOuter.scale.set(8, 8, 1);
-    moonGlowOuter.userData.targetOpacity = 0.2;
+    const moonGlowOuter = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex,
+        color: 0x4b7fff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    }));
+    moonGlowOuter.scale.set(9.5, 9.5, 1);
+    moonGlowOuter.userData.targetOpacity = 0.13;
     moon.add(moonGlowOuter);
 
-    const moonRim = new THREE.Mesh(new THREE.SphereGeometry(1.25, 32, 32), new THREE.ShaderMaterial({
-        uniforms: { uOpacity: { value: 0.0 } },
-        vertexShader: `
-            varying vec3 vNormal;
-            varying vec3 vPosition;
-            void main() {
-                vNormal = normalize(normalMatrix * normal);
-                vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-        `,
-        fragmentShader: `
-            uniform float uOpacity;
-            varying vec3 vNormal;
-            varying vec3 vPosition;
-            void main() {
-                vec3 viewDir = normalize(-vPosition);
-                float intensity = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.0);
-                gl_FragColor = vec4(0.5, 0.7, 1.0, intensity * 0.4 * uOpacity);
-            }
-        `,
-        transparent: true, blending: THREE.AdditiveBlending, side: THREE.FrontSide
-    }));
+    const moonRim = new THREE.Mesh(
+        new THREE.SphereGeometry(1.28, 32, 32),
+        new THREE.ShaderMaterial({
+            uniforms: { uOpacity: { value: 0.0 } },
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float uOpacity;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                void main() {
+                    vec3 viewDir = normalize(-vPosition);
+                    float intensity = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.6);
+                    gl_FragColor = vec4(0.56, 0.73, 1.0, intensity * 0.32 * uOpacity);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            side: THREE.FrontSide,
+            depthWrite: false
+        })
+    );
     moon.add(moonRim);
 
     return { moon, moonGlowInner, moonGlowOuter, moonRim };
 }
 
 /**
- * Generates the high-detail satellite models that orbit the splash planet.
+ * Generates the satellite models that orbit the splash planet.
  */
 export function createSplashSatellites(scene, trailTexture) {
     const satellites = [];
     const satColors = [0x00f2ff, 0xffaa00];
+
     for (let i = 0; i < 2; i++) {
         const satGroup = new THREE.Group();
-        
-        const goldFoilMat = new THREE.MeshStandardMaterial({ 
-            color: 0xffd700, metalness: 1.0, roughness: 0.2, emissive: 0x442200, emissiveIntensity: 0.2
+
+        const goldFoilMat = new THREE.MeshStandardMaterial({
+            color: 0xffd58a,
+            metalness: 0.95,
+            roughness: 0.22,
+            emissive: 0x4a2606,
+            emissiveIntensity: 0.14
         });
-        const panelMat = new THREE.MeshStandardMaterial({ 
-            color: 0x001133, metalness: 0.9, roughness: 0.1, emissive: 0x0022ff, emissiveIntensity: 0.1
+        const panelMat = new THREE.MeshStandardMaterial({
+            color: 0x08152e,
+            metalness: 0.86,
+            roughness: 0.14,
+            emissive: 0x0a2a4a,
+            emissiveIntensity: 0.18
         });
-        const metalMat = new THREE.MeshStandardMaterial({ 
-            color: 0xaaaaaa, metalness: 1.0, roughness: 0.1 
+        const metalMat = new THREE.MeshStandardMaterial({
+            color: 0xb9c4d2,
+            metalness: 0.9,
+            roughness: 0.18
         });
 
         const satBody = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.25), goldFoilMat);
@@ -113,21 +157,31 @@ export function createSplashSatellites(scene, trailTexture) {
         navLight.position.set(0, 0.08, 0.08);
         satGroup.add(navLight);
 
-        const lightGlow = new THREE.Sprite(new THREE.SpriteMaterial({ 
-            map: trailTexture, color: satColors[i], transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending 
+        const lightGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: trailTexture,
+            color: satColors[i],
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
         }));
-        lightGlow.scale.set(0.2, 0.2, 1);
+        lightGlow.scale.set(0.26, 0.26, 1);
         navLight.add(lightGlow);
 
         satGroup.userData = {
-            orbitRadius: 6.8 + i * 1.3, orbitSpeed: 0.25 + i * 0.15,
-            orbitOffset: i * Math.PI * 1.2, inclination: (i === 0 ? 0.25 : -0.35),
-            light: navLight, lightGlow: lightGlow, lightColor: satColors[i]
+            orbitRadius: 6.8 + i * 1.3,
+            orbitSpeed: 0.25 + i * 0.15,
+            orbitOffset: i * Math.PI * 1.2,
+            inclination: i === 0 ? 0.25 : -0.35,
+            light: navLight,
+            lightGlow,
+            lightColor: satColors[i]
         };
 
         scene.add(satGroup);
         satellites.push(satGroup);
     }
+
     return satellites;
 }
 
@@ -136,30 +190,38 @@ export function createSplashSatellites(scene, trailTexture) {
  */
 export function updateMoon(moon, currentTime, dt) {
     if (!moon) return;
+
+    const anchor = getPlanetAnchor();
     const orbitSpeed = 0.15;
-    const orbitRadius = 9;
+    const orbitRadius = 9.4;
     const angle = currentTime * 0.0001 * orbitSpeed;
-    moon.position.x = (window.innerWidth > 768 ? 4 : 0) + Math.cos(angle) * orbitRadius;
-    moon.position.y = 2 + Math.sin(angle) * 2;
-    moon.position.z = Math.sin(angle) * orbitRadius * 0.5;
+
+    moon.position.x = anchor.x + Math.cos(angle) * orbitRadius;
+    moon.position.y = anchor.y + 2.1 + Math.sin(angle) * 1.9;
+    moon.position.z = Math.sin(angle) * orbitRadius * 0.55;
     moon.rotation.y += 0.01 * dt;
 }
 
 /**
- * Updates the satellite orbital positions and nav-light blinking.
+ * Updates the satellite orbital positions and nav light blinking.
  */
 export function updateSatellites(satellites, currentTime) {
+    const anchor = getPlanetAnchor();
+
     satellites.forEach((sat) => {
         const ud = sat.userData;
         const timeVal = currentTime * 0.001;
         const angle = timeVal * ud.orbitSpeed + ud.orbitOffset;
-        const px = (window.innerWidth > 768 ? 4 : 0);
-        sat.position.x = px + Math.cos(angle) * ud.orbitRadius;
-        sat.position.y = Math.sin(angle) * ud.orbitRadius * Math.sin(ud.inclination);
+
+        sat.position.x = anchor.x + Math.cos(angle) * ud.orbitRadius;
+        sat.position.y = anchor.y + Math.sin(angle) * ud.orbitRadius * Math.sin(ud.inclination);
         sat.position.z = Math.sin(angle) * ud.orbitRadius * Math.cos(ud.inclination);
-        sat.lookAt(px, 0, 0);
+        sat.lookAt(anchor.x, anchor.y, 0);
+
         if (ud.light) {
-            ud.light.material.color.setHex((Math.floor(currentTime / 500) % 2 === 0) ? ud.lightColor : 0x000000);
+            const lightOn = Math.floor(currentTime / 500) % 2 === 0;
+            ud.light.material.color.setHex(lightOn ? ud.lightColor : 0x000000);
+            ud.lightGlow.material.opacity = lightOn ? 0.72 : 0.08;
         }
     });
 }

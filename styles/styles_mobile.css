@@ -657,6 +657,23 @@
         z-index: 2010;
     }
 
+    #splash-screen::before {
+        opacity: 0.78;
+    }
+
+    #splash-screen .splash-bg::before {
+        opacity: 0.5;
+        filter: blur(46px);
+    }
+
+    #splash-screen .splash-bg::after {
+        opacity: 0.18;
+    }
+
+    #splash-screen #splash-planet-container::after {
+        opacity: 0.48;
+    }
+
     #splash-screen .game-logo {
         font-size: 12vw;
         letter-spacing: 4px;

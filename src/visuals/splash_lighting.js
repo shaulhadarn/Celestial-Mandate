@@ -1,32 +1,28 @@
-/* Updated: Enhanced high-contrast sci-fi lighting for splash screen */
+/* Updated: Cinematic splash lighting tuned for premium planetary presentation */
 import * as THREE from 'three';
 
 /**
- * Sets up the complex directional and ambient lighting for the splash screen.
+ * Sets up the lighting rig for the splash screen and returns the light handles.
  */
-export function setupSplashLighting(scene) {
-    // 1. Main Sun Light (Key Light) - Stronger, sharper
-    const sunLight = new THREE.DirectionalLight(0xfff5e6, 3.5);
-    sunLight.position.set(10, 5, 10);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
-    sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 50;
-    sunLight.shadow.bias = -0.0005;
+export function setupSplashLighting(scene, compactScene = false) {
+    const sunLight = new THREE.DirectionalLight(0xfff0dc, compactScene ? 3.6 : 4.3);
+    sunLight.position.set(18, 8, 14);
     scene.add(sunLight);
 
-    // 2. Ambient Fill Light - Deep space blue
-    const ambientLight = new THREE.AmbientLight(0x0a1526, 0.4);
+    const ambientLight = new THREE.HemisphereLight(0x4fb8ff, 0x03060d, compactScene ? 0.52 : 0.65);
     scene.add(ambientLight);
 
-    // 3. Rim Light (Backlight) - Creates a glowing edge on the dark side of the planet
-    const rimLight = new THREE.DirectionalLight(0x0088ff, 1.5);
-    rimLight.position.set(-15, -5, -15);
+    const rimLight = new THREE.DirectionalLight(0x27c2ff, compactScene ? 1.0 : 1.4);
+    rimLight.position.set(-16, -5, -18);
     scene.add(rimLight);
 
-    // 4. Fill Light - Soft blue/cyan fill from nebula
-    const fillLight = new THREE.PointLight(0x00f2ff, 0.8, 50);
-    fillLight.position.set(5, -5, 5);
+    const fillLight = new THREE.PointLight(0x00e5ff, compactScene ? 0.75 : 1.05, 55);
+    fillLight.position.set(4, -6, 8);
     scene.add(fillLight);
+
+    const warmBounce = new THREE.PointLight(0xff9051, compactScene ? 0.32 : 0.46, 80);
+    warmBounce.position.set(15, -1, -10);
+    scene.add(warmBounce);
+
+    return { sunLight, ambientLight, rimLight, fillLight, warmBounce };
 }

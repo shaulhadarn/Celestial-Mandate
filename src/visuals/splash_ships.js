@@ -198,15 +198,22 @@ export function resetShip(ship, ships, initial = false) {
     if (isMobile) {
         ship.position.y = 4 + (Math.random() - 0.5) * 4;
     }
-    
+
+    const baseY = ship.position.y;
+    const baseZ = ship.position.z;
+    const baseRotX = (Math.random() - 0.5) * 0.18;
+
     ship.userData = {
         ...ship.userData,
         speed: 2.5 + Math.random() * 1.5, 
         offset: Math.random() * 100,
         rotSpeed: (Math.random() - 0.5) * 0.5,
         lastTrailSpawn: performance.now(),
-        trailAnchors: ship.userData.trailAnchors 
+        trailAnchors: ship.userData.trailAnchors,
+        baseY,
+        baseZ,
+        baseRotX
     };
 
-    ship.rotation.x = (Math.random() - 0.5) * 0.5;
+    ship.rotation.x = baseRotX;
 }

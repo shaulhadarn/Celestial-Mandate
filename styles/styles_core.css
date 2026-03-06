@@ -68,8 +68,19 @@ body, html {
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    background: #000;
+    background:
+        radial-gradient(circle at 50% 22%, rgba(11, 28, 44, 0.42) 0%, rgba(0, 0, 0, 0) 28%),
+        #000;
     transition: opacity 1s ease;
+}
+
+#splash-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.54) 100%);
+    z-index: 2001;
+    pointer-events: none;
 }
 
 #splash-planet-container {
@@ -84,31 +95,83 @@ body, html {
     animation: splashPlanetIn 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.3s both;
 }
 
+#splash-planet-container::after {
+    content: '';
+    position: absolute;
+    inset: -5%;
+    background:
+        radial-gradient(circle at 78% 24%, rgba(255, 196, 136, 0.26) 0%, rgba(255, 196, 136, 0.12) 10%, rgba(0, 0, 0, 0) 30%),
+        radial-gradient(circle at 65% 28%, rgba(0, 242, 255, 0.12) 0%, rgba(0, 242, 255, 0) 24%);
+    mix-blend-mode: screen;
+    opacity: 0.72;
+    animation: splashSolarBloom 12s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
 @keyframes splashPlanetIn {
     0%   { opacity: 0; transform: scale(1.08); }
-    100% { opacity: 0.8; transform: scale(1); }
+    100% { opacity: 0.86; transform: scale(1); }
 }
 
 .splash-bg {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: radial-gradient(circle at center, #1a2a3a 0%, #020408 100%);
+    background: radial-gradient(circle at 50% 44%, #0b1624 0%, #020408 62%, #000 100%);
     background-image: 
         radial-gradient(1px 1px at 20px 30px, #eee, rgba(0,0,0,0)),
         radial-gradient(1px 1px at 40px 70px, #fff, rgba(0,0,0,0)),
         radial-gradient(2px 2px at 50px 160px, #ddd, rgba(0,0,0,0)),
         radial-gradient(2px 2px at 90px 40px, #fff, rgba(0,0,0,0)),
-        radial-gradient(1px 1px at 130px 80px, #fff, rgba(0,0,0,0));
-    background-repeat: repeat;
-    background-size: 200px 200px;
-    opacity: 0.5;
-    animation: backgroundShift 100s linear infinite;
+        radial-gradient(1px 1px at 130px 80px, #fff, rgba(0,0,0,0)),
+        linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.22) 100%);
+    background-repeat: repeat, repeat, repeat, repeat, repeat, no-repeat;
+    background-size: 220px 220px, 220px 220px, 220px 220px, 220px 220px, 220px 220px, 100% 100%;
+    opacity: 0.72;
+    animation: backgroundShift 120s linear infinite;
+    overflow: hidden;
     z-index: 2001; /* Ensure stars are behind UI but potentially visible */
+}
+
+.splash-bg::before {
+    content: '';
+    position: absolute;
+    inset: -12%;
+    background:
+        radial-gradient(circle at 18% 28%, rgba(0, 242, 255, 0.22) 0%, rgba(0, 242, 255, 0.04) 22%, rgba(0, 0, 0, 0) 38%),
+        radial-gradient(circle at 82% 22%, rgba(255, 170, 0, 0.18) 0%, rgba(255, 170, 0, 0.04) 18%, rgba(0, 0, 0, 0) 34%),
+        radial-gradient(circle at 68% 74%, rgba(70, 116, 255, 0.24) 0%, rgba(70, 116, 255, 0.05) 24%, rgba(0, 0, 0, 0) 40%);
+    filter: blur(34px);
+    opacity: 0.74;
+    mix-blend-mode: screen;
+    animation: splashNebulaShift 24s ease-in-out infinite alternate;
+}
+
+.splash-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(112deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 26%, rgba(0,242,255,0.04) 54%, rgba(255,255,255,0) 78%),
+        linear-gradient(180deg, rgba(255,255,255,0.015) 0%, rgba(255,255,255,0) 40%, rgba(0,0,0,0.12) 100%);
+    background-repeat: no-repeat;
+    opacity: 0.28;
+    mix-blend-mode: screen;
+    animation: backgroundShift 180s linear infinite reverse;
 }
 
 @keyframes backgroundShift {
     from { background-position: 0 0; }
     to { background-position: 1000px 500px; }
+}
+
+@keyframes splashNebulaShift {
+    0%   { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+    100% { transform: translate3d(1.5%, 1%, 0) scale(1.04); }
+}
+
+@keyframes splashSolarBloom {
+    0%   { opacity: 0.56; transform: scale(0.98); }
+    100% { opacity: 0.82; transform: scale(1.04); }
 }
 
 .splash-content {
