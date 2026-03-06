@@ -386,18 +386,19 @@ export function createNebulaTexture(palette = []) {
     paint.clearRect(0, 0, canvas.width, canvas.height);
     paint.globalCompositeOperation = 'screen';
 
-    for (let i = 0; i < 52; i++) {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-        const radius = 70 + Math.random() * 190;
+    // Large diffuse base clouds — very soft, wide coverage
+    for (let i = 0; i < 18; i++) {
+        const x = canvas.width * 0.15 + Math.random() * canvas.width * 0.7;
+        const y = canvas.height * 0.15 + Math.random() * canvas.height * 0.7;
+        const radius = 180 + Math.random() * 260;
         const color = colors[Math.floor(Math.random() * colors.length)];
-        const stretchX = 1.05 + Math.random() * 1.1;
-        const stretchY = 0.42 + Math.random() * 0.74;
+        const stretchX = 1.2 + Math.random() * 1.4;
+        const stretchY = 0.5 + Math.random() * 0.8;
         const rotation = Math.random() * Math.PI;
         const gradient = paint.createRadialGradient(0, 0, 0, 0, 0, radius);
         gradient.addColorStop(0, color);
-        gradient.addColorStop(0.36, color);
-        gradient.addColorStop(0.72, color);
+        gradient.addColorStop(0.25, color);
+        gradient.addColorStop(0.55, color.replace(/[\d.]+\)$/, m => (parseFloat(m) * 0.5).toFixed(2) + ')'));
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
         paint.save();
@@ -411,27 +412,82 @@ export function createNebulaTexture(palette = []) {
         paint.restore();
     }
 
-    paint.lineCap = 'round';
-    paint.lineJoin = 'round';
-    for (let i = 0; i < 22; i++) {
+    // Medium detail clusters — add nebula structure
+    for (let i = 0; i < 36; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const radius = 80 + Math.random() * 160;
         const color = colors[Math.floor(Math.random() * colors.length)];
-        paint.strokeStyle = color;
-        paint.lineWidth = 20 + Math.random() * 54;
+        const stretchX = 1.0 + Math.random() * 1.2;
+        const stretchY = 0.4 + Math.random() * 0.7;
+        const rotation = Math.random() * Math.PI;
+        const gradient = paint.createRadialGradient(0, 0, 0, 0, 0, radius);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(0.4, color);
+        gradient.addColorStop(0.7, color.replace(/[\d.]+\)$/, m => (parseFloat(m) * 0.35).toFixed(2) + ')'));
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        paint.save();
+        paint.translate(x, y);
+        paint.rotate(rotation);
+        paint.scale(stretchX, stretchY);
+        paint.fillStyle = gradient;
         paint.beginPath();
-        paint.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
-        paint.bezierCurveTo(
-            Math.random() * canvas.width,
-            Math.random() * canvas.height,
-            Math.random() * canvas.width,
-            Math.random() * canvas.height,
-            Math.random() * canvas.width,
-            Math.random() * canvas.height
-        );
-        paint.stroke();
+        paint.arc(0, 0, radius, 0, Math.PI * 2);
+        paint.fill();
+        paint.restore();
     }
 
+    // Small bright wisps — fine detail without hard edges
+    for (let i = 0; i < 24; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const radius = 40 + Math.random() * 90;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const stretchX = 1.5 + Math.random() * 2.0;
+        const stretchY = 0.25 + Math.random() * 0.35;
+        const rotation = Math.random() * Math.PI;
+        const gradient = paint.createRadialGradient(0, 0, 0, 0, 0, radius);
+        gradient.addColorStop(0, color);
+        gradient.addColorStop(0.3, color.replace(/[\d.]+\)$/, m => (parseFloat(m) * 0.6).toFixed(2) + ')'));
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        paint.save();
+        paint.translate(x, y);
+        paint.rotate(rotation);
+        paint.scale(stretchX, stretchY);
+        paint.fillStyle = gradient;
+        paint.beginPath();
+        paint.arc(0, 0, radius, 0, Math.PI * 2);
+        paint.fill();
+        paint.restore();
+    }
+
+    // Blur pass — stack-blur via downscale/upscale for seamless softness
+    const blurCanvas = document.createElement('canvas');
+    const blurSize = 256;
+    blurCanvas.width = blurSize;
+    blurCanvas.height = blurSize;
+    const blurCtx = blurCanvas.getContext('2d');
+    blurCtx.drawImage(paintCanvas, 0, 0, blurSize, blurSize);
+
+    const midCanvas = document.createElement('canvas');
+    midCanvas.width = 512;
+    midCanvas.height = 512;
+    const midCtx = midCanvas.getContext('2d');
+    midCtx.drawImage(blurCanvas, 0, 0, 512, 512);
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Layer 1: heavily blurred base (downscaled then upscaled)
+    ctx.globalAlpha = 0.7;
+    ctx.drawImage(blurCanvas, 0, 0, canvas.width, canvas.height);
+    // Layer 2: medium blur for mid-detail
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(midCanvas, 0, 0, canvas.width, canvas.height);
+    // Layer 3: original detail on top at reduced opacity
+    ctx.globalAlpha = 0.35;
     ctx.drawImage(paintCanvas, 0, 0);
+    ctx.globalAlpha = 1.0;
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
@@ -442,11 +498,11 @@ export function createNebulaTexture(palette = []) {
         for (let x = 0; x < canvas.width; x++) {
             const index = (y * canvas.width + x) * 4 + 3;
             const edgeDistance = Math.min(x, canvas.width - 1 - x, y, canvas.height - 1 - y) / edgeScale;
-            const edgeFade = smoothstep(0.0, 0.19, edgeDistance);
+            const edgeFade = smoothstep(0.0, 0.25, edgeDistance);
             const rx = (x - centerX) / centerX;
             const ry = (y - centerY) / centerY;
             const radialDistance = Math.sqrt(rx * rx + ry * ry);
-            const radialFade = 1 - smoothstep(0.7, 1.0, radialDistance);
+            const radialFade = 1 - smoothstep(0.6, 1.0, radialDistance);
 
             data[index] = Math.round(data[index] * edgeFade * radialFade);
         }
