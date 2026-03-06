@@ -499,22 +499,46 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
       });
       const pMesh = new THREE.Mesh(pGeo, pMat);
 
-      // Atmosphere rim
-      if (
-        p.type === "Terran" ||
-        p.type === "Continental" ||
-        p.type === "Ocean" ||
-        p.type === "Gas Giant"
-      ) {
-        const atmoGeo = new THREE.SphereGeometry(size * 1.05, 16, 16);
+      // Atmosphere rim — all planet types get a glow
+      {
+        const atmoColors = {
+          'Terran': 0x55aaff, 'Continental': 0x55aaff, 'Ocean': 0x4488ff,
+          'Gas Giant': 0xffaa55, 'Molten': 0xff4400, 'Lava': 0xff4400,
+          'Desert': 0xddaa44, 'Arid': 0xddaa44,
+          'Ice': 0x88ccff, 'Arctic': 0x88ccff, 'Frozen': 0x88ccff,
+          'Tomb': 0x44ff88, 'Toxic': 0x44ff44,
+          'Barren': 0x887766, 'Rocky': 0x887766,
+        };
+        const atmoColor = atmoColors[p.type] || 0x887766;
+        const hasThickAtmo = ['Terran','Continental','Ocean','Gas Giant'].includes(p.type);
+        const atmoScale = hasThickAtmo ? 1.05 : 1.04;
+        const atmoOpacity = hasThickAtmo
+          ? (isMobileDevice ? 0.2 : 0.3)
+          : (isMobileDevice ? 0.15 : 0.2);
+
+        const atmoGeo = new THREE.SphereGeometry(size * atmoScale, 16, 16);
         const atmoMat = new THREE.MeshBasicMaterial({
-          color: p.type === "Gas Giant" ? 0xffaa55 : 0x55aaff,
+          color: atmoColor,
           transparent: true,
-          opacity: isMobileDevice ? 0.2 : 0.3,
+          opacity: atmoOpacity,
           blending: THREE.AdditiveBlending,
           side: THREE.BackSide,
         });
         pMesh.add(new THREE.Mesh(atmoGeo, atmoMat));
+
+        // Outer glow sprite for all planets
+        const glowSprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({
+            map: textures.glow,
+            color: atmoColor,
+            transparent: true,
+            opacity: hasThickAtmo ? 0.3 : 0.2,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          })
+        );
+        glowSprite.scale.set(size * 3.5, size * 3.5, 1);
+        pMesh.add(glowSprite);
       }
 
       // Colony aura
