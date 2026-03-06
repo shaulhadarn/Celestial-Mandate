@@ -513,8 +513,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
         const hasThickAtmo = ['Terran','Continental','Ocean','Gas Giant'].includes(p.type);
         const atmoScale = hasThickAtmo ? 1.05 : 1.04;
         const atmoOpacity = hasThickAtmo
-          ? (isMobileDevice ? 0.2 : 0.3)
-          : (isMobileDevice ? 0.15 : 0.2);
+          ? (isMobileDevice ? 0.3 : 0.35)
+          : (isMobileDevice ? 0.2 : 0.25);
 
         const atmoGeo = new THREE.SphereGeometry(size * atmoScale, 16, 16);
         const atmoMat = new THREE.MeshBasicMaterial({
@@ -526,19 +526,33 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
         });
         pMesh.add(new THREE.Mesh(atmoGeo, atmoMat));
 
-        // Outer glow sprite for all planets
+        // Outer soft glow sprite for all planets
         const glowSprite = new THREE.Sprite(
           new THREE.SpriteMaterial({
             map: textures.glow,
             color: atmoColor,
             transparent: true,
-            opacity: hasThickAtmo ? 0.3 : 0.2,
+            opacity: hasThickAtmo ? 0.45 : 0.35,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           })
         );
-        glowSprite.scale.set(size * 3.5, size * 3.5, 1);
+        glowSprite.scale.set(size * 5, size * 5, 1);
         pMesh.add(glowSprite);
+
+        // Second softer halo layer for visible glow at distance
+        const haloSprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({
+            map: textures.glowSoft || textures.glow,
+            color: atmoColor,
+            transparent: true,
+            opacity: hasThickAtmo ? 0.25 : 0.18,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          })
+        );
+        haloSprite.scale.set(size * 8, size * 8, 1);
+        pMesh.add(haloSprite);
       }
 
       // Colony aura
