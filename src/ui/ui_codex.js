@@ -4,6 +4,18 @@ import { showNotification } from './ui_notifications.js';
 
 let _selectedId = null;
 
+/* ── Civilization → race image mapping ─────────────────────────────────── */
+const CIV_IMAGES = {
+    civ_humanoid:    'assets/race_humanoid.png',
+    civ_insectoid:   'assets/race_insectoid.png',
+    civ_avian:       'assets/race_avian.png',
+    civ_fungal:      'assets/race_fungal.png',
+    civ_crystalline: 'assets/race_crystalline.png',
+    civ_aquatic:     'assets/race_aquatic.png',
+    civ_energy:      'assets/race_energy.png',
+    civ_synthetic:   'assets/race_synthetic.png',
+};
+
 /* ── Category visual config ────────────────────────────────────────────── */
 const CAT_CONFIG = {
     History: {
@@ -108,13 +120,32 @@ function _renderContent() {
     }
 
     const cfg = CAT_CONFIG[entry.category] || { color: 'var(--color-primary)', icon: '' };
+    const heroImage = CIV_IMAGES[entry.id] || null;
 
-    // Convert newlines to paragraphs
+    // Split body into paragraphs — first paragraph becomes the lead/intro
     const paragraphs = entry.body.split('\n\n').filter(p => p.trim());
-    const bodyHtml = paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
+    const leadParagraph = paragraphs.length > 0 ? paragraphs[0].trim() : '';
+    const restParagraphs = paragraphs.slice(1);
+
+    // Build body HTML with lead paragraph styled differently
+    let bodyHtml = '';
+    if (leadParagraph) {
+        bodyHtml += `<p class="codex-lead">${leadParagraph}</p>`;
+    }
+    bodyHtml += restParagraphs.map(p => `<p>${p.trim()}</p>`).join('');
+
+    // Hero image section for civilizations
+    const heroHtml = heroImage
+        ? `<div class="codex-hero">
+               <img src="${heroImage}" alt="${entry.title}" class="codex-hero-img" loading="lazy"/>
+               <div class="codex-hero-overlay"></div>
+               <div class="codex-hero-caption" style="color:${cfg.color}">${entry.title}</div>
+           </div>`
+        : '';
 
     content.innerHTML = `
         <div class="codex-article-fade" style="color:${cfg.color}">
+            ${heroHtml}
             <div class="codex-article-header">
                 <div class="codex-article-icon" style="border-color:${cfg.color}; color:${cfg.color}">
                     ${cfg.icon}
@@ -126,8 +157,14 @@ function _renderContent() {
             </div>
             <div class="codex-article-divider"></div>
             <div class="codex-article-body">${bodyHtml}</div>
+            <div class="codex-article-footer" style="border-color:${cfg.color}">
+                <span class="codex-footer-icon">${cfg.icon}</span>
+                <span>End of entry</span>
+            </div>
         </div>
     `;
+
+    content.scrollTop = 0;
 }
 
 /* ── Init ───────────────────────────────────────────────────────────────── */
