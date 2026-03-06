@@ -404,6 +404,36 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     label.position.y -= 5;
     group.add(label);
 
+    // ── Star soft glow sprites (per-system, always visible up close) ─────
+    const starColor = new THREE.Color(sys.color);
+    const starGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: textures.glow,
+        color: starColor,
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    starGlow.scale.set(12, 12, 1);
+    starGlow.position.copy(sys.position);
+    group.add(starGlow);
+
+    const starHalo = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: textures.glowSoft || textures.glow,
+        color: starColor,
+        transparent: true,
+        opacity: 0.3,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    starHalo.scale.set(20, 20, 1);
+    starHalo.position.copy(sys.position);
+    group.add(starHalo);
+
     // ── Planets ────────────────────────────────────────────────────────────
     sys.planets.forEach((p, pi) => {
       const hasColony = !!gameState.colonies[p.id];
