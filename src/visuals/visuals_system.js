@@ -304,73 +304,43 @@ export function createSystemVisuals(system, group) {
             mesh.add(new THREE.Mesh(rimGeo, rimMat));
         }
         
-        // ── Layered planet glow — multi-layer halo like galaxy stars ──
+        // ── Subtle planet glow — soft radial halo (2 layers) ──
         const glowColor = atmosphereColor !== null ? atmosphereColor : matColor;
         const planetR = p.size * 2 * scale;
 
-        // Layer 1: Wide outer halo — very soft diffuse glow
+        // Layer 1: Soft outer halo — diffuse spread
         const outerHalo = new THREE.Sprite(new THREE.SpriteMaterial({
             map: textures.glowSoft,
             color: glowColor,
             transparent: true,
-            opacity: isMobileDevice ? 0.10 : 0.14,
+            opacity: isMobileDevice ? 0.04 : 0.06,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const outerScale = planetR * (atmosphereColor !== null ? 7.5 : 6.0);
+        const outerScale = planetR * 3.8;
         outerHalo.scale.set(outerScale, outerScale, 1);
         mesh.add(outerHalo);
 
-        // Layer 2: Mid glow — colored, medium spread
-        const midGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: textures.glow,
-            color: glowColor,
-            transparent: true,
-            opacity: isMobileDevice ? 0.12 : 0.18,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        }));
-        const midScale = planetR * (atmosphereColor !== null ? 4.5 : 3.5);
-        midGlow.scale.set(midScale, midScale, 1);
-        mesh.add(midGlow);
-
-        // Layer 3: Bright core glow — tight, punchy
+        // Layer 2: Tighter core glow
         const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
             map: textures.glow,
             color: glowColor,
             transparent: true,
-            opacity: isMobileDevice ? 0.18 : 0.28,
+            opacity: isMobileDevice ? 0.06 : 0.09,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const coreScale = planetR * 2.2;
+        const coreScale = planetR * 2.0;
         coreGlow.scale.set(coreScale, coreScale, 1);
         mesh.add(coreGlow);
 
-        // Layer 4: White-hot center — pure white, very tight
-        const hotCore = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: textures.glow,
-            color: 0xffffff,
-            transparent: true,
-            opacity: isMobileDevice ? 0.06 : 0.10,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        }));
-        const hotScale = planetR * 1.4;
-        hotCore.scale.set(hotScale, hotScale, 1);
-        mesh.add(hotCore);
-
         // Store base opacities for animation pulsing
         outerHalo.material.userData_baseOp = outerHalo.material.opacity;
-        midGlow.material.userData_baseOp = midGlow.material.opacity;
         coreGlow.material.userData_baseOp = coreGlow.material.opacity;
-        hotCore.material.userData_baseOp = hotCore.material.opacity;
-
-        // Store glow refs for animation
-        mesh.userData.glowLayers = { outerHalo, midGlow, coreGlow, hotCore };
 
         mesh.position.set(Math.cos(p.angle) * p.distance, 0, Math.sin(p.angle) * p.distance);
         mesh.userData = { id: p.id, data: p };
+        mesh.userData.glowLayers = { outerHalo, coreGlow };
         
         group.add(mesh);
         planetMeshes.push(mesh);
@@ -583,12 +553,10 @@ export function updateSystemAnimations(time) {
         const gl = mesh.userData.glowLayers;
         if (gl) {
             const phase = idx * 1.3;
-            const pulse = 0.92 + 0.08 * Math.sin(time * 0.7 + phase);
-            const slowPulse = 0.95 + 0.05 * Math.sin(time * 0.35 + phase);
+            const slowPulse = 0.93 + 0.07 * Math.sin(time * 0.35 + phase);
+            const pulse = 0.90 + 0.10 * Math.sin(time * 0.8 + phase);
             gl.outerHalo.material.opacity = gl.outerHalo.material.userData_baseOp * slowPulse;
-            gl.midGlow.material.opacity = gl.midGlow.material.userData_baseOp * pulse;
-            gl.coreGlow.material.opacity = gl.coreGlow.material.userData_baseOp * (0.9 + 0.1 * Math.sin(time * 1.1 + phase));
-            gl.hotCore.material.opacity = gl.hotCore.material.userData_baseOp * (0.85 + 0.15 * Math.sin(time * 1.5 + phase));
+            gl.coreGlow.material.opacity = gl.coreGlow.material.userData_baseOp * pulse;
         }
     });
 
