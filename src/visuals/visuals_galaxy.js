@@ -258,50 +258,26 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   starInstancedMesh.instanceMatrix.needsUpdate = true;
   group.add(starInstancedMesh);
 
-  // ── C. Instanced corona shells ────────────────────────────────────────────
-  const coronaGeo = new THREE.SphereGeometry(2.4, 32, 32);
-  const coronaColors = colors.slice(); // same colors as stars
-  const coronaMat = new THREE.ShaderMaterial({
-    vertexShader: /* glsl */ `
-      attribute vec3 instanceColor;
-      varying vec3 vCol;
-      void main() {
-        vCol = instanceColor;
-        vec4 instancePos = instanceMatrix * vec4(position, 1.0);
-        gl_Position = projectionMatrix * modelViewMatrix * instancePos;
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      varying vec3 vCol;
-      void main() {
-        gl_FragColor = vec4(vCol, 0.2);
-      }
-    `,
-    transparent: true,
-    side: THREE.BackSide,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-
-  coronaInstancedMesh = new THREE.InstancedMesh(coronaGeo, coronaMat, N);
-  coronaInstancedMesh.geometry.setAttribute(
-    "instanceColor",
-    new THREE.InstancedBufferAttribute(coronaColors, 3)
-  );
-  // Corona is slightly larger, inverted scale
-  systems.forEach((sys, i) => {
-    _euler.set(0, 0, 0);
-    _quat.setFromEuler(_euler);
-    _mat4.compose(sys.position, _quat, _scale.set(-1.05, 1.05, 1.05));
-    coronaInstancedMesh.setMatrixAt(i, _mat4);
-  });
-  coronaInstancedMesh.instanceMatrix.needsUpdate = true;
-  group.add(coronaInstancedMesh);
-
-  // ── D. Instanced billboard glow layers ────────────────────────────────────
   // Shared PlaneGeometry for all billboard quads
   const billboardGeo = new THREE.PlaneGeometry(1, 1);
 
+  // ── C. Instanced corona glow (soft sprite instead of hard shell) ──────────
+  const coronaGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.5 : 0.35, true);
+  coronaInstancedMesh = new THREE.InstancedMesh(billboardGeo, coronaGlowMat, N);
+  coronaInstancedMesh.geometry.setAttribute(
+    "instanceColor",
+    new THREE.InstancedBufferAttribute(colors.slice(), 3)
+  );
+  systems.forEach((sys, i) => {
+    const s = isMobileDevice ? 7 : 6;
+    _mat4.compose(sys.position, _quat.identity(), _scale.set(s, s, 1));
+    coronaInstancedMesh.setMatrixAt(i, _mat4);
+  });
+  coronaInstancedMesh.instanceMatrix.needsUpdate = true;
+  coronaInstancedMesh.frustumCulled = false;
+  group.add(coronaInstancedMesh);
+
+  // ── D. Instanced billboard glow layers ────────────────────────────────────
   // --- Outer halo layer ---
   const outerHaloMat = createBillboardMaterial(
     textures.glowSoft,
@@ -726,12 +702,9 @@ export function updateGalaxyAnimations(time, group) {
       _mat4.compose(_pos, _quat, _scale.set(1, 1, 1));
       starInstancedMesh.setMatrixAt(i, _mat4);
 
-      // Update corona instance matrix (counter-rotation)
-      _coronaRotYs[i] -= _rotSpeeds[i] * 0.1;
-      _coronaRotZs[i] += 0.005;
-      _euler.set(0, _coronaRotYs[i], _coronaRotZs[i]);
-      _quat.setFromEuler(_euler);
-      _mat4.compose(_pos, _quat, _scale.set(-1.05, 1.05, 1.05));
+      // Update corona glow billboard (gentle pulse)
+      const cs = (isMobileDevice ? 7 : 6) + Math.sin(time * 1.2 + _glowPulseOffsets[i]) * 0.4;
+      _mat4.compose(_pos, _quat.identity(), _scale.set(cs, cs, 1));
       coronaInstancedMesh.setMatrixAt(i, _mat4);
     }
     starInstancedMesh.instanceMatrix.needsUpdate = true;
