@@ -95,7 +95,7 @@ export function initSplashPlanet(containerId) {
     const planetGroup = createSplashPlanetGroup(
         scene,
         renderer,
-        { softGlowTex, haloRingTex },
+        { softGlowTex, haloRingTex, glowTex },
         compactScene
     );
     planet = planetGroup.planet;
@@ -175,23 +175,29 @@ export function initSplashPlanet(containerId) {
         );
         camera.lookAt(cameraTarget);
 
-        const glowPulse = 0.93 + Math.sin(timeSeconds * 0.82) * 0.07;
         planet.material.opacity = globalFade;
         if (clouds) clouds.material.opacity = globalFade * 0.42;
-        innerGlow.material.opacity = globalFade * innerGlow.userData.targetOpacity * glowPulse;
-        coronaGlow.material.opacity = globalFade * coronaGlow.userData.targetOpacity * (0.9 + Math.sin(timeSeconds * 0.53 + 1.2) * 0.12);
-        outerGlow.material.opacity = globalFade * outerGlow.userData.targetOpacity * (0.9 + Math.cos(timeSeconds * 0.37) * 0.08);
+
+        // Dynamic glow pulsing — star-like breathing effect
+        const corePulse = 0.88 + Math.sin(timeSeconds * 1.1) * 0.12;
+        const midPulse = 0.90 + Math.sin(timeSeconds * 0.65 + 1.2) * 0.10;
+        const outerPulse = 0.94 + Math.cos(timeSeconds * 0.4) * 0.06;
+
+        innerGlow.material.opacity = globalFade * innerGlow.userData.targetOpacity * corePulse;
+        coronaGlow.material.opacity = globalFade * coronaGlow.userData.targetOpacity * midPulse;
+        outerGlow.material.opacity = globalFade * outerGlow.userData.targetOpacity * outerPulse;
+
         if (innerGlow.userData.baseScale) {
-            const pulse = 0.985 + Math.sin(timeSeconds * 0.66) * 0.025;
-            innerGlow.scale.set(innerGlow.userData.baseScale.x * pulse, innerGlow.userData.baseScale.y * pulse, 1);
+            const scalePulse = 0.96 + Math.sin(timeSeconds * 0.9) * 0.04;
+            innerGlow.scale.set(innerGlow.userData.baseScale.x * scalePulse, innerGlow.userData.baseScale.y * scalePulse, 1);
         }
         if (coronaGlow.userData.baseScale) {
-            const pulse = 0.975 + Math.sin(timeSeconds * 0.48 + 1.1) * 0.035;
-            coronaGlow.scale.set(coronaGlow.userData.baseScale.x * pulse, coronaGlow.userData.baseScale.y * pulse, 1);
+            const scalePulse = 0.97 + Math.sin(timeSeconds * 0.55 + 1.1) * 0.04;
+            coronaGlow.scale.set(coronaGlow.userData.baseScale.x * scalePulse, coronaGlow.userData.baseScale.y * scalePulse, 1);
         }
         if (outerGlow.userData.baseScale) {
-            const pulse = 0.988 + Math.cos(timeSeconds * 0.34) * 0.022;
-            outerGlow.scale.set(outerGlow.userData.baseScale.x * pulse, outerGlow.userData.baseScale.y * pulse, 1);
+            const scalePulse = 0.985 + Math.cos(timeSeconds * 0.35) * 0.025;
+            outerGlow.scale.set(outerGlow.userData.baseScale.x * scalePulse, outerGlow.userData.baseScale.y * scalePulse, 1);
         }
 
         if (moon) {

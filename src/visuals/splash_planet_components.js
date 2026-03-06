@@ -11,7 +11,7 @@ import {
  */
 export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile) {
     const segments = isMobile ? 40 : 72;
-    const { softGlowTex } = haloTextures;
+    const { softGlowTex, glowTex } = haloTextures;
 
     const planetTex = createProceduralPlanetTexture();
     planetTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -165,46 +165,52 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
     scene.add(atmosphere);
 
+    // ── Layered glow system — matching galaxy star glow style ──
+    const coreTexture = glowTex || softGlowTex;
+
+    // Layer 1: Tight bright core — punchy cyan-white
     const innerGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: softGlowTex,
+        map: coreTexture,
+        color: 0x44e8ff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    }));
+    innerGlow.scale.set(16, 15, 1);
+    innerGlow.userData.baseScale = new THREE.Vector2(16, 15);
+    innerGlow.userData.targetOpacity = 0.40;
+    innerGlow.userData.positionOffset = new THREE.Vector3(0, 0, -1.5);
+    scene.add(innerGlow);
+
+    // Layer 2: Mid colored glow — warm accent, medium spread
+    const coronaGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: coreTexture,
         color: 0x1ad6ff,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false
     }));
-    innerGlow.scale.set(26, 24, 1);
-    innerGlow.userData.baseScale = new THREE.Vector2(26, 24);
-    innerGlow.userData.targetOpacity = 0.34;
-    innerGlow.userData.positionOffset = new THREE.Vector3(-0.25, 0.08, -2.8);
-    scene.add(innerGlow);
-
-    const coronaGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: softGlowTex,
-        color: 0xffa55d,
-        transparent: true,
-        opacity: 0,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-    }));
-    coronaGlow.scale.set(34, 31, 1);
-    coronaGlow.userData.baseScale = new THREE.Vector2(34, 31);
-    coronaGlow.userData.targetOpacity = 0.12;
-    coronaGlow.userData.positionOffset = new THREE.Vector3(1.95, 0.72, -9.5);
+    coronaGlow.scale.set(28, 26, 1);
+    coronaGlow.userData.baseScale = new THREE.Vector2(28, 26);
+    coronaGlow.userData.targetOpacity = 0.22;
+    coronaGlow.userData.positionOffset = new THREE.Vector3(0, 0.1, -4);
     scene.add(coronaGlow);
 
+    // Layer 3: Wide outer halo — very soft diffuse spread
     const outerGlow = new THREE.Sprite(new THREE.SpriteMaterial({
         map: softGlowTex,
-        color: 0x224dff,
+        color: 0x1a8cff,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false
     }));
-    outerGlow.scale.set(62, 60, 1);
-    outerGlow.userData.baseScale = new THREE.Vector2(62, 60);
-    outerGlow.userData.targetOpacity = 0.1;
-    outerGlow.userData.positionOffset = new THREE.Vector3(0.08, 0.04, -22);
+    outerGlow.scale.set(52, 50, 1);
+    outerGlow.userData.baseScale = new THREE.Vector2(52, 50);
+    outerGlow.userData.targetOpacity = 0.14;
+    outerGlow.userData.positionOffset = new THREE.Vector3(0, 0, -16);
     scene.add(outerGlow);
 
     return { planet, clouds, cityLights, atmosphere, innerGlow, coronaGlow, outerGlow };
