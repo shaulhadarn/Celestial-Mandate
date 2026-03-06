@@ -98,7 +98,7 @@ export function updateSelectionPanel() {
                         landBtn.disabled = true;
                         landBtn.style.opacity = '0.5';
                         landBtn.style.cursor = 'not-allowed';
-                        landBtn.innerHTML = `Uncharted (Survey System)`;
+                        landBtn.innerHTML = `Survey System First`;
                     }
                 }
             }

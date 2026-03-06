@@ -18,6 +18,9 @@ export let colonyRings = [];         // individual colony ring meshes
 export let visibleStarMeshes = [];   // kept for compat — now references dummy array
 
 // ── Module-level instanced state ────────────────────────────────────────────
+let _galaxyBuilt = false; // true once galaxy visuals have been created
+export function isGalaxyBuilt() { return _galaxyBuilt; }
+
 let starGlows = [];       // kept for legacy ref; animation uses instanced data now
 let starShaderMats = [];
 let atmosphereGroup = null;
@@ -110,6 +113,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   midGlowInstanced = null;
   coreInstanced = null;
   hotCoreInstanced = null;
+
+  _galaxyBuilt = false;
 
   // 0. Atmosphere (Distant stars and Nebulae)
   createAtmosphere(group);
@@ -642,8 +647,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
         isMobileDevice ? 32 : 64
       );
       const orbitMat = new THREE.MeshBasicMaterial({
-        color: hasColony ? 0x00f2ff : 0x6699bb,
-        opacity: hasColony ? 0.5 : 0.3,
+        color: hasColony ? 0x336675 : 0x334455,
+        opacity: hasColony ? 0.35 : 0.18,
         transparent: true,
         side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending,
@@ -662,6 +667,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
   dirLight.position.set(50, 100, 50);
   group.add(dirLight);
+  _galaxyBuilt = true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -764,11 +770,12 @@ export function updateGalaxyAnimations(time, group) {
     atmosphereGroup.children.forEach((child, i) => {
       if (child.userData.isStarfield) {
         child.material.uniforms.time.value = time * 1.5;
-      } else if (child.isSprite) {
+      } else if (child.isSprite && child.userData.baseScale) {
         const rotSpeed = isMobileDevice ? 0.0005 : 0.001;
-        const breathAmp = isMobileDevice ? 0.4 : 1.0;
+        const breathAmp = isMobileDevice ? 0.02 : 0.03;
         child.rotation.z += rotSpeed * (i % 2 === 0 ? 1 : -1);
-        const s = child.scale.x + Math.sin(time + i) * breathAmp;
+        const base = child.userData.baseScale;
+        const s = base * (1.0 + Math.sin(time * 0.4 + i * 0.7) * breathAmp);
         child.scale.set(s, s, 1);
       }
     });
@@ -983,6 +990,7 @@ function createAtmosphere(group) {
       );
       const s = def.sMin + Math.random() * (def.sMax - def.sMin);
       neb.scale.set(s, s, 1);
+      neb.userData.baseScale = s;
       atmosphereGroup.add(neb);
     }
   });
@@ -1016,6 +1024,7 @@ function createAtmosphere(group) {
     );
     const s = def.size * (0.8 + Math.random() * 0.6);
     spr.scale.set(s, s, 1);
+    spr.userData.baseScale = s;
     atmosphereGroup.add(spr);
   });
 

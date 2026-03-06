@@ -4,7 +4,7 @@ import { gameState, selectSystem, selectPlanet, getSystem, events } from '../cor
 import { loadAssets, playSound } from '../core/assets.js';
 import { disposeGroup } from '../core/dispose.js';
 import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
-import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes } from './visuals_galaxy.js';
+import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
 import { createSystemVisuals, updateSystemAnimations, addColonyVisual, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput } from './visuals_planet.js';
 
@@ -206,7 +206,7 @@ export async function enterSystemView(systemId, instant = false) {
     try {
         // Animated transition (skip fade on initial/instant load)
         if (!instant) {
-            await _fadeIn();
+            await _fadeIn(500);
         }
 
         gameState.viewMode = 'SYSTEM';
@@ -254,11 +254,12 @@ export async function enterSystemView(systemId, instant = false) {
             animateCamera(targetPos, 50, 40);
         }
 
-        // Force R3F to render frames immediately — fixes mobile black screen on view switch
-        _forceFrames(6);
+        // Force R3F to render frames so the scene is ready before revealing
+        _forceFrames(10);
 
         if (!instant) {
-            await _fadeOut();
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+            await _fadeOut(600);
         }
     } catch (e) {
         console.error('enterSystemView error:', e);
@@ -268,7 +269,7 @@ export async function enterSystemView(systemId, instant = false) {
 
 export async function returnToGalaxyView() {
     try {
-        await _fadeIn();
+        await _fadeIn(500);
 
         gameState.viewMode = 'GALAXY';
 
@@ -291,7 +292,10 @@ export async function returnToGalaxyView() {
             controls.zoomSpeed = 0.8;
         }
 
-        buildGalaxyVisuals(gameState.systems, cachedHyperlanes);
+        // Reuse existing galaxy visuals if already built — avoids expensive rebuild
+        if (!isGalaxyBuilt()) {
+            buildGalaxyVisuals(gameState.systems, cachedHyperlanes);
+        }
 
         groups.galaxy.visible = true;
         groups.system.visible = false;
@@ -311,10 +315,13 @@ export async function returnToGalaxyView() {
         controls.minDistance = 20;
         controls.maxDistance = 400;
 
-        // Force R3F to render frames immediately — fixes mobile black screen on return
-        _forceFrames(6);
+        // Force R3F to render several frames so the scene is fully composited before fade-out
+        _forceFrames(10);
 
-        await _fadeOut();
+        // Brief pause to let GPU finish compositing before revealing
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+        await _fadeOut(600);
     } catch (e) {
         console.error('returnToGalaxyView error:', e);
         _fadeOut();
