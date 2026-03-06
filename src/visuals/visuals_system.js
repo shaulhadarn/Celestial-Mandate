@@ -313,11 +313,11 @@ export function createSystemVisuals(system, group) {
             map: textures.glowSoft,
             color: glowColor,
             transparent: true,
-            opacity: isMobileDevice ? 0.04 : 0.06,
+            opacity: isMobileDevice ? 0.2 : 0.25,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const outerScale = planetR * 3.8;
+        const outerScale = planetR * 4.5;
         outerHalo.scale.set(outerScale, outerScale, 1);
         mesh.add(outerHalo);
 
@@ -326,11 +326,11 @@ export function createSystemVisuals(system, group) {
             map: textures.glow,
             color: glowColor,
             transparent: true,
-            opacity: isMobileDevice ? 0.06 : 0.09,
+            opacity: isMobileDevice ? 0.3 : 0.35,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const coreScale = planetR * 2.0;
+        const coreScale = planetR * 2.8;
         coreGlow.scale.set(coreScale, coreScale, 1);
         mesh.add(coreGlow);
 
