@@ -828,7 +828,6 @@
         max-width: none;
         width: auto;
         margin: 10px;
-        max-height: 82vh;
     }
 
     .evt-header {
@@ -959,7 +958,6 @@
 
     .evt-box {
         margin: 6px;
-        max-height: 85vh;
     }
 
     .evt-header {

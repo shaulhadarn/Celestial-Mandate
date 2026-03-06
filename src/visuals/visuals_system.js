@@ -16,6 +16,7 @@ let _sunCorona2 = null;
 let _sunCorona3 = null;
 let _sunFlares = [];
 let _sunPointLight = null;
+let _colonySatellites = [];
 
 export function clearSystemVisuals(group) {
     disposeGroup(group);
@@ -27,6 +28,7 @@ export function clearSystemVisuals(group) {
     _sunCorona3 = null;
     _sunFlares = [];
     _sunPointLight = null;
+    _colonySatellites = [];
 }
 
 export function createSystemVisuals(system, group) {
@@ -357,20 +359,131 @@ export function createSystemVisuals(system, group) {
 }
 
 export function addColonyVisual(planetMesh) {
-    const colonyGroup = new THREE.Group();
-    const geo = new THREE.CylinderGeometry(0.2, 0.2, 1, 6);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x00f2ff });
-    colonyGroup.add(new THREE.Mesh(geo, mat));
-    
-    const ringGeo = new THREE.TorusGeometry(0.5, 0.05, 8, 16);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2;
-    colonyGroup.add(ring);
+    const planetRadius = planetMesh.geometry.parameters.radius;
+    const orbitRadius = planetRadius * 1.6;
+    const satScale = Math.max(0.35, planetRadius * 0.22);
 
-    colonyGroup.position.set(planetMesh.geometry.parameters.radius * 1.5, 0, 0);
-    colonyGroup.rotation.z = 0.5;
-    planetMesh.add(colonyGroup);
+    // Orbit pivot — child of the planet so it follows orbital motion
+    const orbitPivot = new THREE.Group();
+    planetMesh.add(orbitPivot);
+
+    const satGroup = new THREE.Group();
+    satGroup.scale.setScalar(satScale);
+
+    // ── Materials (matching splash screen satellite) ──
+    const goldFoilMat = new THREE.MeshStandardMaterial({
+        color: 0xffd58a, metalness: 0.92, roughness: 0.24,
+        emissive: 0x4a2606, emissiveIntensity: 0.18
+    });
+    const panelMat = new THREE.MeshStandardMaterial({
+        color: 0x08152e, metalness: 0.84, roughness: 0.16,
+        emissive: 0x0a2a4a, emissiveIntensity: 0.22
+    });
+    const metalMat = new THREE.MeshStandardMaterial({
+        color: 0xb9c4d2, metalness: 0.88, roughness: 0.2
+    });
+
+    // ── Body — gold foil cube ──
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.0), goldFoilMat);
+    satGroup.add(body);
+
+    // ── Antenna deck ──
+    const deck = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.15, 8), metalMat);
+    deck.position.z = 0.6;
+    deck.rotation.x = Math.PI / 2;
+    satGroup.add(deck);
+
+    // ── Dish antenna ──
+    const dishGeo = new THREE.SphereGeometry(0.35, 12, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    const dish = new THREE.Mesh(dishGeo, metalMat);
+    dish.position.z = 0.7;
+    dish.rotation.x = -Math.PI / 2;
+    satGroup.add(dish);
+
+    // ── Solar panel arrays ──
+    for (let j = 0; j < 2; j++) {
+        const side = j === 0 ? 1 : -1;
+        const panelWidth = 1.8;
+        const panelHeight = 0.6;
+        const panelFrame = new THREE.Mesh(
+            new THREE.BoxGeometry(panelWidth, 0.06, panelHeight), metalMat
+        );
+        panelFrame.position.x = side * (0.25 + panelWidth / 2);
+        const panelSurface = new THREE.Mesh(
+            new THREE.BoxGeometry(panelWidth * 0.93, 0.03, panelHeight * 0.88), panelMat
+        );
+        panelSurface.position.y = 0.035;
+        panelFrame.add(panelSurface);
+
+        // Panel grid lines for detail
+        for (let g = 1; g < 4; g++) {
+            const gridLine = new THREE.Mesh(
+                new THREE.BoxGeometry(0.02, 0.065, panelHeight * 0.88),
+                metalMat
+            );
+            gridLine.position.set(-panelWidth * 0.45 + g * (panelWidth * 0.9 / 4), 0.005, 0);
+            panelFrame.add(gridLine);
+        }
+
+        satGroup.add(panelFrame);
+    }
+
+    // ── Antenna boom ──
+    const antenna = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.015, 0.015, 0.6), metalMat
+    );
+    antenna.position.set(0.15, 0.15, -0.4);
+    antenna.rotation.x = Math.PI / 6;
+    satGroup.add(antenna);
+
+    // ── Nav light ──
+    const navLightColor = 0x00f2ff;
+    const navLight = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 8, 8),
+        new THREE.MeshBasicMaterial({ color: navLightColor })
+    );
+    navLight.position.set(0, 0.32, 0.3);
+    satGroup.add(navLight);
+
+    // ── Nav glow sprite ──
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width = 64;
+    glowCanvas.height = 64;
+    const gCtx = glowCanvas.getContext('2d');
+    const grad = gCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(0, 242, 255, 0.9)');
+    grad.addColorStop(0.4, 'rgba(0, 242, 255, 0.3)');
+    grad.addColorStop(1, 'rgba(0, 242, 255, 0)');
+    gCtx.fillStyle = grad;
+    gCtx.fillRect(0, 0, 64, 64);
+    const glowTex = new THREE.CanvasTexture(glowCanvas);
+
+    const navGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: navLightColor,
+        transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    navGlow.scale.set(1.0, 1.0, 1);
+    navLight.add(navGlow);
+
+    // Position satellite at orbit radius
+    satGroup.position.set(orbitRadius, 0, 0);
+    orbitPivot.add(satGroup);
+
+    // Random starting angle and inclination
+    const startAngle = Math.random() * Math.PI * 2;
+    orbitPivot.rotation.y = startAngle;
+    orbitPivot.rotation.x = 0.2 + Math.random() * 0.3;
+
+    // Track for animation
+    _colonySatellites.push({
+        pivot: orbitPivot,
+        sat: satGroup,
+        navLight,
+        navGlow,
+        orbitSpeed: 0.3 + Math.random() * 0.2,
+        navColor: navLightColor
+    });
 }
 
 export function updateSystemAnimations(time) {
@@ -421,6 +534,19 @@ export function updateSystemAnimations(time) {
             item.sprite.position.copy(item.target.position);
             item.sprite.position.y += item.offsetY;
         }
+    });
+
+    // ── Animate colony satellites ─────────────────────────────────────────────
+    _colonySatellites.forEach(entry => {
+        entry.pivot.rotation.y += entry.orbitSpeed * 0.008;
+
+        // Nav light blink
+        const blinkOn = Math.floor(time * 2.0) % 2 === 0;
+        entry.navLight.material.color.setHex(blinkOn ? entry.navColor : 0x112233);
+        entry.navGlow.material.opacity = blinkOn ? 0.7 : 0.08;
+
+        // Gentle panel wobble
+        entry.sat.rotation.z = Math.sin(time * 0.4) * 0.06;
     });
 }
 

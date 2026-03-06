@@ -1229,12 +1229,13 @@
     z-index: 10000;
     --evt-accent: #00f2ff;
     opacity: 1;
-    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .event-modal.hidden {
     opacity: 0;
     pointer-events: none;
+    transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1) 0.05s;
 }
 
 .event-modal.evt-no-display { display: none; }
@@ -1246,6 +1247,12 @@
     background: radial-gradient(ellipse at center, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.85) 100%);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
+    animation: evtBackdropIn 0.4s ease both;
+}
+
+@keyframes evtBackdropIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 /* ── Main box ──────────────────────────────────────────────────────────── */
@@ -1259,32 +1266,29 @@
         inset 0 1px 0 color-mix(in srgb, var(--evt-accent) 10%, transparent);
     max-width: 440px;
     width: 92%;
-    max-height: 88vh;
     padding: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
     opacity: 0;
-    transform: translateY(12px) scale(0.97);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translateY(20px) scale(0.96);
 }
 
 .evt-box.evt-enter {
-    animation: evtEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: evtEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes evtEnter {
-    from { opacity: 0; transform: translateY(12px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+    0%   { opacity: 0; transform: translateY(20px) scale(0.96); filter: blur(4px); }
+    50%  { filter: blur(0px); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
 }
 
 .evt-box.evt-exit {
-    animation: evtExit 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+    animation: evtExit 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 @keyframes evtExit {
-    from { opacity: 1; transform: translateY(0) scale(1); }
-    to   { opacity: 0; transform: translateY(-8px) scale(0.96); }
+    0%   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
+    100% { opacity: 0; transform: translateY(-12px) scale(0.95); filter: blur(3px); }
 }
 
 /* ── Decorative corner accents ─────────────────────────────────────────── */
@@ -1640,7 +1644,6 @@
 @media (max-width: 480px) {
     .evt-box {
         width: 96%;
-        max-height: 82vh;
     }
 
     .evt-header {
@@ -1691,10 +1694,6 @@
 }
 
 @media (max-width: 768px) {
-    .evt-box {
-        max-height: 85vh;
-    }
-
     .evt-choice-btn:hover {
         background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%);
         border-color: rgba(255,255,255,0.08);

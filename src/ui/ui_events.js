@@ -131,20 +131,20 @@ function _openModal() {
 
 function _closeModal() {
     if (!_modal) return;
-    // Trigger exit animation on the box
     const box = _modal.querySelector('.evt-box');
     if (box) {
         box.classList.remove('evt-enter');
         box.classList.add('evt-exit');
     }
-    _modal.classList.add('hidden');
-    // After fade-out transition completes, set display:none and clean up
+    // Fade out overlay slightly after box starts its exit
+    setTimeout(() => _modal.classList.add('hidden'), 80);
+    // After all animations complete, set display:none and clean up
     setTimeout(() => {
         if (_modal.classList.contains('hidden')) {
             _modal.classList.add('evt-no-display');
             if (box) box.classList.remove('evt-exit');
         }
-    }, 450);
+    }, 500);
 }
 
 /* ── Show event (random or chain step) ──────────────────────────────────── */
