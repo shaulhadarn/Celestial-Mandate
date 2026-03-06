@@ -112,7 +112,7 @@ function generateSystemData(id, position, playerSettings) {
             id: `p-${id}-${i}`,
             name: `${name} ${['I', 'II', 'III', 'IV', 'V', 'VI'][i]}`,
             type: PLANET_TYPES[Math.floor(Math.random() * PLANET_TYPES.length)],
-            distance: 15 + (i * 8) + (Math.random() * 2), 
+            distance: 18 + (i * 12) + (Math.random() * 3),
             size: 0.5 + Math.random(),
             angle: Math.random() * Math.PI * 2,
             speed: 0.001 + (Math.random() * 0.005)

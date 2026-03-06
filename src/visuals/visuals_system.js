@@ -288,7 +288,7 @@ export function createSystemVisuals(system, group) {
             const atmoGeo = new THREE.SphereGeometry(p.size * 2.15 * scale, segments, segments);
             const atmoMat = new THREE.MeshBasicMaterial({
                 color: atmosphereColor, transparent: true,
-                opacity: isMobileDevice ? 0.10 : 0.08,
+                opacity: isMobileDevice ? 0.18 : 0.15,
                 blending: THREE.AdditiveBlending,
                 side: THREE.BackSide, depthWrite: false
             });
@@ -298,7 +298,7 @@ export function createSystemVisuals(system, group) {
             const rimGeo = new THREE.SphereGeometry(p.size * 2.05 * scale, isMobileDevice ? 32 : segments, isMobileDevice ? 32 : segments);
             const rimMat = new THREE.MeshBasicMaterial({
                 color: atmosphereColor, transparent: true,
-                opacity: isMobileDevice ? 0.05 : 0.06,
+                opacity: isMobileDevice ? 0.12 : 0.10,
                 blending: THREE.AdditiveBlending, side: THREE.FrontSide, depthWrite: false
             });
             mesh.add(new THREE.Mesh(rimGeo, rimMat));
@@ -308,16 +308,16 @@ export function createSystemVisuals(system, group) {
         const glowColor = atmosphereColor !== null ? atmosphereColor : matColor;
         const planetR = p.size * 2 * scale;
 
-        // Layer 1: Soft outer halo — diffuse spread
+        // Layer 1: Soft outer halo
         const outerHalo = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: textures.glowSoft,
+            map: textures.glow,
             color: glowColor,
             transparent: true,
-            opacity: isMobileDevice ? 0.2 : 0.25,
+            opacity: 0.3,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const outerScale = planetR * 4.5;
+        const outerScale = planetR * 5;
         outerHalo.scale.set(outerScale, outerScale, 1);
         mesh.add(outerHalo);
 
@@ -326,11 +326,11 @@ export function createSystemVisuals(system, group) {
             map: textures.glow,
             color: glowColor,
             transparent: true,
-            opacity: isMobileDevice ? 0.3 : 0.35,
+            opacity: 0.45,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const coreScale = planetR * 2.8;
+        const coreScale = planetR * 3;
         coreGlow.scale.set(coreScale, coreScale, 1);
         mesh.add(coreGlow);
 
