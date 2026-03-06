@@ -308,16 +308,16 @@ export function createSystemVisuals(system, group) {
         const glowColor = atmosphereColor !== null ? atmosphereColor : matColor;
         const planetR = p.size * 2 * scale;
 
-        // Layer 1: Soft outer halo
+        // Layer 1: Soft outer halo (boosted on mobile to compensate for no bloom)
         const outerHalo = new THREE.Sprite(new THREE.SpriteMaterial({
             map: textures.glow,
             color: glowColor,
             transparent: true,
-            opacity: 0.3,
+            opacity: isMobileDevice ? 0.55 : 0.3,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const outerScale = planetR * 5;
+        const outerScale = planetR * (isMobileDevice ? 6 : 5);
         outerHalo.scale.set(outerScale, outerScale, 1);
         mesh.add(outerHalo);
 
@@ -326,11 +326,11 @@ export function createSystemVisuals(system, group) {
             map: textures.glow,
             color: glowColor,
             transparent: true,
-            opacity: 0.45,
+            opacity: isMobileDevice ? 0.7 : 0.45,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const coreScale = planetR * 3;
+        const coreScale = planetR * (isMobileDevice ? 3.5 : 3);
         coreGlow.scale.set(coreScale, coreScale, 1);
         mesh.add(coreGlow);
 
