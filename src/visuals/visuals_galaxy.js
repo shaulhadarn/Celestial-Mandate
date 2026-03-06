@@ -305,7 +305,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   // --- Outer halo layer ---
   const outerHaloMat = createBillboardMaterial(
     textures.glowSoft,
-    isMobileDevice ? 0.25 : 0.28,
+    isMobileDevice ? 0.45 : 0.28,
     true
   );
   outerHaloInstanced = new THREE.InstancedMesh(billboardGeo, outerHaloMat, N);
@@ -327,14 +327,14 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(outerHaloInstanced);
 
   // --- Mid glow layer ---
-  const midGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.35 : 0.22, true);
+  const midGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.55 : 0.22, true);
   midGlowInstanced = new THREE.InstancedMesh(billboardGeo, midGlowMat, N);
   midGlowInstanced.geometry.setAttribute(
     "instanceColor",
     new THREE.InstancedBufferAttribute(colors.slice(), 3)
   );
   systems.forEach((sys, i) => {
-    const s = 8 + Math.random() * 2;
+    const s = isMobileDevice ? 10 + Math.random() * 3 : 8 + Math.random() * 2;
     _mat4.compose(
       _pos.copy(sys.position),
       _quat.identity(),
@@ -347,7 +347,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(midGlowInstanced);
 
   // --- Core layer ---
-  const coreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.65 : 0.55, true);
+  const coreSize = isMobileDevice ? 5.0 : 3.5;
+  const coreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.8 : 0.55, true);
   coreInstanced = new THREE.InstancedMesh(billboardGeo, coreBillboardMat, N);
   coreInstanced.geometry.setAttribute(
     "instanceColor",
@@ -357,7 +358,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     _mat4.compose(
       _pos.copy(sys.position),
       _quat.identity(),
-      _scale.set(3.5, 3.5, 1)
+      _scale.set(coreSize, coreSize, 1)
     );
     coreInstanced.setMatrixAt(i, _mat4);
   });
@@ -366,14 +367,15 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(coreInstanced);
 
   // --- White-hot core layer (pure white, no instance color) ---
-  const hotCoreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.6 : 0.5, false);
+  const hotCoreSize = isMobileDevice ? 3.0 : 2.0;
+  const hotCoreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.75 : 0.5, false);
   hotCoreInstanced = new THREE.InstancedMesh(billboardGeo, hotCoreBillboardMat, N);
   // No instanceColor needed — shader uses vec3(1.0) for white
   systems.forEach((sys, i) => {
     _mat4.compose(
       _pos.copy(sys.position),
       _quat.identity(),
-      _scale.set(2.0, 2.0, 1)
+      _scale.set(hotCoreSize, hotCoreSize, 1)
     );
     hotCoreInstanced.setMatrixAt(i, _mat4);
   });
@@ -700,7 +702,7 @@ export function updateGalaxyAnimations(time, group) {
 
   // ── Pulse outer halo instances ──────────────────────────────────────────
   if (outerHaloInstanced && _starCount > 0) {
-    const pulseAmplitude = isMobileDevice ? 0.55 : 1.5;
+    const pulseAmplitude = isMobileDevice ? 1.2 : 1.5;
     for (let i = 0; i < _starCount; i++) {
       const s =
         _glowBaseScales[i] +
