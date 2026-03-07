@@ -252,7 +252,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     _rotYs[i] = Math.random() * Math.PI;
     _coronaRotYs[i] = 0;
     _coronaRotZs[i] = 0;
-    _glowBaseScales[i] = isMobileDevice ? 12 + Math.random() * 3 : 14 + Math.random() * 4;
+    _glowBaseScales[i] = (isMobileDevice ? 13 : 14) + Math.random() * 4;
     _glowPulseOffsets[i] = Math.random() * Math.PI * 2;
   });
 
@@ -347,14 +347,14 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   const billboardGeo = new THREE.PlaneGeometry(1, 1);
 
   // ── C. Instanced corona glow (soft sprite instead of hard shell) ──────────
-  const coronaGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.5 : 0.35, true);
+  const coronaGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.38 : 0.35, true);
   coronaInstancedMesh = new THREE.InstancedMesh(billboardGeo, coronaGlowMat, N);
   coronaInstancedMesh.geometry.setAttribute(
     "instanceColor",
     new THREE.InstancedBufferAttribute(colors.slice(), 3)
   );
   systems.forEach((sys, i) => {
-    const s = isMobileDevice ? 7 : 6;
+    const s = 6;
     _mat4.compose(sys.position, _quat.identity(), _scale.set(s, s, 1));
     coronaInstancedMesh.setMatrixAt(i, _mat4);
   });
@@ -366,7 +366,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   // --- Outer halo layer ---
   const outerHaloMat = createBillboardMaterial(
     textures.glowSoft,
-    isMobileDevice ? 0.45 : 0.28,
+    isMobileDevice ? 0.3 : 0.28,
     true
   );
   outerHaloInstanced = new THREE.InstancedMesh(billboardGeo, outerHaloMat, N);
@@ -388,14 +388,14 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(outerHaloInstanced);
 
   // --- Mid glow layer ---
-  const midGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.55 : 0.22, true);
+  const midGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.28 : 0.22, true);
   midGlowInstanced = new THREE.InstancedMesh(billboardGeo, midGlowMat, N);
   midGlowInstanced.geometry.setAttribute(
     "instanceColor",
     new THREE.InstancedBufferAttribute(colors.slice(), 3)
   );
   systems.forEach((sys, i) => {
-    const s = isMobileDevice ? 10 + Math.random() * 3 : 8 + Math.random() * 2;
+    const s = (isMobileDevice ? 8 : 8) + Math.random() * 2;
     _mat4.compose(
       _pos.copy(sys.position),
       _quat.identity(),
@@ -408,8 +408,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(midGlowInstanced);
 
   // --- Core layer ---
-  const coreSize = isMobileDevice ? 5.0 : 3.5;
-  const coreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.8 : 0.55, true);
+  const coreSize = isMobileDevice ? 3.8 : 3.5;
+  const coreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.58 : 0.55, true);
   coreInstanced = new THREE.InstancedMesh(billboardGeo, coreBillboardMat, N);
   coreInstanced.geometry.setAttribute(
     "instanceColor",
@@ -428,8 +428,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(coreInstanced);
 
   // --- White-hot core layer (pure white, no instance color) ---
-  const hotCoreSize = isMobileDevice ? 3.0 : 2.0;
-  const hotCoreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.75 : 0.5, false);
+  const hotCoreSize = isMobileDevice ? 2.2 : 2.0;
+  const hotCoreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.55 : 0.5, false);
   hotCoreInstanced = new THREE.InstancedMesh(billboardGeo, hotCoreBillboardMat, N);
   // No instanceColor needed — shader uses vec3(1.0) for white
   systems.forEach((sys, i) => {
@@ -609,8 +609,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
         const hasThickAtmo = ['Terran','Continental','Ocean','Gas Giant'].includes(p.type);
         const atmoScale = hasThickAtmo ? 1.05 : 1.04;
         const atmoOpacity = hasThickAtmo
-          ? (isMobileDevice ? 0.4 : 0.35)
-          : (isMobileDevice ? 0.3 : 0.25);
+          ? (isMobileDevice ? 0.32 : 0.35)
+          : (isMobileDevice ? 0.22 : 0.25);
 
         const atmoGeo = new THREE.SphereGeometry(size * atmoScale, 16, 16);
         const atmoMat = new THREE.MeshBasicMaterial({
@@ -629,13 +629,13 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
             color: atmoColor,
             transparent: true,
             opacity: isMobileDevice
-              ? (hasThickAtmo ? 0.6 : 0.5)
+              ? (hasThickAtmo ? 0.4 : 0.3)
               : (hasThickAtmo ? 0.45 : 0.35),
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           })
         );
-        const glowScale = isMobileDevice ? size * 6 : size * 5;
+        const glowScale = isMobileDevice ? size * 5 : size * 5;
         glowSprite.scale.set(glowScale, glowScale, 1);
         pMesh.add(glowSprite);
 
@@ -646,13 +646,13 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
             color: atmoColor,
             transparent: true,
             opacity: isMobileDevice
-              ? (hasThickAtmo ? 0.4 : 0.3)
+              ? (hasThickAtmo ? 0.25 : 0.18)
               : (hasThickAtmo ? 0.25 : 0.18),
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           })
         );
-        const haloScale = isMobileDevice ? size * 10 : size * 8;
+        const haloScale = isMobileDevice ? size * 8 : size * 8;
         haloSprite.scale.set(haloScale, haloScale, 1);
         pMesh.add(haloSprite);
       }
@@ -665,12 +665,12 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
               map: textures.glow,
               color: 0x00f2ff,
               transparent: true,
-              opacity: 0.5,
+              opacity: 0.3,
               blending: THREE.AdditiveBlending,
               depthWrite: false,
             })
           );
-          auraSprite.scale.set(size * 4, size * 4, 1);
+          auraSprite.scale.set(size * 3, size * 3, 1);
           auraSprite.userData.isColonyAura = true;
           pMesh.add(auraSprite);
         } else {
@@ -836,7 +836,7 @@ export function updateGalaxyAnimations(time, group) {
       starInstancedMesh.setMatrixAt(i, _mat4);
 
       // Update corona glow billboard (gentle pulse)
-      const cs = (isMobileDevice ? 7 : 6) + Math.sin(time * 1.2 + _glowPulseOffsets[i]) * 0.4;
+      const cs = 6 + Math.sin(time * 1.2 + _glowPulseOffsets[i]) * 0.4;
       _mat4.compose(_pos, _quat.identity(), _scale.set(cs, cs, 1));
       coronaInstancedMesh.setMatrixAt(i, _mat4);
     }

@@ -69,12 +69,14 @@ const GameLoop = () => {
     const ph = Math.floor(ch * dpr);
 
     // Create render target at full pixel resolution for crisp anti-aliased output
+    // Mobile: UnsignedByteType for reliable MSAA support on mobile GPUs
+    // Desktop: HalfFloatType for full HDR bloom precision
     const rt = new THREE.WebGLRenderTarget(pw, ph, {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
       format: THREE.RGBAFormat,
-      type: THREE.HalfFloatType,
-      samples: isMobileDevice ? 0 : 4,  // MSAA on desktop for smooth planet edges
+      type: isMobileDevice ? THREE.UnsignedByteType : THREE.HalfFloatType,
+      samples: 4,
     });
     const comp = new EffectComposer(gl, rt);
     comp.setPixelRatio(dpr);

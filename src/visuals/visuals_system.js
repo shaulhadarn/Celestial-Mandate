@@ -288,7 +288,7 @@ export function createSystemVisuals(system, group) {
             const atmoGeo = new THREE.SphereGeometry(p.size * 2.15 * scale, segments, segments);
             const atmoMat = new THREE.MeshBasicMaterial({
                 color: atmosphereColor, transparent: true,
-                opacity: isMobileDevice ? 0.25 : 0.15,
+                opacity: isMobileDevice ? 0.18 : 0.15,
                 blending: THREE.AdditiveBlending,
                 side: THREE.BackSide, depthWrite: false
             });
@@ -298,7 +298,7 @@ export function createSystemVisuals(system, group) {
             const rimGeo = new THREE.SphereGeometry(p.size * 2.05 * scale, isMobileDevice ? 32 : segments, isMobileDevice ? 32 : segments);
             const rimMat = new THREE.MeshBasicMaterial({
                 color: atmosphereColor, transparent: true,
-                opacity: isMobileDevice ? 0.18 : 0.10,
+                opacity: isMobileDevice ? 0.12 : 0.10,
                 blending: THREE.AdditiveBlending, side: THREE.FrontSide, depthWrite: false
             });
             mesh.add(new THREE.Mesh(rimGeo, rimMat));
@@ -308,16 +308,16 @@ export function createSystemVisuals(system, group) {
         const glowColor = atmosphereColor !== null ? atmosphereColor : matColor;
         const planetR = p.size * 2 * scale;
 
-        // Layer 1: Soft outer halo (mobile has bloom now, moderate boost)
+        // Layer 1: Soft outer halo (bloom active on all devices)
         const outerHalo = new THREE.Sprite(new THREE.SpriteMaterial({
             map: textures.glow,
             color: glowColor,
             transparent: true,
-            opacity: isMobileDevice ? 0.45 : 0.3,
+            opacity: isMobileDevice ? 0.3 : 0.3,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const outerScale = planetR * (isMobileDevice ? 6 : 5);
+        const outerScale = planetR * 5;
         outerHalo.scale.set(outerScale, outerScale, 1);
         mesh.add(outerHalo);
 
@@ -326,28 +326,13 @@ export function createSystemVisuals(system, group) {
             map: textures.glow,
             color: glowColor,
             transparent: true,
-            opacity: isMobileDevice ? 0.6 : 0.45,
+            opacity: isMobileDevice ? 0.42 : 0.45,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         }));
-        const coreScale = planetR * (isMobileDevice ? 3.5 : 3);
+        const coreScale = planetR * 3;
         coreGlow.scale.set(coreScale, coreScale, 1);
         mesh.add(coreGlow);
-
-        // Layer 3: Wide diffuse halo (mobile only — supplements bloom)
-        if (isMobileDevice) {
-            const diffuseHalo = new THREE.Sprite(new THREE.SpriteMaterial({
-                map: textures.glowSoft || textures.glow,
-                color: glowColor,
-                transparent: true,
-                opacity: 0.2,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            }));
-            const diffuseScale = planetR * 10;
-            diffuseHalo.scale.set(diffuseScale, diffuseScale, 1);
-            mesh.add(diffuseHalo);
-        }
 
         // Store base opacities for animation pulsing
         outerHalo.material.userData_baseOp = outerHalo.material.opacity;
