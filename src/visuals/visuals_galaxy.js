@@ -524,8 +524,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
         const hasThickAtmo = ['Terran','Continental','Ocean','Gas Giant'].includes(p.type);
         const atmoScale = hasThickAtmo ? 1.05 : 1.04;
         const atmoOpacity = hasThickAtmo
-          ? (isMobileDevice ? 0.3 : 0.35)
-          : (isMobileDevice ? 0.2 : 0.25);
+          ? (isMobileDevice ? 0.4 : 0.35)
+          : (isMobileDevice ? 0.3 : 0.25);
 
         const atmoGeo = new THREE.SphereGeometry(size * atmoScale, 16, 16);
         const atmoMat = new THREE.MeshBasicMaterial({
@@ -537,20 +537,20 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
         });
         pMesh.add(new THREE.Mesh(atmoGeo, atmoMat));
 
-        // Outer soft glow sprite for all planets (boosted on mobile — no bloom)
+        // Outer soft glow sprite for all planets (boosted on mobile for visible halos)
         const glowSprite = new THREE.Sprite(
           new THREE.SpriteMaterial({
             map: textures.glow,
             color: atmoColor,
             transparent: true,
             opacity: isMobileDevice
-              ? (hasThickAtmo ? 0.7 : 0.55)
+              ? (hasThickAtmo ? 0.85 : 0.7)
               : (hasThickAtmo ? 0.45 : 0.35),
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           })
         );
-        const glowScale = isMobileDevice ? size * 6 : size * 5;
+        const glowScale = isMobileDevice ? size * 7.5 : size * 5;
         glowSprite.scale.set(glowScale, glowScale, 1);
         pMesh.add(glowSprite);
 
@@ -561,13 +561,13 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
             color: atmoColor,
             transparent: true,
             opacity: isMobileDevice
-              ? (hasThickAtmo ? 0.45 : 0.35)
+              ? (hasThickAtmo ? 0.6 : 0.5)
               : (hasThickAtmo ? 0.25 : 0.18),
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           })
         );
-        const haloScale = isMobileDevice ? size * 10 : size * 8;
+        const haloScale = isMobileDevice ? size * 13 : size * 8;
         haloSprite.scale.set(haloScale, haloScale, 1);
         pMesh.add(haloSprite);
       }

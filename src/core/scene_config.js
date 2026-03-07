@@ -46,7 +46,7 @@ export function initRenderer() {
     renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : window.devicePixelRatio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = isMobile ? 0.75 : 1.2;
+    renderer.toneMappingExposure = isMobile ? 1.0 : 1.2;
     canvasContainer.appendChild(renderer.domElement);
 
     // Dynamic import for OrbitControls to avoid bundling issues if not present globally
@@ -81,9 +81,9 @@ export function initRenderer() {
 
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2)),
-            0.5,   // strength (gentler for mobile GPU budget)
-            0.3,   // radius
-            0.8    // threshold (higher = less bloom = faster)
+            0.75,  // strength (boosted to show planet glow on mobile)
+            0.45,  // radius (wider spread for visible halos)
+            0.75   // threshold (slightly lower to catch glow sprites)
         );
         composer.addPass(bloomPass);
 
