@@ -1,68 +1,45 @@
-import * as THREE from 'three';
+import { Text } from 'troika-three-text';
+
+// Rajdhani SemiBold WOFF2 from Google Fonts (same weight used by the HTML UI)
+const FONT_URL = 'https://fonts.gstatic.com/s/rajdhani/v15/LDI2apCSOBg7S-QT7pasEfOqeef3kg.woff2';
 
 /**
- * Creates a text label sprite for 3D scenes.
+ * Creates an SDF text label mesh for 3D scenes (replaces canvas-based sprites).
+ * Uses troika-three-text for crisp text at any zoom level with a single shared font atlas.
+ * Auto-billboards to face the camera via onBeforeRender.
+ *
  * @param {string} text - The label text
  * @param {object} [opts] - Options
- * @param {number} [opts.fontSize=17] - Base font size (before pixel scaling)
- * @param {number} [opts.worldScale=0.05] - Scale factor from canvas pixels to world units
- * @returns {THREE.Sprite}
+ * @param {number} [opts.fontSize=1.0] - Font size in world units
+ * @returns {THREE.Mesh} (troika Text mesh — drop-in for THREE.Sprite positioning)
  */
 export function createTextSprite(text, opts = {}) {
-    const PIXEL_SCALE = 2;
-    const fontSize = opts.fontSize || 17;
-    const worldScale = opts.worldScale || 0.05;
-    const font = `600 ${fontSize * PIXEL_SCALE}px "Rajdhani", sans-serif`;
+    const fontSize = opts.fontSize || 1.0;
 
-    const measure = document.createElement('canvas').getContext('2d');
-    measure.font = font;
-    const metrics = measure.measureText(text);
+    const label = new Text();
+    label.text = text;
+    label.font = FONT_URL;
+    label.fontSize = fontSize;
+    label.anchorX = 'center';
+    label.anchorY = 'middle';
 
-    const GLOW_PAD = 5 * PIXEL_SCALE;
-    const w = Math.ceil(metrics.width) + GLOW_PAD * 2;
-    const h = (fontSize + 8) * PIXEL_SCALE + GLOW_PAD * 2;
-    const cx = w / 2;
-    const cy = h / 2;
+    // White fill with dark outline for readability (matches previous canvas style)
+    label.color = 0xffffff;
+    label.outlineWidth = '3%';
+    label.outlineColor = 0x000000;
+    label.outlineOpacity = 0.65;
 
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
+    // Rendering — same depth behavior as previous SpriteMaterial
+    label.depthTest = true;
+    label.depthWrite = false;
 
-    ctx.font = font;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
+    // Billboard: face the camera every frame (replaces Sprite auto-billboard)
+    label.onBeforeRender = function (_renderer, _scene, cam) {
+        this.quaternion.copy(cam.quaternion);
+    };
 
-    // Single very subtle outer halo
-    ctx.lineWidth = 3 * PIXEL_SCALE;
-    ctx.strokeStyle = 'rgba(0, 242, 255, 0.10)';
-    ctx.strokeText(text, cx, cy);
+    // Kick off async SDF generation so geometry is ready by next render
+    label.sync();
 
-    // Thin dark outline for readability
-    ctx.lineWidth = 1.2 * PIXEL_SCALE;
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.65)';
-    ctx.strokeText(text, cx, cy);
-
-    // Pure white fill
-    ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-    ctx.fillText(text, cx, cy);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.generateMipmaps = true;
-    tex.anisotropy = 4;
-
-    const spriteMaterial = new THREE.SpriteMaterial({
-        map: tex,
-        transparent: true,
-        depthTest: true,
-        depthWrite: false,
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set((w * worldScale) / PIXEL_SCALE, (h * worldScale) / PIXEL_SCALE, 1);
-    return sprite;
+    return label;
 }

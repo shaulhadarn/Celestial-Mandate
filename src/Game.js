@@ -8,6 +8,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { groups, setGlobalScene, setGlobalCamera, setGlobalRenderer, setGlobalControls, setGlobalComposer, getGraphicsConfig, applyGraphicsConfig } from "./core/scene_config.js";
+import { detectFromRenderer, gpuTier } from "./core/gpu_tier.js";
 import { updateFrame, buildGalaxyVisuals } from "./visuals/renderer.js";
 import { gameState } from "./core/state.js";
 import { isMobile as isMobileDevice } from "./core/device.js";
@@ -218,6 +219,16 @@ const QualityManager = () => {
     void 0, false, { fileName: "<stdin>", lineNumber: 0, columnNumber: 0 }
   );
 };
+const GPUDetector = () => {
+  const { gl } = useThree();
+  useEffect(() => {
+    if (!gpuTier.detected) {
+      detectFromRenderer(gl, isMobileDevice);
+    }
+  }, [gl]);
+  return null;
+};
+
 const Game = () => {
   return /* @__PURE__ */ jsxDEV(
     Canvas,
@@ -283,6 +294,11 @@ const Game = () => {
         /* @__PURE__ */ jsxDEV(QualityManager, {}, void 0, false, {
           fileName: "<stdin>",
           lineNumber: 121,
+          columnNumber: 13
+        }),
+        /* @__PURE__ */ jsxDEV(GPUDetector, {}, void 0, false, {
+          fileName: "<stdin>",
+          lineNumber: 122,
           columnNumber: 13
         })
       ]

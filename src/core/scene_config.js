@@ -6,6 +6,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import { isMobile } from './device.js';
+import { gpuTier } from './gpu_tier.js';
 
 // Global references for legacy compatibility
 export let scene = null;
@@ -297,7 +298,14 @@ export function applyGraphicsConfig() {
 
     // Ultra Sharp: supersample at 2x device pixel ratio
     const ultraMultiplier = config.ultraSharp ? 2.0 : 1.0;
-    const maxRatio = isMobile ? (config.ultraSharp ? 2.5 : 1.5) : 4.0;
+    // GPU tier-based DPR cap (falls back to isMobile heuristic if tier not yet detected)
+    let maxRatio;
+    if (gpuTier.detected) {
+        const tierCaps = [1.0, 1.0, 1.5, 2.0]; // tier 0-3
+        maxRatio = config.ultraSharp ? 2.5 : tierCaps[gpuTier.tier] || 1.5;
+    } else {
+        maxRatio = isMobile ? (config.ultraSharp ? 2.5 : 1.5) : 4.0;
+    }
     const pixelRatio = Math.min(basePixelRatio * config.scale * ultraMultiplier, maxRatio);
     renderer.setPixelRatio(pixelRatio);
 

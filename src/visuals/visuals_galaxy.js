@@ -50,6 +50,8 @@ const _pos = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 const _scale = new THREE.Vector3();
 const _euler = new THREE.Euler();
+const _frustum = new THREE.Frustum();
+const _projScreenMatrix = new THREE.Matrix4();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Billboard ShaderMaterial factory
@@ -583,7 +585,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
           emissiveIntensity = 0.15;
       }
 
-      const pSegs = isMobileDevice ? 24 : 48;
+      const pSegs = isMobileDevice ? 16 : 24;
       const pGeo = new THREE.SphereGeometry(size, pSegs, pSegs);
       const pMat = new THREE.MeshStandardMaterial({
         map: tex,
@@ -807,10 +809,9 @@ export function addColonyRingForSystem(systemId, group) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// updateGalaxyAnimations  (public API — signature unchanged)
+// updateGalaxyAnimations  (public API)
 // ─────────────────────────────────────────────────────────────────────────────
-export function updateGalaxyAnimations(time, group) {
-  // Galaxy group stays static — rotation was causing centering bugs and distracting drift
+export function updateGalaxyAnimations(time, group, camera) {
 
   // ── Animate instanced star plasma shader (desktop) ──────────────────────
   if (starShaderMats.length > 0) {
@@ -819,19 +820,33 @@ export function updateGalaxyAnimations(time, group) {
     });
   }
 
-  // ── Rotate star instances ───────────────────────────────────────────────
+  // ── Build frustum from camera for culling off-screen star updates ──────
+  let hasFrustum = false;
+  if (camera) {
+    _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    _frustum.setFromProjectionMatrix(_projScreenMatrix);
+    hasFrustum = true;
+  }
+
+  // ── Rotate star instances (frustum-culled) ────────────────────────────
   if (starInstancedMesh && _starCount > 0) {
+    let anyUpdated = false;
     for (let i = 0; i < _starCount; i++) {
+      _pos.set(_positions[i * 3], _positions[i * 3 + 1], _positions[i * 3 + 2]);
+
+      // Skip off-screen stars (use generous 15-unit margin for glow sprites)
+      if (hasFrustum && !_frustum.containsPoint(_pos)) {
+        // Check if close enough to frustum edge (glow sprites extend beyond point)
+        _pos.y += 15; // quick vertical offset check
+        if (!_frustum.containsPoint(_pos)) { _pos.y -= 15; continue; }
+        _pos.y -= 15;
+      }
+
+      anyUpdated = true;
       _rotYs[i] += _rotSpeeds[i] * 0.02;
 
-      // Update star instance matrix
       _euler.set(0, _rotYs[i], 0);
       _quat.setFromEuler(_euler);
-      _pos.set(
-        _positions[i * 3],
-        _positions[i * 3 + 1],
-        _positions[i * 3 + 2]
-      );
       _mat4.compose(_pos, _quat, _scale.set(1, 1, 1));
       starInstancedMesh.setMatrixAt(i, _mat4);
 
@@ -840,26 +855,30 @@ export function updateGalaxyAnimations(time, group) {
       _mat4.compose(_pos, _quat.identity(), _scale.set(cs, cs, 1));
       coronaInstancedMesh.setMatrixAt(i, _mat4);
     }
-    starInstancedMesh.instanceMatrix.needsUpdate = true;
-    coronaInstancedMesh.instanceMatrix.needsUpdate = true;
+    if (anyUpdated) {
+      starInstancedMesh.instanceMatrix.needsUpdate = true;
+      coronaInstancedMesh.instanceMatrix.needsUpdate = true;
+    }
   }
 
-  // ── Pulse outer halo instances ──────────────────────────────────────────
+  // ── Pulse outer halo instances (frustum-culled) ───────────────────────
   if (outerHaloInstanced && _starCount > 0) {
+    let anyUpdated = false;
     const pulseAmplitude = isMobileDevice ? 1.2 : 1.5;
     for (let i = 0; i < _starCount; i++) {
+      _pos.set(_positions[i * 3], _positions[i * 3 + 1], _positions[i * 3 + 2]);
+      if (hasFrustum && !_frustum.containsPoint(_pos)) continue;
+
+      anyUpdated = true;
       const s =
         _glowBaseScales[i] +
         Math.sin(time * 1.5 + _glowPulseOffsets[i]) * pulseAmplitude;
-      _pos.set(
-        _positions[i * 3],
-        _positions[i * 3 + 1],
-        _positions[i * 3 + 2]
-      );
       _mat4.compose(_pos, _quat.identity(), _scale.set(s, s, 1));
       outerHaloInstanced.setMatrixAt(i, _mat4);
     }
-    outerHaloInstanced.instanceMatrix.needsUpdate = true;
+    if (anyUpdated) {
+      outerHaloInstanced.instanceMatrix.needsUpdate = true;
+    }
   }
 
   // ── Animate Atmosphere (Starfield twinkling and Nebula rotation) ────────

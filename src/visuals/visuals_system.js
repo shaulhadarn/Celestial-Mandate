@@ -9,6 +9,63 @@ import { isMobile as isMobileDevice } from '../core/device.js';
 export let planetMeshes = [];
 export let planetLabels = [];
 
+// ── Shared glow time uniform — ONE write per frame updates all glow materials ──
+const _glowTime = { value: 0 };
+const _glowPlaneGeo = new THREE.PlaneGeometry(1, 1);
+
+/**
+ * Creates a billboard glow mesh with pulsing baked into the shader.
+ * All instances share _glowTime, so updateSystemAnimations only sets time once.
+ */
+function _createGlowMesh(glowTexture, color, baseOpacity, phase, pulseSpeed, pulseAmt) {
+    const mat = new THREE.ShaderMaterial({
+        uniforms: {
+            map: { value: glowTexture },
+            color: { value: new THREE.Color(color) },
+            time: _glowTime,
+            phase: { value: phase },
+            baseOpacity: { value: baseOpacity },
+            pulseSpeed: { value: pulseSpeed },
+            pulseAmt: { value: pulseAmt }
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                // Perspective-correct billboard: expand quad in view space before projection
+                vec4 mvPos = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+                // position.xy carries the PlaneGeometry vertex offset, scaled by mesh.scale
+                vec3 camRight = vec3(modelViewMatrix[0][0], modelViewMatrix[1][0], modelViewMatrix[2][0]);
+                vec3 camUp    = vec3(modelViewMatrix[0][1], modelViewMatrix[1][1], modelViewMatrix[2][1]);
+                mvPos.xyz += camRight * position.x + camUp * position.y;
+                gl_Position = projectionMatrix * mvPos;
+            }
+        `,
+        fragmentShader: `
+            uniform sampler2D map;
+            uniform vec3 color;
+            uniform float time;
+            uniform float phase;
+            uniform float baseOpacity;
+            uniform float pulseSpeed;
+            uniform float pulseAmt;
+            varying vec2 vUv;
+            void main() {
+                float pulse = (1.0 - pulseAmt) + pulseAmt * sin(time * pulseSpeed + phase);
+                float alpha = baseOpacity * pulse;
+                vec4 tex = texture2D(map, vUv);
+                gl_FragColor = vec4(color * tex.rgb, tex.a * alpha);
+            }
+        `,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthTest: true,
+        depthWrite: false
+    });
+    const mesh = new THREE.Mesh(_glowPlaneGeo, mat);
+    return mesh;
+}
+
 // Sun animation refs
 let _sunShaderMat = null;
 let _sunCorona1 = null;
@@ -180,7 +237,7 @@ export function createSystemVisuals(system, group) {
     group.add(ambientLight);
 
     // Planets
-    system.planets.forEach(p => {
+    system.planets.forEach((p, idx) => {
         let tex = textures.barren;
         let atmosphereColor = null;
         let matColor = 0xffffff;
@@ -304,49 +361,35 @@ export function createSystemVisuals(system, group) {
             mesh.add(new THREE.Mesh(rimGeo, rimMat));
         }
         
-        // ── Subtle planet glow — soft radial halo (2 layers) ──
+        // ── Subtle planet glow — soft radial halo (2 shader-driven layers) ──
         const glowColor = atmosphereColor !== null ? atmosphereColor : matColor;
         const planetR = p.size * 2 * scale;
+        const phase = idx * 1.3;
 
-        // Layer 1: Soft outer halo (bloom active on all devices)
-        const outerHalo = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: textures.glow,
-            color: glowColor,
-            transparent: true,
-            opacity: isMobileDevice ? 0.3 : 0.3,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        }));
+        // Layer 1: Soft outer halo — slow pulse baked into shader
+        const outerHalo = _createGlowMesh(
+            textures.glow, glowColor, 0.3, phase, 0.35, 0.07
+        );
         const outerScale = planetR * 5;
         outerHalo.scale.set(outerScale, outerScale, 1);
         mesh.add(outerHalo);
 
-        // Layer 2: Tighter core glow
-        const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: textures.glow,
-            color: glowColor,
-            transparent: true,
-            opacity: isMobileDevice ? 0.42 : 0.45,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        }));
+        // Layer 2: Tighter core glow — faster pulse baked into shader
+        const coreGlow = _createGlowMesh(
+            textures.glow, glowColor, isMobileDevice ? 0.42 : 0.45, phase, 0.8, 0.10
+        );
         const coreScale = planetR * 3;
         coreGlow.scale.set(coreScale, coreScale, 1);
         mesh.add(coreGlow);
 
-        // Store base opacities for animation pulsing
-        outerHalo.material.userData_baseOp = outerHalo.material.opacity;
-        coreGlow.material.userData_baseOp = coreGlow.material.opacity;
-
         mesh.position.set(Math.cos(p.angle) * p.distance, 0, Math.sin(p.angle) * p.distance);
         mesh.userData = { id: p.id, data: p };
-        mesh.userData.glowLayers = { outerHalo, coreGlow };
         
         group.add(mesh);
         planetMeshes.push(mesh);
 
         // Orbit — use LineLoop so the ring is always visible regardless of camera angle
-        const orbitSegments = 256;
+        const orbitSegments = 128;
         const orbitPoints = [];
         for (let j = 0; j <= orbitSegments; j++) {
             const theta = (j / orbitSegments) * Math.PI * 2;
@@ -368,7 +411,7 @@ export function createSystemVisuals(system, group) {
         group.add(orbit);
 
         // Label
-        const label = createTextSprite(p.name, { fontSize: 20, worldScale: 0.035 });
+        const label = createTextSprite(p.name, { fontSize: 0.7 });
         label.userData = { id: p.id, data: p };
         group.add(label);
         planetLabels.push({ sprite: label, target: mesh, offsetY: - (p.size * 2.5) - 2 });
@@ -542,22 +585,15 @@ export function updateSystemAnimations(time) {
     }
 
     // ── Animate planets ───────────────────────────────────────────────────────
-    planetMeshes.forEach((mesh, idx) => {
+    // Single shared time uniform drives ALL planet glow pulsing via GPU shader
+    _glowTime.value = time;
+
+    planetMeshes.forEach((mesh) => {
         const data = mesh.userData.data;
         const speed = data.speed * 10;
         mesh.position.x = Math.cos(data.angle + time * speed) * data.distance;
         mesh.position.z = Math.sin(data.angle + time * speed) * data.distance;
         mesh.rotation.y += 0.005;
-
-        // Glow layer pulsing
-        const gl = mesh.userData.glowLayers;
-        if (gl) {
-            const phase = idx * 1.3;
-            const slowPulse = 0.93 + 0.07 * Math.sin(time * 0.35 + phase);
-            const pulse = 0.90 + 0.10 * Math.sin(time * 0.8 + phase);
-            gl.outerHalo.material.opacity = gl.outerHalo.material.userData_baseOp * slowPulse;
-            gl.coreGlow.material.opacity = gl.coreGlow.material.userData_baseOp * pulse;
-        }
     });
 
     planetLabels.forEach(item => {

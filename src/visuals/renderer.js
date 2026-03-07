@@ -447,7 +447,7 @@ export function updateFrame(state, delta) {
     const dt = Math.min(delta, 0.1);
 
     if(gameState.viewMode === 'GALAXY') {
-        updateGalaxyAnimations(time, groups.galaxy);
+        updateGalaxyAnimations(time, groups.galaxy, state.camera);
     }
 
     if(gameState.viewMode === 'SYSTEM') {
