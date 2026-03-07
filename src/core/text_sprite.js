@@ -1,45 +1,63 @@
-import { Text } from 'troika-three-text';
-
-// Rajdhani SemiBold WOFF2 from Google Fonts (same weight used by the HTML UI)
-const FONT_URL = 'https://fonts.gstatic.com/s/rajdhani/v15/LDI2apCSOBg7S-QT7pasEfOqeef3kg.woff2';
+import * as THREE from 'three';
 
 /**
- * Creates an SDF text label mesh for 3D scenes (replaces canvas-based sprites).
- * Uses troika-three-text for crisp text at any zoom level with a single shared font atlas.
- * Auto-billboards to face the camera via onBeforeRender.
+ * Creates a canvas-based text sprite for 3D scene labels.
+ * Each call creates a small canvas, draws the text, and returns a Sprite.
  *
  * @param {string} text - The label text
  * @param {object} [opts] - Options
- * @param {number} [opts.fontSize=1.0] - Font size in world units
- * @returns {THREE.Mesh} (troika Text mesh — drop-in for THREE.Sprite positioning)
+ * @param {number} [opts.fontSize=1.0] - Scale in world units (default 1.0 for galaxy, 0.7 for planet labels)
+ * @returns {THREE.Sprite}
  */
 export function createTextSprite(text, opts = {}) {
-    const fontSize = opts.fontSize || 1.0;
+    const worldScale = opts.fontSize || 1.0;
 
-    const label = new Text();
-    label.text = text;
-    label.font = FONT_URL;
-    label.fontSize = fontSize;
-    label.anchorX = 'center';
-    label.anchorY = 'middle';
+    // ── Canvas rendering ────────────────────────────────────────────────────
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const pxSize = 40;
+    const font = `bold ${pxSize}px Rajdhani, sans-serif`;
+    ctx.font = font;
 
-    // White fill with dark outline for readability (matches previous canvas style)
-    label.color = 0xffffff;
-    label.outlineWidth = '3%';
-    label.outlineColor = 0x000000;
-    label.outlineOpacity = 0.65;
+    const metrics = ctx.measureText(text);
+    const textW = Math.ceil(metrics.width) + 16;  // padding
+    const textH = pxSize + 16;
 
-    // Rendering — same depth behavior as previous SpriteMaterial
-    label.depthTest = true;
-    label.depthWrite = false;
+    canvas.width = textW;
+    canvas.height = textH;
 
-    // Billboard: face the camera every frame (replaces Sprite auto-billboard)
-    label.onBeforeRender = function (_renderer, _scene, cam) {
-        this.quaternion.copy(cam.quaternion);
-    };
+    // Re-set font after resize (canvas reset clears context state)
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
-    // Kick off async SDF generation so geometry is ready by next render
-    label.sync();
+    // Dark outline for readability
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(text, textW / 2, textH / 2);
 
-    return label;
+    // White fill
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(text, textW / 2, textH / 2);
+
+    // ── Texture + Sprite ────────────────────────────────────────────────────
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+
+    const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: true,
+        depthWrite: false,
+    });
+
+    const sprite = new THREE.Sprite(material);
+
+    // Scale to world units, preserving aspect ratio
+    const aspect = textW / textH;
+    sprite.scale.set(worldScale * aspect, worldScale, 1);
+
+    return sprite;
 }

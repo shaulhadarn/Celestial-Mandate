@@ -6,19 +6,14 @@
 export function disposeGroup(group) {
     while (group.children.length > 0) {
         const child = group.children[0];
-        // Troika Text meshes handle their own tree cleanup
-        if (child.dispose && child.text !== undefined) {
-            child.dispose();
-        } else {
-            if (child.children && child.children.length > 0) {
-                disposeGroup(child);
-            }
-            if (child.geometry) {
-                child.geometry.dispose();
-            }
-            if (child.material) {
-                disposeMaterial(child.material);
-            }
+        if (child.children && child.children.length > 0) {
+            disposeGroup(child);
+        }
+        if (child.geometry) {
+            child.geometry.dispose();
+        }
+        if (child.material) {
+            disposeMaterial(child.material);
         }
         group.remove(child);
     }
