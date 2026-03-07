@@ -933,7 +933,10 @@ export function updateGalaxyAnimations(time, group) {
 function createAtmosphere(group) {
   atmosphereGroup = new THREE.Group();
 
-  if (!isMobileDevice) {
+  // Galaxy's own background starfield removed — the R3F <Stars> component
+  // (which follows the camera) provides uniform background stars everywhere.
+  // Only nebula color washes remain here as subtle galactic ambience.
+  if (false) { // was: !isMobileDevice
     // ── Shared starfield shaders (robust: clamped size, smooth edges, stable alpha) ──
     const sfVertexShader = /* glsl */ `
       precision highp float;
@@ -1096,20 +1099,15 @@ function createAtmosphere(group) {
     atmosphereGroup.add(bandPoints);
   }
 
-  // ── Nebula sprites ──────────────────────────────────────────────────────
+  // ── Nebula sprites — very subtle color washes scattered across the galaxy ──
+  // Kept low-opacity so they tint the background without creating a visible dome
   const nebulaDefs = [
-    { color: 0x1122cc, opMin: 0.07, opMax: 0.13, sMin: 300, sMax: 550 },
-    { color: 0x4411aa, opMin: 0.06, opMax: 0.11, sMin: 280, sMax: 500 },
-    { color: 0x881166, opMin: 0.05, opMax: 0.1, sMin: 250, sMax: 480 },
-    { color: 0x0d3366, opMin: 0.08, opMax: 0.14, sMin: 350, sMax: 600 },
-    { color: 0x220055, opMin: 0.07, opMax: 0.12, sMin: 300, sMax: 520 },
-    { color: 0x003355, opMin: 0.06, opMax: 0.11, sMin: 260, sMax: 460 },
-    { color: 0x551133, opMin: 0.05, opMax: 0.09, sMin: 200, sMax: 400 },
-    { color: 0x002244, opMin: 0.09, opMax: 0.15, sMin: 400, sMax: 700 },
-    { color: 0x330066, opMin: 0.06, opMax: 0.1, sMin: 280, sMax: 500 },
-    { color: 0x004433, opMin: 0.05, opMax: 0.09, sMin: 220, sMax: 420 },
-    { color: 0x441100, opMin: 0.04, opMax: 0.08, sMin: 200, sMax: 380 },
-    { color: 0x110033, opMin: 0.1, opMax: 0.18, sMin: 500, sMax: 900 },
+    { color: 0x1122cc, opMin: 0.02, opMax: 0.05, sMin: 400, sMax: 700 },
+    { color: 0x4411aa, opMin: 0.02, opMax: 0.04, sMin: 350, sMax: 650 },
+    { color: 0x881166, opMin: 0.015, opMax: 0.04, sMin: 350, sMax: 600 },
+    { color: 0x0d3366, opMin: 0.025, opMax: 0.05, sMin: 450, sMax: 800 },
+    { color: 0x220055, opMin: 0.02, opMax: 0.04, sMin: 400, sMax: 700 },
+    { color: 0x003355, opMin: 0.02, opMax: 0.04, sMin: 350, sMax: 600 },
   ];
 
   const nebulaCount = isMobileDevice ? 2 : 3;
@@ -1126,11 +1124,11 @@ function createAtmosphere(group) {
         fog: false,
       });
       const neb = new THREE.Sprite(nebMat);
-      const dist = 150 + Math.random() * 1200;
+      const dist = 100 + Math.random() * 600;
       const angle = Math.random() * Math.PI * 2;
       neb.position.set(
         Math.cos(angle) * dist,
-        (Math.random() - 0.5) * 350,
+        (Math.random() - 0.5) * 200,
         Math.sin(angle) * dist
       );
       const s = def.sMin + Math.random() * (def.sMax - def.sMin);
@@ -1138,40 +1136,6 @@ function createAtmosphere(group) {
       neb.userData.baseScale = s;
       atmosphereGroup.add(neb);
     }
-  });
-
-  // Bright accent nebulas
-  const accentDefs = [
-    { color: 0x2255ff, opacity: 0.12, size: 180 },
-    { color: 0xaa22ff, opacity: 0.1, size: 160 },
-    { color: 0xff2266, opacity: 0.08, size: 140 },
-    { color: 0x00aaff, opacity: 0.11, size: 170 },
-    { color: 0xff6600, opacity: 0.07, size: 130 },
-    { color: 0x22ffcc, opacity: 0.09, size: 150 },
-  ];
-
-  accentDefs.forEach((def) => {
-    const mat = new THREE.SpriteMaterial({
-      map: textures.glow,
-      color: def.color,
-      transparent: true,
-      opacity: def.opacity * (0.7 + Math.random() * 0.6),
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      fog: false,
-    });
-    const spr = new THREE.Sprite(mat);
-    const dist = 80 + Math.random() * 500;
-    const angle = Math.random() * Math.PI * 2;
-    spr.position.set(
-      Math.cos(angle) * dist,
-      (Math.random() - 0.5) * 150,
-      Math.sin(angle) * dist
-    );
-    const s = def.size * (0.8 + Math.random() * 0.6);
-    spr.scale.set(s, s, 1);
-    spr.userData.baseScale = s;
-    atmosphereGroup.add(spr);
   });
 
   group.add(atmosphereGroup);
