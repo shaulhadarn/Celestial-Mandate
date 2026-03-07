@@ -12,20 +12,16 @@ const ARCHETYPE_SVGS = {
     parasitic:  `<svg viewBox="0 0 60 60" fill="none" class="arch-svg"><circle cx="30" cy="30" r="10" stroke="currentColor" stroke-width="2" fill="none" class="arch-svg-core-ring"/><circle cx="30" cy="30" r="4" fill="currentColor" class="arch-svg-core"/><path d="M30 20 Q20 10 10 18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" class="arch-svg-tendril"/><path d="M40 30 Q52 22 50 10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" class="arch-svg-tendril"/><path d="M30 40 Q38 52 28 56" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" class="arch-svg-tendril"/><path d="M20 30 Q8 38 10 50" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" class="arch-svg-tendril"/></svg>`,
 };
 
-// ── Step 4: Archetype + Ethics ────────────────────────────────────────────────
+// ── Step 4: Archetype ─────────────────────────────────────────────────────────
 export function renderArchetypeStep(parent) {
     parent.innerHTML = `
         <div class="creation-header-mini">
-            <h2>Step 4: Play Style & Ideology</h2>
-            <p>Choose your civilization's governing archetype and ideological alignment.</p>
+            <h2>Step 4: Play Style</h2>
+            <p>Choose your civilization's governing archetype.</p>
         </div>
         <div class="creation-section">
             <label class="section-label-fancy">Galactic Archetype</label>
             <div class="archetype-grid" id="opt-archetype"></div>
-        </div>
-        <div class="creation-section">
-            <label class="section-label-fancy">Ideological Spectrum</label>
-            <div class="ethics-sliders" id="opt-ethics"></div>
         </div>
     `;
 
@@ -57,6 +53,19 @@ export function renderArchetypeStep(parent) {
         }
         archContainer.appendChild(card);
     });
+}
+
+// ── Step 5: Ideological Spectrum ──────────────────────────────────────────────
+export function renderEthicsStep(parent) {
+    parent.innerHTML = `
+        <div class="creation-header-mini">
+            <h2>Step 5: Ideological Spectrum</h2>
+            <p>Define your empire's core ideological alignment across five axes.</p>
+        </div>
+        <div class="creation-section">
+            <div class="ethics-sliders" id="opt-ethics"></div>
+        </div>
+    `;
 
     const ethicsContainer = parent.querySelector('#opt-ethics');
     ETHICS_AXES.forEach(axis => {
@@ -94,7 +103,7 @@ const CIVIC_SVGS = {
     fleet_doctrine:          `<svg viewBox="0 0 60 60" fill="none" class="civic-svg"><path d="M30 10 L42 22 L42 38 L30 50 L18 38 L18 22 Z" stroke="currentColor" stroke-width="2" fill="none" class="civic-svg-shield"/><path d="M30 18 L36 24 L36 34 L30 40 L24 34 L24 24 Z" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.5" class="civic-svg-inner"/><circle cx="30" cy="30" r="4" fill="currentColor" class="civic-svg-core"/><path d="M12 16 L18 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="civic-svg-line"/><path d="M48 16 L42 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="civic-svg-line"/><path d="M30 4 L30 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="civic-svg-line"/></svg>`,
 };
 
-// ── Step 5: Civics ────────────────────────────────────────────────────────────
+// ── Step 6: Civics ────────────────────────────────────────────────────────────
 export function renderCivicsStep(parent) {
     const currentArchName = ARCHETYPES.find(a => a.id === state.currentCiv.archetype)?.name;
 
@@ -108,7 +117,7 @@ export function renderCivicsStep(parent) {
 
     parent.innerHTML = `
         <div class="creation-header-mini">
-            <h2>Step 5: Imperial Civics</h2>
+            <h2>Step 6: Imperial Civics</h2>
             <p>Choose 2 governing principles that shape your empire's laws and culture.</p>
         </div>
         <div class="traits-counter-bar">

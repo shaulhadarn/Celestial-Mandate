@@ -1,7 +1,7 @@
 /* Updated: Organized app hierarchy, moved to src/ui folder, fixed imports and paths */
 import { BODY_TYPES, HOMEWORLD_TYPES, ARCHETYPES, ETHICS_AXES } from '../core/civilization_data.js';
 
-export const TOTAL_STEPS = 6;
+export const TOTAL_STEPS = 7;
 
 export const state = {
     currentStep: 0,

@@ -4,7 +4,7 @@ import { state, TOTAL_STEPS, validateStep, validateCiv } from './ui_creation_sta
 import { renderSpeciesStep } from './ui_creation_species.js';
 import { renderHomeworldStep } from './ui_creation_homeworld.js';
 import { renderTraitsStep } from './ui_creation_homeworld.js';
-import { renderArchetypeStep, renderCivicsStep } from './ui_creation_society.js';
+import { renderArchetypeStep, renderEthicsStep, renderCivicsStep } from './ui_creation_society.js';
 import { renderSummaryStep } from './ui_creation_summary.js';
 
 // Persistent references — created once, never re-rendered
@@ -112,8 +112,9 @@ function renderStepContent() {
         case 1: renderHomeworldStep(_stepView);  break;
         case 2: renderTraitsStep(_stepView);     break;
         case 3: renderArchetypeStep(_stepView);  break;
-        case 4: renderCivicsStep(_stepView);     break;
-        case 5: renderSummaryStep(_stepView);    break;
+        case 4: renderEthicsStep(_stepView);     break;
+        case 5: renderCivicsStep(_stepView);     break;
+        case 6: renderSummaryStep(_stepView);    break;
     }
 
     _stepView.classList.add('step-content-enter');

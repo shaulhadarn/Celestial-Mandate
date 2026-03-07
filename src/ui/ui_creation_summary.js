@@ -47,7 +47,7 @@ export function renderSummaryStep(parent) {
 
     parent.innerHTML = `
         <div class="creation-header-mini">
-            <h2>Step 6: Galactic Proclamation</h2>
+            <h2>Step 7: Galactic Proclamation</h2>
             <p>Finalize the details of your empire. Once established, you will begin your journey from your homeworld.</p>
         </div>
 
