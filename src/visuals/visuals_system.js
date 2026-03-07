@@ -366,23 +366,34 @@ export function createSystemVisuals(system, group) {
             mesh.add(new THREE.Mesh(rimGeo, rimMat));
         }
         
-        // ── Planet glow — soft radial halo (2 shader-driven layers) ──
+        // ── Planet glow — Sprite-based for stable camera-facing (2 layers) ──
         const glowColor = atmosphereColor !== null ? atmosphereColor : matColor;
         const planetR = p.size * 2 * scale;
-        const phase = idx * 1.3;
 
-        // Layer 1: Soft outer halo — slow pulse baked into shader
-        const outerHalo = _createGlowMesh(
-            textures.glow, glowColor, isMobileDevice ? 0.45 : 0.5, phase, 0.35, 0.07
-        );
+        // Layer 1: Soft outer halo
+        const outerHalo = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow,
+            color: glowColor,
+            transparent: true,
+            opacity: isMobileDevice ? 0.45 : 0.5,
+            blending: THREE.AdditiveBlending,
+            depthTest: false,
+            depthWrite: false,
+        }));
         const outerScale = planetR * 6;
         outerHalo.scale.set(outerScale, outerScale, 1);
         mesh.add(outerHalo);
 
-        // Layer 2: Tighter core glow — faster pulse baked into shader
-        const coreGlow = _createGlowMesh(
-            textures.glow, glowColor, isMobileDevice ? 0.55 : 0.6, phase, 0.8, 0.10
-        );
+        // Layer 2: Tighter core glow
+        const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow,
+            color: glowColor,
+            transparent: true,
+            opacity: isMobileDevice ? 0.55 : 0.6,
+            blending: THREE.AdditiveBlending,
+            depthTest: false,
+            depthWrite: false,
+        }));
         const coreScale = planetR * 3.5;
         coreGlow.scale.set(coreScale, coreScale, 1);
         mesh.add(coreGlow);

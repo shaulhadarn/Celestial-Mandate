@@ -349,7 +349,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   const billboardGeo = new THREE.PlaneGeometry(1, 1);
 
   // ── C. Instanced corona glow (soft sprite instead of hard shell) ──────────
-  const coronaGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.38 : 0.35, true);
+  const coronaGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.5 : 0.45, true);
   coronaInstancedMesh = new THREE.InstancedMesh(billboardGeo, coronaGlowMat, N);
   coronaInstancedMesh.geometry.setAttribute(
     "instanceColor",
@@ -368,7 +368,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   // --- Outer halo layer ---
   const outerHaloMat = createBillboardMaterial(
     textures.glowSoft,
-    isMobileDevice ? 0.3 : 0.28,
+    isMobileDevice ? 0.4 : 0.35,
     true
   );
   outerHaloInstanced = new THREE.InstancedMesh(billboardGeo, outerHaloMat, N);
@@ -390,7 +390,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   group.add(outerHaloInstanced);
 
   // --- Mid glow layer ---
-  const midGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.28 : 0.22, true);
+  const midGlowMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.38 : 0.32, true);
   midGlowInstanced = new THREE.InstancedMesh(billboardGeo, midGlowMat, N);
   midGlowInstanced.geometry.setAttribute(
     "instanceColor",
@@ -411,7 +411,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
   // --- Core layer ---
   const coreSize = isMobileDevice ? 3.8 : 3.5;
-  const coreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.58 : 0.55, true);
+  const coreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.68 : 0.65, true);
   coreInstanced = new THREE.InstancedMesh(billboardGeo, coreBillboardMat, N);
   coreInstanced.geometry.setAttribute(
     "instanceColor",
@@ -431,7 +431,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
   // --- White-hot core layer (pure white, no instance color) ---
   const hotCoreSize = isMobileDevice ? 2.2 : 2.0;
-  const hotCoreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.55 : 0.5, false);
+  const hotCoreBillboardMat = createBillboardMaterial(textures.glow, isMobileDevice ? 0.65 : 0.6, false);
   hotCoreInstanced = new THREE.InstancedMesh(billboardGeo, hotCoreBillboardMat, N);
   // No instanceColor needed — shader uses vec3(1.0) for white
   systems.forEach((sys, i) => {
@@ -498,31 +498,37 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
     // ── Star soft glow sprites (per-system, always visible up close) ─────
     const starColor = new THREE.Color(sys.color);
+    // Boost glow color for pale stars (Blue Giants) — saturate toward pure hue
+    const glowColor = starColor.clone();
+    const hsl = {};
+    glowColor.getHSL(hsl);
+    glowColor.setHSL(hsl.h, Math.min(1.0, hsl.s + 0.3), Math.min(0.75, hsl.l + 0.1));
+
     const starGlow = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: textures.glow,
-        color: starColor,
+        color: glowColor,
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.7,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
     );
-    starGlow.scale.set(12, 12, 1);
+    starGlow.scale.set(14, 14, 1);
     starGlow.position.copy(sys.position);
     group.add(starGlow);
 
     const starHalo = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: textures.glowSoft || textures.glow,
-        color: starColor,
+        color: glowColor,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.45,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
     );
-    starHalo.scale.set(20, 20, 1);
+    starHalo.scale.set(24, 24, 1);
     starHalo.position.copy(sys.position);
     group.add(starHalo);
 
