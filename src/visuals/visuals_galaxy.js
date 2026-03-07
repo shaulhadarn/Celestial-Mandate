@@ -268,7 +268,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   });
 
   // ── B. Instanced star spheres ─────────────────────────────────────────────
-  const starSegs = isMobileDevice ? 24 : 32;
+  const starSegs = isMobileDevice ? 24 : 48;
   const starGeo = new THREE.SphereGeometry(2.0, starSegs, starSegs);
 
   // Plasma shader for star surfaces — same look on mobile & desktop
@@ -583,7 +583,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
           emissiveIntensity = 0.15;
       }
 
-      const pSegs = isMobileDevice ? 24 : 32;
+      const pSegs = isMobileDevice ? 24 : 48;
       const pGeo = new THREE.SphereGeometry(size, pSegs, pSegs);
       const pMat = new THREE.MeshStandardMaterial({
         map: tex,

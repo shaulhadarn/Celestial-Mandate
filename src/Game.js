@@ -62,20 +62,34 @@ const GameLoop = () => {
 
   // Create composer once — depends only on gl/scene/camera (stable after mount)
   useEffect(() => {
-    const w = gl.domElement.width || window.innerWidth;
-    const h = gl.domElement.height || window.innerHeight;
-    const comp = new EffectComposer(gl);
+    const dpr = gl.getPixelRatio();
+    const cw = gl.domElement.clientWidth || window.innerWidth;
+    const ch = gl.domElement.clientHeight || window.innerHeight;
+    const pw = Math.floor(cw * dpr);
+    const ph = Math.floor(ch * dpr);
+
+    // Create render target at full pixel resolution for crisp anti-aliased output
+    const rt = new THREE.WebGLRenderTarget(pw, ph, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.HalfFloatType,
+      samples: isMobileDevice ? 0 : 4,  // MSAA on desktop for smooth planet edges
+    });
+    const comp = new EffectComposer(gl, rt);
+    comp.setPixelRatio(dpr);
+    comp.setSize(cw, ch);
     comp.addPass(new RenderPass(scene, camera));
 
     if (isMobileDevice) {
       const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(Math.floor(w / 2), Math.floor(h / 2)),
+        new THREE.Vector2(Math.floor(pw / 2), Math.floor(ph / 2)),
         0.75, 0.45, 0.75
       );
       comp.addPass(bloomPass);
     } else {
       const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(w, h),
+        new THREE.Vector2(pw, ph),
         0.9, 0.6, 0.6
       );
       comp.addPass(bloomPass);
@@ -94,13 +108,15 @@ const GameLoop = () => {
   // Resize composer cheaply when window size changes — no rebuild
   useEffect(() => {
     if (!composer.current) return;
-    const w = isMobileDevice ? Math.floor(size.width / 2) : size.width;
-    const h = isMobileDevice ? Math.floor(size.height / 2) : size.height;
-    composer.current.setSize(w, h);
+    const dpr = gl.getPixelRatio();
+    composer.current.setPixelRatio(dpr);
+    composer.current.setSize(size.width, size.height);
+    const pw = Math.floor(size.width * dpr);
+    const ph = Math.floor(size.height * dpr);
     composer.current.passes.forEach(pass => {
-      if (pass.resolution) pass.resolution.set(w, h);
+      if (pass.resolution) pass.resolution.set(pw, ph);
     });
-  }, [size]);
+  }, [size, gl]);
 
   useFrame((state, delta) => {
     updateFrame(state, delta);
