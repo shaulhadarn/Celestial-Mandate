@@ -934,6 +934,77 @@ function createAtmosphere(group) {
   atmosphereGroup = new THREE.Group();
 
   if (!isMobileDevice) {
+    // ── Shared starfield shaders (robust: clamped size, smooth edges, stable alpha) ──
+    const sfVertexShader = /* glsl */ `
+      precision highp float;
+      attribute float size;
+      attribute float offset;
+      attribute vec3 color;
+      varying float vOffset;
+      varying vec3  vColor;
+      varying float vSize;
+      void main() {
+        vOffset = offset;
+        vColor  = color;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        // Clamp point size: min 0.8px prevents sub-pixel pop, max 4px keeps them star-like
+        float rawSize = size * (300.0 / -mvPosition.z);
+        gl_PointSize = clamp(rawSize, 0.8, 4.0);
+        vSize = gl_PointSize;
+        gl_Position  = projectionMatrix * mvPosition;
+      }
+    `;
+    const sfFragmentShader = /* glsl */ `
+      precision highp float;
+      uniform float time;
+      varying float vOffset;
+      varying vec3  vColor;
+      varying float vSize;
+      void main() {
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float d = length(coord);
+        // Smooth circular falloff — no hard discard, soft edge prevents aliasing
+        float circle = smoothstep(0.5, 0.15, d);
+        // Gentle twinkle: alpha stays in 0.55–1.0 range, never fully vanishes
+        float twinkle = 0.55 + 0.45 * sin(time * 0.8 + vOffset * 6.2831);
+        // Fade tiny points gracefully instead of popping
+        float sizeFade = smoothstep(0.5, 1.5, vSize);
+        gl_FragColor = vec4(vColor, circle * twinkle * sizeFade * 0.85);
+      }
+    `;
+
+    // Band-only vertex/fragment (single uniform color)
+    const bandVertexShader = /* glsl */ `
+      precision highp float;
+      attribute float size;
+      attribute float offset;
+      varying float vOffset;
+      varying float vSize;
+      void main() {
+        vOffset = offset;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        float rawSize = size * (300.0 / -mvPosition.z);
+        gl_PointSize = clamp(rawSize, 0.6, 3.5);
+        vSize = gl_PointSize;
+        gl_Position  = projectionMatrix * mvPosition;
+      }
+    `;
+    const bandFragmentShader = /* glsl */ `
+      precision highp float;
+      uniform float time;
+      uniform vec3  color;
+      varying float vOffset;
+      varying float vSize;
+      void main() {
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float d = length(coord);
+        float circle = smoothstep(0.5, 0.15, d);
+        float twinkle = 0.6 + 0.4 * sin(time * 0.5 + vOffset * 6.2831);
+        float sizeFade = smoothstep(0.3, 1.2, vSize);
+        gl_FragColor = vec4(color, circle * twinkle * sizeFade * 0.6);
+      }
+    `;
+
     // ── 1. Deep background starfield (12000 distant points, multi-tint) ──
     const starCount = 12000;
     const positions = new Float32Array(starCount * 3);
@@ -956,7 +1027,7 @@ function createAtmosphere(group) {
       positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       positions[i * 3 + 2] = r * Math.cos(phi);
-      sizes[i] = 0.3 + Math.random() * 2.2;
+      sizes[i] = 0.5 + Math.random() * 2.0;
       offsets[i] = Math.random() * Math.PI * 2;
       const c = starPalette[Math.floor(Math.random() * starPalette.length)];
       colors[i * 3] = c.r;
@@ -965,44 +1036,15 @@ function createAtmosphere(group) {
     }
 
     const starGeo = new THREE.BufferGeometry();
-    starGeo.setAttribute(
-      "position",
-      new THREE.BufferAttribute(positions, 3)
-    );
+    starGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     starGeo.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
     starGeo.setAttribute("offset", new THREE.BufferAttribute(offsets, 1));
     starGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
     const starMat = new THREE.ShaderMaterial({
       uniforms: { time: { value: 0 } },
-      vertexShader: `
-        precision highp float;
-        attribute float size;
-        attribute float offset;
-        attribute vec3 color;
-        varying float vOffset;
-        varying vec3  vColor;
-        void main() {
-          vOffset = offset;
-          vColor  = color;
-          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = size * (300.0 / -mvPosition.z);
-          gl_Position  = projectionMatrix * mvPosition;
-        }
-      `,
-      fragmentShader: `
-        precision highp float;
-        uniform float time;
-        varying float vOffset;
-        varying vec3  vColor;
-        void main() {
-          vec2 coord = gl_PointCoord - vec2(0.5);
-          float d = length(coord);
-          if (d > 0.5) discard;
-          float alpha = (1.0 - d * 2.0) * (0.45 + 0.55 * sin(time * 1.2 + vOffset));
-          gl_FragColor = vec4(vColor, alpha * 0.85);
-        }
-      `,
+      vertexShader: sfVertexShader,
+      fragmentShader: sfFragmentShader,
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -1010,6 +1052,7 @@ function createAtmosphere(group) {
 
     const starPoints = new THREE.Points(starGeo, starMat);
     starPoints.userData.isStarfield = true;
+    starPoints.frustumCulled = false;
     atmosphereGroup.add(starPoints);
 
     // ── 2. Dense galactic-plane star band ────────────────────────────────
@@ -1024,7 +1067,7 @@ function createAtmosphere(group) {
       bPos[i * 3] = Math.cos(theta) * r;
       bPos[i * 3 + 1] = (Math.random() - 0.5) * 60;
       bPos[i * 3 + 2] = Math.sin(theta) * r;
-      bSize[i] = 0.2 + Math.random() * 1.2;
+      bSize[i] = 0.3 + Math.random() * 1.2;
       bOff[i] = Math.random() * Math.PI * 2;
     }
 
@@ -1038,31 +1081,8 @@ function createAtmosphere(group) {
         time: { value: 0 },
         color: { value: new THREE.Color(0xaabbdd) },
       },
-      vertexShader: `
-        precision highp float;
-        attribute float size;
-        attribute float offset;
-        varying float vOffset;
-        void main() {
-          vOffset = offset;
-          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = size * (300.0 / -mvPosition.z);
-          gl_Position  = projectionMatrix * mvPosition;
-        }
-      `,
-      fragmentShader: `
-        precision highp float;
-        uniform float time;
-        uniform vec3  color;
-        varying float vOffset;
-        void main() {
-          vec2 coord = gl_PointCoord - vec2(0.5);
-          float d = length(coord);
-          if (d > 0.5) discard;
-          float alpha = (1.0 - d * 2.0) * (0.3 + 0.4 * sin(time * 0.8 + vOffset));
-          gl_FragColor = vec4(color, alpha * 0.6);
-        }
-      `,
+      vertexShader: bandVertexShader,
+      fragmentShader: bandFragmentShader,
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
@@ -1070,6 +1090,7 @@ function createAtmosphere(group) {
 
     const bandPoints = new THREE.Points(bandGeo, bandMat);
     bandPoints.userData.isStarfield = true;
+    bandPoints.frustumCulled = false;
     atmosphereGroup.add(bandPoints);
   }
 
