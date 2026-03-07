@@ -15,6 +15,7 @@ const _starTextureCache = new Map();
 export let starMeshes = [];          // individual hit-spheres for raycasting
 export let galaxyPlanetMeshes = [];  // individual planet meshes (not batched)
 export let colonyRings = [];         // individual colony ring meshes
+export let capitalRings = [];        // special capital system ring meshes (animated separately)
 export let visibleStarMeshes = [];   // kept for compat — now references dummy array
 
 // ── Module-level instanced state ────────────────────────────────────────────
@@ -96,6 +97,84 @@ function createBillboardMaterial(map, opacity, useInstanceColor) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Capital System — Enhanced ring beacon (always visible, even when zoomed out)
+// ─────────────────────────────────────────────────────────────────────────────
+function _createCapitalRings(sys, group) {
+  const pos = sys.position;
+  const cyan = 0x00f2ff;
+  const gold = 0xffd700;
+
+  // Layer 1: Large outer sentinel ring (dashed look via segments)
+  const outerGeo = new THREE.RingGeometry(7.5, 7.8, 96);
+  const outerMat = new THREE.MeshBasicMaterial({
+    color: cyan, transparent: true, opacity: 0.7,
+    side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const outerRing = new THREE.Mesh(outerGeo, outerMat);
+  outerRing.rotation.x = Math.PI / 2;
+  outerRing.position.copy(pos);
+  outerRing.userData.capitalLayer = 'outer';
+  group.add(outerRing);
+  capitalRings.push(outerRing);
+
+  // Layer 2: Mid ring — slightly tilted for 3D depth
+  const midGeo = new THREE.RingGeometry(6.0, 6.3, 80);
+  const midMat = new THREE.MeshBasicMaterial({
+    color: gold, transparent: true, opacity: 0.5,
+    side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const midRing = new THREE.Mesh(midGeo, midMat);
+  midRing.rotation.x = Math.PI / 2 + 0.15; // slight tilt
+  midRing.position.copy(pos);
+  midRing.userData.capitalLayer = 'mid';
+  group.add(midRing);
+  capitalRings.push(midRing);
+
+  // Layer 3: Inner pulsing ring
+  const innerGeo = new THREE.RingGeometry(4.5, 4.8, 64);
+  const innerMat = new THREE.MeshBasicMaterial({
+    color: cyan, transparent: true, opacity: 0.6,
+    side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const innerRing = new THREE.Mesh(innerGeo, innerMat);
+  innerRing.rotation.x = Math.PI / 2 - 0.1;
+  innerRing.position.copy(pos);
+  innerRing.userData.capitalLayer = 'inner';
+  group.add(innerRing);
+  capitalRings.push(innerRing);
+
+  // Layer 4: Tight core ring — gold accent
+  const coreGeo = new THREE.RingGeometry(3.2, 3.5, 64);
+  const coreMat = new THREE.MeshBasicMaterial({
+    color: gold, transparent: true, opacity: 0.4,
+    side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const coreRing = new THREE.Mesh(coreGeo, coreMat);
+  coreRing.rotation.x = Math.PI / 2;
+  coreRing.position.copy(pos);
+  coreRing.userData.capitalLayer = 'core';
+  group.add(coreRing);
+  capitalRings.push(coreRing);
+
+  // Layer 5: Large glow sprite — soft beacon visible at any zoom
+  const beaconSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: textures.glow,
+      color: cyan,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  beaconSprite.position.copy(pos);
+  beaconSprite.scale.set(22, 22, 1);
+  beaconSprite.userData.capitalLayer = 'beacon';
+  group.add(beaconSprite);
+  capitalRings.push(beaconSprite);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // createGalaxyVisuals  (public API — signature unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 export function createGalaxyVisuals(systems, hyperlanes, group) {
@@ -104,6 +183,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   starMeshes.length = 0;
   galaxyPlanetMeshes.length = 0;
   colonyRings.length = 0;
+  capitalRings.length = 0;
   visibleStarMeshes.length = 0;
   starGlows = [];
   starShaderMats = [];
@@ -370,7 +450,12 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     const colonizedPlanets = sys.planets.filter(
       (p) => gameState.colonies[p.id]
     );
-    if (colonizedPlanets.length > 0) {
+    const isCapital = sys.id === 0;
+
+    if (isCapital) {
+      // ── CAPITAL SYSTEM — Enhanced multi-layer ring beacon ──────────────
+      _createCapitalRings(sys, group);
+    } else if (colonizedPlanets.length > 0) {
       const ringGeo = new THREE.RingGeometry(4.0, 4.2, 64);
       const ringMat = new THREE.MeshBasicMaterial({
         color: 0x00f2ff,
@@ -683,6 +768,12 @@ export function addColonyRingForSystem(systemId, group) {
   const sys = gameState.systems.find((s) => s.id === systemId);
   if (!sys) return;
 
+  // Capital system uses the enhanced multi-layer rings
+  if (sys.id === 0) {
+    _createCapitalRings(sys, group);
+    return;
+  }
+
   const ringGeo = new THREE.RingGeometry(4.0, 4.2, 64);
   const ringMat = new THREE.MeshBasicMaterial({
     color: 0x00f2ff,
@@ -809,6 +900,30 @@ export function updateGalaxyAnimations(time, group) {
     const offset = index % 2 === 0 ? 0 : Math.PI;
     ring.material.opacity = (Math.sin(time * 3 + offset) + 1) * 0.2 + 0.2;
     ring.rotation.z += index % 2 === 0 ? 0.01 : -0.015;
+  });
+
+  // ── Animate capital system rings (enhanced multi-layer beacon) ────────
+  capitalRings.forEach((obj) => {
+    const layer = obj.userData.capitalLayer;
+    if (layer === 'outer') {
+      obj.rotation.z += 0.008;
+      obj.material.opacity = 0.5 + Math.sin(time * 2.0) * 0.25;
+    } else if (layer === 'mid') {
+      obj.rotation.z -= 0.012;
+      obj.material.opacity = 0.35 + Math.sin(time * 2.5 + 1.0) * 0.2;
+    } else if (layer === 'inner') {
+      obj.rotation.z += 0.018;
+      obj.material.opacity = 0.4 + Math.sin(time * 3.0 + 2.0) * 0.25;
+    } else if (layer === 'core') {
+      obj.rotation.z -= 0.025;
+      obj.material.opacity = 0.3 + Math.sin(time * 3.5 + 3.0) * 0.2;
+    } else if (layer === 'beacon') {
+      // Pulsing glow beacon — scale and opacity breathe
+      const pulse = 0.25 + Math.sin(time * 1.5) * 0.12;
+      obj.material.opacity = pulse;
+      const s = 22 + Math.sin(time * 1.2) * 3;
+      obj.scale.set(s, s, 1);
+    }
   });
 }
 

@@ -306,10 +306,13 @@ export async function returnToGalaxyView() {
         planetMeshes.length = 0;
 
         // Restore Camera — center on the system we just left, zoomed out to show neighbors
+        // Must compute world position since the galaxy group may be rotated
         if (gameState.selectedSystemId !== null) {
             const sys = getSystem(gameState.selectedSystemId);
             if (sys) {
-                focusCamera(sys.position, 120);
+                const worldPos = sys.position.clone();
+                groups.galaxy.localToWorld(worldPos);
+                focusCamera(worldPos, 120);
             }
         }
         controls.minDistance = 20;
