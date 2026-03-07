@@ -170,16 +170,24 @@ const ControlsWrapper = () => {
 };
 
 const SpaceStars = () => {
+  const starsRef = useRef();
+  useEffect(() => {
+    if (starsRef.current && starsRef.current.material) {
+      starsRef.current.material.fog = false;
+      starsRef.current.material.depthWrite = false;
+    }
+  }, []);
   return /* @__PURE__ */ jsxDEV(
     Stars,
     {
-      radius: 600,
-      depth: 120,
+      ref: starsRef,
+      radius: 900,
+      depth: 80,
       count: isMobileDevice ? 3000 : 8000,
-      factor: isMobileDevice ? 3 : 5,
-      saturation: 0.4,
-      fade: true,
-      speed: 0.3
+      factor: isMobileDevice ? 2.5 : 4,
+      saturation: 0.3,
+      fade: false,
+      speed: 0
     },
     void 0, false, { fileName: "<stdin>", lineNumber: 0, columnNumber: 0 }
   );
