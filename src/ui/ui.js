@@ -409,7 +409,7 @@ async function returnToSystemViewFromPlanet() {
 
     if (scene) {
         scene.background = new THREE.Color(0x020408);
-        scene.fog = new THREE.FogExp2(0x020408, 0.0015);
+        scene.fog = new THREE.FogExp2(0x020408, 0.0006);
     }
 
     disposeGroup(groups.planet);

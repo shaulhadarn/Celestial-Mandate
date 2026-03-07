@@ -29,7 +29,7 @@ const SceneBindings = () => {
     // Note: applyGraphicsConfig() is called from GameLoop after composer is created,
     // so that pixel ratio, bloom, and anisotropy settings are applied in the right order.
     scene.background = new THREE.Color(132104);
-    scene.fog = new THREE.FogExp2(132104, 15e-4);
+    scene.fog = new THREE.FogExp2(132104, 6e-4);
     // Start with galaxy hidden — focusHome will call enterSystemView which sets visibility correctly
     groups.galaxy.visible = false;
     groups.system.visible = true;

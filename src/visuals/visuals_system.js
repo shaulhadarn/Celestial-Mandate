@@ -595,7 +595,7 @@ function createSystemBackground(group) {
 
     // ── Background stars ──────────────────────────────────────────────────────
     for (let i = 0; i < starCount; i++) {
-        const r = 350 + Math.random() * 450;
+        const r = 400 + Math.random() * 800;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         posArray[i*3]   = r * Math.sin(phi) * Math.cos(theta);
@@ -623,7 +623,7 @@ function createSystemBackground(group) {
     const clusterColors = [0xffffff, 0xffeebb, 0xaaddff, 0xffccaa, 0xccddff];
     for (let i = 0; i < clusterCount; i++) {
         const idx = starCount + i;
-        const r = 200 + Math.random() * 180;
+        const r = 200 + Math.random() * 400;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         posArray[idx*3]   = r * Math.sin(phi) * Math.cos(theta);
@@ -683,6 +683,7 @@ function createSystemBackground(group) {
         transparent: true,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
+        fog: false,
     });
 
     group.add(new THREE.Points(geo, mat));

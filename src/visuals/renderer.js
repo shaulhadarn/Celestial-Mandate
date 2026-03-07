@@ -214,7 +214,7 @@ export async function enterSystemView(systemId, instant = false) {
         // Reset background and fog to deep space defaults
         if (scene) {
             scene.background = new THREE.Color(0x020408);
-            scene.fog = new THREE.FogExp2(0x020408, 0.0015);
+            scene.fog = new THREE.FogExp2(0x020408, 0.0006);
         }
 
         // Re-enable OrbitControls — boost speeds for tighter system-scale interaction
@@ -271,7 +271,7 @@ export async function returnToGalaxyView() {
         // Reset background and fog to deep space defaults
         if (scene) {
             scene.background = new THREE.Color(0x020408);
-            scene.fog = new THREE.FogExp2(0x020408, 0.0015);
+            scene.fog = new THREE.FogExp2(0x020408, 0.0006);
         }
 
         // Restore OrbitControls to galaxy defaults
@@ -378,15 +378,13 @@ export function enterPlanetView(planetData) {
 export function restoreControlsAfterPlanet() {
     if (!controls || !camera) return;
 
-    // controls.reset() flushes all internal _spherical, _sphericalDelta,
-    // _panOffset, _scale state that accumulated while controls were disabled
-    controls.reset();
-
-    // Always reset to the default system view camera — same as enterSystemView
+    // Set camera and target to default system view (same as enterSystemView)
     controls.target.set(0, 0, 0);
     camera.position.set(0, 40, 50);
     camera.zoom = 1;
     camera.updateProjectionMatrix();
+
+    // Restore system-view control parameters (same as enterSystemView)
     controls.minDistance = 10;
     controls.maxDistance = 300;
     controls.enableRotate = true;
@@ -397,10 +395,15 @@ export function restoreControlsAfterPlanet() {
     controls.rotateSpeed = 1.0;
     controls.panSpeed = 1.4;
     controls.zoomSpeed = 1.2;
-    savedControlsState = null;
-
     controls.enabled = true;
-    controls.update();
+
+    // saveState() captures our desired position/target, then reset() restores
+    // from that snapshot — this properly syncs OrbitControls' internal spherical
+    // state so dragging/rotation behaves correctly from the new camera position
+    controls.saveState();
+    controls.reset();
+
+    savedControlsState = null;
 }
 
 function animateCamera(target, distance, height, duration = 800) {

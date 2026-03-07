@@ -1048,6 +1048,7 @@ function createAtmosphere(group) {
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
+      fog: false,
     });
 
     const starPoints = new THREE.Points(starGeo, starMat);
@@ -1086,6 +1087,7 @@ function createAtmosphere(group) {
       transparent: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
+      fog: false,
     });
 
     const bandPoints = new THREE.Points(bandGeo, bandMat);
@@ -1121,13 +1123,14 @@ function createAtmosphere(group) {
         opacity: def.opMin + Math.random() * (def.opMax - def.opMin),
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        fog: false,
       });
       const neb = new THREE.Sprite(nebMat);
-      const dist = 150 + Math.random() * 800;
+      const dist = 150 + Math.random() * 1200;
       const angle = Math.random() * Math.PI * 2;
       neb.position.set(
         Math.cos(angle) * dist,
-        (Math.random() - 0.5) * 250,
+        (Math.random() - 0.5) * 350,
         Math.sin(angle) * dist
       );
       const s = def.sMin + Math.random() * (def.sMax - def.sMin);
@@ -1155,13 +1158,14 @@ function createAtmosphere(group) {
       opacity: def.opacity * (0.7 + Math.random() * 0.6),
       blending: THREE.AdditiveBlending,
       depthWrite: false,
+      fog: false,
     });
     const spr = new THREE.Sprite(mat);
-    const dist = 80 + Math.random() * 350;
+    const dist = 80 + Math.random() * 500;
     const angle = Math.random() * Math.PI * 2;
     spr.position.set(
       Math.cos(angle) * dist,
-      (Math.random() - 0.5) * 100,
+      (Math.random() - 0.5) * 150,
       Math.sin(angle) * dist
     );
     const s = def.size * (0.8 + Math.random() * 0.6);
