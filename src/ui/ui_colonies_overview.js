@@ -3,6 +3,19 @@ import { gameState, events, getPlanet, selectSystem, selectPlanet, BUILDINGS } f
 import { enterSystemView, returnToGalaxyView } from '../visuals/renderer.js';
 import { updateSelectionPanel } from './ui_selection.js';
 
+// SVG icon helper — references the sprite sheet in index.html
+const svgIcon = (id, cls = '') =>
+    `<svg class="col-svg-icon svg-icon ${cls}" viewBox="0 0 24 24"><use href="#icon-${id}"></use></svg>`;
+
+// Map building keys to sprite icon IDs
+const BUILDING_ICON_MAP = {
+    mining_network: 'mining',
+    power_plant: 'energy',
+    hydroponics: 'hydroponics',
+    research_lab: 'research-lab',
+    shipyard: 'shipyard',
+};
+
 export function initColoniesOverview() {
     const btn = document.getElementById('btn-colonies');
     const panel = document.getElementById('colonies-panel');
@@ -75,7 +88,10 @@ function renderColoniesOverview() {
 
         const buildingIcons = col.buildings.map(bId => {
             const b = BUILDINGS[bId];
-            return b ? `<span class="colony-building-icon" title="${b.name}">${b.icon}</span>` : '';
+            if (!b) return '';
+            const iconId = BUILDING_ICON_MAP[bId] || 'building';
+            const color = b.borderColor || '#00e5ff';
+            return `<span class="colony-building-icon" title="${b.name}" style="color:${color}">${svgIcon(iconId)}</span>`;
         }).join('');
 
         const emptySlots = Array(maxSlots - buildingSlots).fill(0).map(() =>
@@ -93,19 +109,19 @@ function renderColoniesOverview() {
                 </div>
                 <div class="colony-card-stats">
                     <div class="colony-stat-row">
-                        <span class="colony-stat">👥 Pop: <strong>${col.population}</strong></span>
-                        <span class="colony-stat">📈 Growth: <strong>${growthPct}%</strong></span>
-                        <span class="colony-stat">🏗️ Buildings: <strong>${buildingSlots}/${maxSlots}</strong></span>
+                        <span class="colony-stat col-stat-pop">${svgIcon('population')} Pop: <strong>${col.population}</strong></span>
+                        <span class="colony-stat col-stat-growth">${svgIcon('growth')} Growth: <strong>${growthPct}%</strong></span>
+                        <span class="colony-stat col-stat-building">${svgIcon('building')} Buildings: <strong>${buildingSlots}/${maxSlots}</strong></span>
                     </div>
                     <div class="colony-stat-row">
-                        <span class="colony-stat ${colEnergy >= 0 ? 'pos' : 'neg'}">⚡ ${colEnergy >= 0 ? '+' : ''}${Math.floor(colEnergy)}</span>
-                        <span class="colony-stat ${colMinerals >= 0 ? 'pos' : 'neg'}">💎 ${colMinerals >= 0 ? '+' : ''}${Math.floor(colMinerals)}</span>
-                        <span class="colony-stat ${colFood >= 0 ? 'pos' : 'neg'}">🍏 ${colFood >= 0 ? '+' : ''}${Math.floor(colFood)}</span>
+                        <span class="colony-stat ${colEnergy >= 0 ? 'pos' : 'neg'} col-stat-energy">${svgIcon('energy')} ${colEnergy >= 0 ? '+' : ''}${Math.floor(colEnergy)}</span>
+                        <span class="colony-stat ${colMinerals >= 0 ? 'pos' : 'neg'} col-stat-minerals">${svgIcon('minerals')} ${colMinerals >= 0 ? '+' : ''}${Math.floor(colMinerals)}</span>
+                        <span class="colony-stat ${colFood >= 0 ? 'pos' : 'neg'} col-stat-food">${svgIcon('food')} ${colFood >= 0 ? '+' : ''}${Math.floor(colFood)}</span>
                     </div>
                 </div>
                 <div class="colony-card-buildings">
                     ${buildingIcons}${emptySlots}
-                    ${constructing ? `<span class="colony-constructing" title="Building: ${BUILDINGS[constructing.buildingKey]?.name}">⏳</span>` : ''}
+                    ${constructing ? `<span class="colony-constructing" title="Building: ${BUILDINGS[constructing.buildingKey]?.name}">${svgIcon('constructing')}</span>` : ''}
                 </div>
                 <button class="colony-goto-btn" data-planet-id="${planetId}" data-system-id="${system != null ? system.id : ''}">
                     → Go to Colony
@@ -115,11 +131,11 @@ function renderColoniesOverview() {
 
     const summary = `
         <div class="colonies-summary">
-            <div class="colonies-summary-stat">🌍 <strong>${colonyEntries.length}</strong> Colonies</div>
-            <div class="colonies-summary-stat">👥 <strong>${totalPop}</strong> Total Pop</div>
-            <div class="colonies-summary-stat">⚡ <strong>${totalEnergy >= 0 ? '+' : ''}${Math.floor(totalEnergy)}</strong>/tick</div>
-            <div class="colonies-summary-stat">💎 <strong>${totalMinerals >= 0 ? '+' : ''}${Math.floor(totalMinerals)}</strong>/tick</div>
-            <div class="colonies-summary-stat">🍏 <strong>${totalFood >= 0 ? '+' : ''}${Math.floor(totalFood)}</strong>/tick</div>
+            <div class="colonies-summary-stat col-stat-colonies">${svgIcon('colonies')} <strong>${colonyEntries.length}</strong> Colonies</div>
+            <div class="colonies-summary-stat col-stat-pop">${svgIcon('population')} <strong>${totalPop}</strong> Total Pop</div>
+            <div class="colonies-summary-stat col-stat-energy">${svgIcon('energy')} <strong>${totalEnergy >= 0 ? '+' : ''}${Math.floor(totalEnergy)}</strong>/tick</div>
+            <div class="colonies-summary-stat col-stat-minerals">${svgIcon('minerals')} <strong>${totalMinerals >= 0 ? '+' : ''}${Math.floor(totalMinerals)}</strong>/tick</div>
+            <div class="colonies-summary-stat col-stat-food">${svgIcon('food')} <strong>${totalFood >= 0 ? '+' : ''}${Math.floor(totalFood)}</strong>/tick</div>
         </div>`;
 
     content.innerHTML = summary + `<div class="colonies-grid">${cards}</div>`;

@@ -305,9 +305,7 @@ export async function returnToGalaxyView() {
         if (gameState.selectedSystemId !== null) {
             const sys = getSystem(gameState.selectedSystemId);
             if (sys) {
-                const worldPos = sys.position.clone();
-                groups.galaxy.localToWorld(worldPos);
-                focusCamera(worldPos, 120);
+                focusCamera(sys.position, 120);
             }
         }
         controls.minDistance = 20;

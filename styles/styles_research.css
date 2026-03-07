@@ -34,8 +34,8 @@
     bottom: 0;
     background: rgba(2, 6, 12, 0.97);
     z-index: 500;
-    display: flex;
-    flex-direction: column;
+    display: block;
+    overflow-y: auto;
     border-top: 1px solid rgba(0, 242, 255, 0.3);
     backdrop-filter: blur(10px);
     pointer-events: auto;
@@ -106,8 +106,6 @@
 }
 
 .fullscreen-panel-content {
-    flex: 1;
-    overflow-y: auto;
     padding: 20px 30px;
 }
 
@@ -442,12 +440,39 @@
 .colonies-summary-stat {
     font-size: 14px;
     color: var(--color-text-dim);
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .colonies-summary-stat strong {
     color: #fff;
     font-size: 16px;
 }
+
+/* Colony SVG icon sizing */
+.col-svg-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.colonies-summary-stat .col-svg-icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* Colony stat icon colors */
+.col-stat-colonies { color: #00f2ff; }
+.col-stat-pop { color: #c0c0c0; }
+.col-stat-growth { color: #64ff96; }
+.col-stat-building { color: #aab4be; }
+.col-stat-energy .col-svg-icon { color: #ffd700; filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.5)); }
+.col-stat-minerals .col-svg-icon { color: #00e5ff; filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.5)); }
+.col-stat-food .col-svg-icon { color: #00ff66; filter: drop-shadow(0 0 4px rgba(0, 255, 102, 0.5)); }
+.col-stat-colonies .col-svg-icon { color: #00f2ff; filter: drop-shadow(0 0 4px rgba(0, 242, 255, 0.5)); }
+.col-stat-pop .col-svg-icon { color: #c0c0c0; }
+.col-stat-growth .col-svg-icon { color: #64ff96; }
 
 .colonies-empty {
     text-align: center;
@@ -527,6 +552,9 @@
 .colony-stat {
     font-size: 12px;
     color: var(--color-text-dim);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .colony-stat strong {
@@ -549,8 +577,15 @@
 }
 
 .colony-building-icon {
-    font-size: 1.3em;
+    display: inline-flex;
+    align-items: center;
     cursor: default;
+}
+
+.colony-building-icon .col-svg-icon {
+    width: 22px;
+    height: 22px;
+    filter: drop-shadow(0 0 4px currentColor);
 }
 
 .colony-building-slot-empty {
@@ -559,8 +594,16 @@
 }
 
 .colony-constructing {
-    font-size: 1.1em;
+    display: inline-flex;
+    align-items: center;
+    color: #ffaa00;
     animation: pulse 1s ease-in-out infinite;
+}
+
+.colony-constructing .col-svg-icon {
+    width: 18px;
+    height: 18px;
+    filter: drop-shadow(0 0 3px rgba(255, 170, 0, 0.6));
 }
 
 @keyframes pulse {
@@ -640,10 +683,9 @@
         border-top: 2px solid var(--color-primary);
         box-shadow: 0 8px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(0, 242, 255, 0.05);
         padding-bottom: env(safe-area-inset-bottom);
-        /* Critical: flex column so content area can scroll */
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+        /* Critical: block layout so the entire panel (including header) can scroll */
+        display: block;
+        overflow-y: auto;
         transform: translateY(0);
     }
 
@@ -670,12 +712,7 @@
 
     /* Content area fills remaining space and scrolls */
     .fullscreen-panel-content {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
         padding: 12px 16px;
-        overscroll-behavior: contain;
     }
 
     /* Ensure close button is always visible and tappable */

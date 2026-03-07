@@ -810,7 +810,7 @@ export function addColonyRingForSystem(systemId, group) {
 // updateGalaxyAnimations  (public API — signature unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 export function updateGalaxyAnimations(time, group) {
-  if (group) group.rotation.y = time * 0.01;
+  // Galaxy group stays static — rotation was causing centering bugs and distracting drift
 
   // ── Animate instanced star plasma shader (desktop) ──────────────────────
   if (starShaderMats.length > 0) {
@@ -822,7 +822,7 @@ export function updateGalaxyAnimations(time, group) {
   // ── Rotate star instances ───────────────────────────────────────────────
   if (starInstancedMesh && _starCount > 0) {
     for (let i = 0; i < _starCount; i++) {
-      _rotYs[i] += _rotSpeeds[i] * 0.05;
+      _rotYs[i] += _rotSpeeds[i] * 0.02;
 
       // Update star instance matrix
       _euler.set(0, _rotYs[i], 0);
@@ -866,7 +866,7 @@ export function updateGalaxyAnimations(time, group) {
   if (atmosphereGroup) {
     atmosphereGroup.children.forEach((child, i) => {
       if (child.userData.isStarfield) {
-        child.material.uniforms.time.value = time * 1.5;
+        child.material.uniforms.time.value = time * 0.4;
       } else if (child.isSprite && child.userData.baseScale) {
         const rotSpeed = isMobileDevice ? 0.0005 : 0.001;
         const breathAmp = isMobileDevice ? 0.02 : 0.03;

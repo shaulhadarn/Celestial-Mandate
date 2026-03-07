@@ -811,9 +811,10 @@
     gap: 8px;
 }
 
-.panel-header h2 .title-icon {
-    width: 60px;
-    height: 60px;
+.panel-header h2 .title-icon,
+.fullscreen-panel-header h2 .title-icon {
+    width: 80px;
+    height: 80px;
     display: block;
     margin: 0 auto;
     /* Base style, overridden below per panel */
