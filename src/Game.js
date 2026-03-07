@@ -2,7 +2,7 @@
 import { jsxDEV } from "react/jsx-dev-runtime";
 import React, { useEffect, useRef, useState } from "react";
 import { Canvas, useThree, useFrame, extend } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera, Stars, AdaptiveDpr, AdaptiveEvents, Environment, PerformanceMonitor, Preload } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera, AdaptiveDpr, AdaptiveEvents, Environment, PerformanceMonitor, Preload } from "@react-three/drei";
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -172,35 +172,6 @@ const ControlsWrapper = () => {
   );
 };
 
-const SpaceStars = () => {
-  const starsRef = useRef();
-  useEffect(() => {
-    if (starsRef.current && starsRef.current.material) {
-      starsRef.current.material.fog = false;
-      starsRef.current.material.depthWrite = false;
-    }
-  }, []);
-  // Follow camera so stars act as infinite skybox — no visible dome edge when panning
-  useFrame(({ camera }) => {
-    if (starsRef.current) {
-      starsRef.current.position.copy(camera.position);
-    }
-  });
-  return /* @__PURE__ */ jsxDEV(
-    Stars,
-    {
-      ref: starsRef,
-      radius: 900,
-      depth: 80,
-      count: isMobileDevice ? 3000 : 8000,
-      factor: isMobileDevice ? 2.5 : 4,
-      saturation: 0.3,
-      fade: false,
-      speed: 0
-    },
-    void 0, false, { fileName: "<stdin>", lineNumber: 0, columnNumber: 0 }
-  );
-};
 
 const QualityManager = () => {
   const [dpr, setDpr] = useState(isMobileDevice ? 1 : 1.5);
@@ -276,12 +247,7 @@ const Game = () => {
           lineNumber: 117,
           columnNumber: 13
         }),
-        /* @__PURE__ */ jsxDEV(SpaceStars, {}, void 0, false, {
-          fileName: "<stdin>",
-          lineNumber: 118,
-          columnNumber: 13
-        }),
-        /* @__PURE__ */ jsxDEV(AdaptiveEvents, {}, void 0, false, {
+/* @__PURE__ */ jsxDEV(AdaptiveEvents, {}, void 0, false, {
           fileName: "<stdin>",
           lineNumber: 119,
           columnNumber: 13
