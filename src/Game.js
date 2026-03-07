@@ -179,6 +179,12 @@ const SpaceStars = () => {
       starsRef.current.material.depthWrite = false;
     }
   }, []);
+  // Follow camera so stars act as infinite skybox — no visible dome edge when panning
+  useFrame(({ camera }) => {
+    if (starsRef.current) {
+      starsRef.current.position.copy(camera.position);
+    }
+  });
   return /* @__PURE__ */ jsxDEV(
     Stars,
     {
