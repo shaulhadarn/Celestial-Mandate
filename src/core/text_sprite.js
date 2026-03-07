@@ -1,8 +1,16 @@
 import * as THREE from 'three';
 
+// Round up to nearest power of two (optimal for GPU mipmap generation)
+function nextPOT(v) {
+    v--;
+    v |= v >> 1; v |= v >> 2; v |= v >> 4; v |= v >> 8; v |= v >> 16;
+    return v + 1;
+}
+
 /**
- * Creates a canvas-based text sprite for 3D scene labels.
- * Renders at 2x resolution for crisp text on high-DPR mobile screens.
+ * Creates a high-resolution canvas-based text sprite for 3D scene labels.
+ * Renders at 4x resolution with power-of-two textures for crisp display
+ * on retina / mobile screens at any zoom level.
  *
  * @param {string} text - The label text
  * @param {object} [opts]
@@ -12,10 +20,10 @@ import * as THREE from 'three';
 export function createTextSprite(text, opts = {}) {
     const worldScale = opts.fontSize || 1.0;
 
-    // Render at 2x for crisp text on retina / mobile screens
-    const scale = 2;
-    const pxSize = 48 * scale;
-    const pad = 12 * scale;
+    // ── High-res canvas rendering (4x for retina clarity) ───────────────────
+    const RES = 4;
+    const pxSize = 48 * RES;        // 192px effective font
+    const pad = 14 * RES;
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -23,33 +31,37 @@ export function createTextSprite(text, opts = {}) {
     ctx.font = font;
 
     const metrics = ctx.measureText(text);
-    const textW = Math.ceil(metrics.width) + pad * 2;
-    const textH = pxSize + pad * 2;
+    const rawW = Math.ceil(metrics.width) + pad * 2;
+    const rawH = pxSize + pad * 2;
 
-    // Ensure power-of-two-ish dimensions for better GPU filtering
-    canvas.width = textW;
-    canvas.height = textH;
+    // Power-of-two dimensions for optimal mipmap quality
+    canvas.width = nextPOT(rawW);
+    canvas.height = nextPOT(rawH);
 
-    // Re-set after resize (canvas reset clears state)
+    // Re-set after resize
     ctx.font = font;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Dark outline for readability against any background
-    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    ctx.lineWidth = 5 * scale;
+    // Draw centered in the POT canvas
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+
+    // Dark outline for readability
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 6 * RES;
     ctx.lineJoin = 'round';
-    ctx.strokeText(text, textW / 2, textH / 2);
+    ctx.strokeText(text, cx, cy);
 
     // White fill
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(text, textW / 2, textH / 2);
+    ctx.fillText(text, cx, cy);
 
+    // ── Texture ─────────────────────────────────────────────────────────────
     const texture = new THREE.CanvasTexture(canvas);
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.anisotropy = 4;
 
     const material = new THREE.SpriteMaterial({
         map: texture,
@@ -59,7 +71,9 @@ export function createTextSprite(text, opts = {}) {
     });
 
     const sprite = new THREE.Sprite(material);
-    const aspect = textW / textH;
+
+    // Scale using the actual text area ratio (not the padded POT canvas)
+    const aspect = rawW / rawH;
     sprite.scale.set(worldScale * aspect, worldScale, 1);
 
     return sprite;
