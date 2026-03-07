@@ -228,6 +228,11 @@ export function createSystemVisuals(system, group) {
         group.add(_sunCorona2);
     }
 
+    // ── Star name label ────────────────────────────────────────────────────
+    const starLabel = createTextSprite(system.name, { fontSize: 1.4 });
+    starLabel.position.set(0, -9, 0);
+    group.add(starLabel);
+
     // Light — reduced intensity to avoid washing out planets
     _sunPointLight = new THREE.PointLight(system.color, isMobileDevice ? 15 : 40, isMobileDevice ? 80 : 80);
     group.add(_sunPointLight);
@@ -342,43 +347,43 @@ export function createSystemVisuals(system, group) {
 
         if (atmosphereColor !== null) {
             // Outer atmosphere shell — additive blending on all devices
-            const atmoGeo = new THREE.SphereGeometry(p.size * 2.15 * scale, segments, segments);
+            const atmoGeo = new THREE.SphereGeometry(p.size * 2.2 * scale, segments, segments);
             const atmoMat = new THREE.MeshBasicMaterial({
                 color: atmosphereColor, transparent: true,
-                opacity: isMobileDevice ? 0.18 : 0.15,
+                opacity: isMobileDevice ? 0.28 : 0.25,
                 blending: THREE.AdditiveBlending,
                 side: THREE.BackSide, depthWrite: false
             });
             mesh.add(new THREE.Mesh(atmoGeo, atmoMat));
 
             // Inner atmosphere rim — bright limb glow on all devices
-            const rimGeo = new THREE.SphereGeometry(p.size * 2.05 * scale, isMobileDevice ? 32 : segments, isMobileDevice ? 32 : segments);
+            const rimGeo = new THREE.SphereGeometry(p.size * 2.08 * scale, isMobileDevice ? 32 : segments, isMobileDevice ? 32 : segments);
             const rimMat = new THREE.MeshBasicMaterial({
                 color: atmosphereColor, transparent: true,
-                opacity: isMobileDevice ? 0.12 : 0.10,
+                opacity: isMobileDevice ? 0.18 : 0.15,
                 blending: THREE.AdditiveBlending, side: THREE.FrontSide, depthWrite: false
             });
             mesh.add(new THREE.Mesh(rimGeo, rimMat));
         }
         
-        // ── Subtle planet glow — soft radial halo (2 shader-driven layers) ──
+        // ── Planet glow — soft radial halo (2 shader-driven layers) ──
         const glowColor = atmosphereColor !== null ? atmosphereColor : matColor;
         const planetR = p.size * 2 * scale;
         const phase = idx * 1.3;
 
         // Layer 1: Soft outer halo — slow pulse baked into shader
         const outerHalo = _createGlowMesh(
-            textures.glow, glowColor, 0.3, phase, 0.35, 0.07
+            textures.glow, glowColor, isMobileDevice ? 0.45 : 0.5, phase, 0.35, 0.07
         );
-        const outerScale = planetR * 5;
+        const outerScale = planetR * 6;
         outerHalo.scale.set(outerScale, outerScale, 1);
         mesh.add(outerHalo);
 
         // Layer 2: Tighter core glow — faster pulse baked into shader
         const coreGlow = _createGlowMesh(
-            textures.glow, glowColor, isMobileDevice ? 0.42 : 0.45, phase, 0.8, 0.10
+            textures.glow, glowColor, isMobileDevice ? 0.55 : 0.6, phase, 0.8, 0.10
         );
-        const coreScale = planetR * 3;
+        const coreScale = planetR * 3.5;
         coreGlow.scale.set(coreScale, coreScale, 1);
         mesh.add(coreGlow);
 

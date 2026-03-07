@@ -18,8 +18,34 @@ export function initCreationUI() {
     _container = document.getElementById('creation-screen');
     if (!_container) return;
 
+    _spawnParticles(_container.querySelector('#creation-particles'));
     buildShell(_container);
     renderStepContent();
+}
+
+function _spawnParticles(container) {
+    if (!container || container.children.length > 0) return;
+    const count = window.innerWidth <= 768 ? 24 : 36;
+    const rnd = (min, max) => Math.random() * (max - min) + min;
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'creation-particle';
+        const size = rnd(1.5, 4);
+        const useCyan = Math.random() < 0.2;
+        p.style.cssText = `
+            width:${size}px; height:${size}px;
+            left:${rnd(2, 98)}%; top:${rnd(2, 98)}%;
+            background:radial-gradient(circle, ${useCyan ? 'rgba(0,242,255,0.9)' : 'rgba(255,255,255,0.9)'} 0%, transparent 70%);
+            --p-dur:${rnd(8, 18)}s;
+            --p-delay:${rnd(0, 8)}s;
+            --p-opacity:${rnd(0.2, 0.55)};
+            --p-dx1:${rnd(-25, 25)}px; --p-dy1:${rnd(-40, 40)}px;
+            --p-dx2:${rnd(-30, 30)}px; --p-dy2:${rnd(-50, 50)}px;
+            --p-dx3:${rnd(-20, 20)}px; --p-dy3:${rnd(-35, 35)}px;
+            --p-s1:${rnd(0.8, 1.4)}; --p-s2:${rnd(0.7, 1.2)};
+        `;
+        container.appendChild(p);
+    }
 }
 
 /**

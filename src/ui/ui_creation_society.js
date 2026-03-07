@@ -55,6 +55,30 @@ export function renderArchetypeStep(parent) {
     });
 }
 
+// ── Ethics axis animated SVGs ─────────────────────────────────────────────────
+const ETHICS_SVGS = {
+    axis_ind_col: {
+        left: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><circle cx="24" cy="20" r="8" stroke="currentColor" stroke-width="1.5" fill="none" class="ethic-svg-ring"/><circle cx="24" cy="20" r="3" fill="currentColor" class="ethic-svg-core"/><line x1="24" y1="28" x2="24" y2="40" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="ethic-svg-line"/><line x1="16" y1="34" x2="24" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="ethic-svg-line"/><line x1="32" y1="34" x2="24" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="ethic-svg-line"/></svg>`,
+        right: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><circle cx="24" cy="16" r="4" fill="currentColor" class="ethic-svg-core"/><circle cx="12" cy="28" r="3" fill="currentColor" opacity="0.7" class="ethic-svg-node"/><circle cx="36" cy="28" r="3" fill="currentColor" opacity="0.7" class="ethic-svg-node"/><circle cx="18" cy="40" r="3" fill="currentColor" opacity="0.7" class="ethic-svg-node"/><circle cx="30" cy="40" r="3" fill="currentColor" opacity="0.7" class="ethic-svg-node"/><line x1="24" y1="16" x2="12" y2="28" stroke="currentColor" stroke-width="1" opacity="0.5" class="ethic-svg-link"/><line x1="24" y1="16" x2="36" y2="28" stroke="currentColor" stroke-width="1" opacity="0.5" class="ethic-svg-link"/><line x1="12" y1="28" x2="18" y2="40" stroke="currentColor" stroke-width="1" opacity="0.5" class="ethic-svg-link"/><line x1="36" y1="28" x2="30" y2="40" stroke="currentColor" stroke-width="1" opacity="0.5" class="ethic-svg-link"/></svg>`
+    },
+    axis_mil_pac: {
+        left: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><line x1="24" y1="6" x2="24" y2="36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="ethic-svg-blade"/><line x1="14" y1="22" x2="34" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="ethic-svg-guard"/><path d="M20 36 L24 44 L28 36" fill="currentColor" opacity="0.7" class="ethic-svg-pommel"/></svg>`,
+        right: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><circle cx="24" cy="24" r="14" stroke="currentColor" stroke-width="1.5" fill="none" class="ethic-svg-ring"/><path d="M18 28 Q24 14 30 28" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" class="ethic-svg-wing"/><path d="M15 30 Q24 20 33 30" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.5" class="ethic-svg-wing2"/><circle cx="24" cy="30" r="2" fill="currentColor" class="ethic-svg-core"/></svg>`
+    },
+    axis_mat_spi: {
+        left: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><circle cx="24" cy="24" r="5" fill="currentColor" class="ethic-svg-core"/><ellipse cx="24" cy="24" rx="16" ry="6" stroke="currentColor" stroke-width="1.5" fill="none" class="ethic-svg-orbit1"/><ellipse cx="24" cy="24" rx="16" ry="6" stroke="currentColor" stroke-width="1.5" fill="none" transform="rotate(60 24 24)" class="ethic-svg-orbit2"/><ellipse cx="24" cy="24" rx="16" ry="6" stroke="currentColor" stroke-width="1.5" fill="none" transform="rotate(120 24 24)" class="ethic-svg-orbit3"/></svg>`,
+        right: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><path d="M24 6 L24 18" stroke="currentColor" stroke-width="2" class="ethic-svg-ray"/><path d="M24 30 L24 42" stroke="currentColor" stroke-width="2" class="ethic-svg-ray"/><circle cx="24" cy="24" r="6" stroke="currentColor" stroke-width="2" fill="none" class="ethic-svg-eye-outer"/><circle cx="24" cy="24" r="2.5" fill="currentColor" class="ethic-svg-core"/><path d="M12 24 Q18 16 24 18 Q30 16 36 24 Q30 32 24 30 Q18 32 12 24 Z" stroke="currentColor" stroke-width="1.5" fill="none" class="ethic-svg-eye"/></svg>`
+    },
+    axis_xen_pho: {
+        left: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><circle cx="24" cy="20" r="6" stroke="currentColor" stroke-width="1.5" fill="none" class="ethic-svg-ring"/><circle cx="24" cy="20" r="2.5" fill="currentColor" class="ethic-svg-core"/><path d="M12 38 Q12 28 24 28 Q36 28 36 38" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" class="ethic-svg-arms"/><circle cx="10" cy="26" r="3.5" stroke="currentColor" stroke-width="1" fill="none" opacity="0.6" class="ethic-svg-other1"/><circle cx="38" cy="26" r="3.5" stroke="currentColor" stroke-width="1" fill="none" opacity="0.6" class="ethic-svg-other2"/><line x1="13" y1="26" x2="20" y2="24" stroke="currentColor" stroke-width="1" opacity="0.4" class="ethic-svg-link"/><line x1="35" y1="26" x2="28" y2="24" stroke="currentColor" stroke-width="1" opacity="0.4" class="ethic-svg-link"/></svg>`,
+        right: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><rect x="10" y="10" width="28" height="28" rx="3" stroke="currentColor" stroke-width="2" fill="none" class="ethic-svg-wall"/><line x1="10" y1="24" x2="38" y2="24" stroke="currentColor" stroke-width="1.5" class="ethic-svg-bar"/><line x1="24" y1="10" x2="24" y2="38" stroke="currentColor" stroke-width="1.5" class="ethic-svg-bar"/><circle cx="24" cy="24" r="4" fill="currentColor" class="ethic-svg-core"/></svg>`
+    },
+    axis_iso_exp: {
+        left: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><circle cx="24" cy="24" r="10" stroke="currentColor" stroke-width="2" fill="none" class="ethic-svg-ring"/><circle cx="24" cy="24" r="4" fill="currentColor" class="ethic-svg-core"/><circle cx="24" cy="24" r="16" stroke="currentColor" stroke-width="1" fill="none" stroke-dasharray="4 4" opacity="0.3" class="ethic-svg-barrier"/></svg>`,
+        right: `<svg viewBox="0 0 48 48" fill="none" class="ethic-svg"><circle cx="24" cy="24" r="4" fill="currentColor" class="ethic-svg-core"/><line x1="24" y1="24" x2="24" y2="6" stroke="currentColor" stroke-width="1.5" class="ethic-svg-arrow"/><line x1="24" y1="24" x2="40" y2="14" stroke="currentColor" stroke-width="1.5" class="ethic-svg-arrow"/><line x1="24" y1="24" x2="40" y2="34" stroke="currentColor" stroke-width="1.5" class="ethic-svg-arrow"/><line x1="24" y1="24" x2="24" y2="42" stroke="currentColor" stroke-width="1.5" class="ethic-svg-arrow"/><line x1="24" y1="24" x2="8" y2="34" stroke="currentColor" stroke-width="1.5" class="ethic-svg-arrow"/><line x1="24" y1="24" x2="8" y2="14" stroke="currentColor" stroke-width="1.5" class="ethic-svg-arrow"/><polygon points="24,4 22,9 26,9" fill="currentColor" opacity="0.8" class="ethic-svg-tip"/><polygon points="41,13 37,16 39,11" fill="currentColor" opacity="0.8" class="ethic-svg-tip"/><polygon points="41,35 39,37 37,32" fill="currentColor" opacity="0.8" class="ethic-svg-tip"/><polygon points="24,44 26,39 22,39" fill="currentColor" opacity="0.8" class="ethic-svg-tip"/><polygon points="7,35 9,31 11,36" fill="currentColor" opacity="0.8" class="ethic-svg-tip"/><polygon points="7,13 11,12 9,17" fill="currentColor" opacity="0.8" class="ethic-svg-tip"/></svg>`
+    }
+};
+
 // ── Step 5: Ideological Spectrum ──────────────────────────────────────────────
 export function renderEthicsStep(parent) {
     parent.innerHTML = `
@@ -70,12 +94,19 @@ export function renderEthicsStep(parent) {
     const ethicsContainer = parent.querySelector('#opt-ethics');
     ETHICS_AXES.forEach(axis => {
         const val = state.currentCiv.ethics[axis.id] || 0;
+        const svgs = ETHICS_SVGS[axis.id] || { left: '', right: '' };
         const row = document.createElement('div');
         row.className = 'ethics-row';
         row.innerHTML = `
             <div class="ethics-labels">
-                <span class="ethic-label left">${axis.left}</span>
-                <span class="ethic-label right">${axis.right}</span>
+                <div class="ethic-label-group left">
+                    <div class="ethic-icon">${svgs.left}</div>
+                    <span class="ethic-label">${axis.left}</span>
+                </div>
+                <div class="ethic-label-group right">
+                    <span class="ethic-label">${axis.right}</span>
+                    <div class="ethic-icon">${svgs.right}</div>
+                </div>
             </div>
             <div class="ethics-track">
                 <input type="range" min="-2" max="2" value="${val}" step="1" data-id="${axis.id}">
