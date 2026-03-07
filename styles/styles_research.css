@@ -42,8 +42,8 @@
     opacity: 1;
     transform: translateY(0);
     transition: opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                visibility 0s 0s;
+        transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        visibility 0s 0s;
     visibility: visible;
 }
 
@@ -53,40 +53,50 @@
     pointer-events: none;
     visibility: hidden;
     transition: opacity 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                visibility 0s 0.25s;
+        transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        visibility 0s 0.25s;
 }
 
 .fullscreen-panel-header {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    padding: 16px 30px;
+    justify-content: center;
+    padding: 30px 20px 20px;
     border-bottom: 1px solid rgba(0, 242, 255, 0.15);
-    background: rgba(0, 0, 0, 0.4);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.1) 100%);
     flex-shrink: 0;
+    position: relative;
 }
 
 .fullscreen-panel-header h2 {
     margin: 0;
-    font-size: 1.4em;
+    font-size: 1.6em;
     color: var(--color-primary);
     text-transform: uppercase;
-    letter-spacing: 3px;
-    text-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+    letter-spacing: 4px;
+    text-shadow: 0 0 15px rgba(0, 242, 255, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
 }
 
 .panel-close-btn {
-    background: rgba(255, 50, 50, 0.1);
-    border: 1px solid rgba(255, 80, 80, 0.4);
+    position: absolute;
+    top: 20px;
+    right: 25px;
+    background: rgba(255, 50, 50, 0.08);
+    border: 1px solid rgba(255, 80, 80, 0.3);
     color: #ff8080;
     font-family: var(--font-main);
-    font-size: 13px;
-    padding: 6px 16px;
+    font-size: 12px;
+    padding: 8px 16px;
     cursor: pointer;
     transition: all 0.2s;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
+    border-radius: 4px;
 }
 
 .panel-close-btn:hover {
@@ -121,7 +131,9 @@
     margin-bottom: 10px;
 }
 
-.research-active-icon { font-size: 1.4em; }
+.research-active-icon {
+    font-size: 1.4em;
+}
 
 .research-active-name {
     font-size: 1.1em;
@@ -179,15 +191,18 @@
     letter-spacing: 1px;
 }
 
-.research-no-lab, .research-idle {
+.research-no-lab,
+.research-idle {
     padding: 12px 18px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--color-text-dim);
     font-size: 14px;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.3);
 }
 
-.research-no-lab strong { color: var(--color-secondary); }
+.research-no-lab strong {
+    color: var(--color-secondary);
+}
 
 /* Bonuses Bar */
 .research-bonuses-bar {
@@ -278,8 +293,15 @@
 }
 
 @keyframes researchPulse {
-    0%, 100% { box-shadow: 0 0 20px rgba(0, 242, 255, 0.15); }
-    50% { box-shadow: 0 0 30px rgba(0, 242, 255, 0.3); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
+    }
+
+    50% {
+        box-shadow: 0 0 30px rgba(0, 242, 255, 0.3);
+    }
 }
 
 .research-card.locked {
@@ -292,7 +314,9 @@
     line-height: 1;
 }
 
-.research-card-body { flex: 1; }
+.research-card-body {
+    flex: 1;
+}
 
 .research-card-name {
     font-size: 14px;
@@ -334,7 +358,7 @@
 
 .research-card-prereq {
     font-size: 10px;
-    color: rgba(255,255,255,0.3);
+    color: rgba(255, 255, 255, 0.3);
     margin-top: 2px;
 }
 
@@ -343,7 +367,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     padding-top: 8px;
     margin-top: 4px;
 }
@@ -374,11 +398,12 @@
 }
 
 .research-card-status.locked-txt {
-    color: rgba(255,255,255,0.3);
+    color: rgba(255, 255, 255, 0.3);
 }
 
-.research-card-status.no-lab, .research-card-status.busy {
-    color: rgba(255,255,255,0.3);
+.research-card-status.no-lab,
+.research-card-status.busy {
+    color: rgba(255, 255, 255, 0.3);
     font-size: 10px;
 }
 
@@ -429,7 +454,7 @@
     padding: 60px 20px;
     color: var(--color-text-dim);
     font-size: 16px;
-    border: 1px dashed rgba(255,255,255,0.1);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
 .colonies-grid {
@@ -456,7 +481,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     padding-bottom: 8px;
 }
 
@@ -504,9 +529,17 @@
     color: var(--color-text-dim);
 }
 
-.colony-stat strong { color: #fff; }
-.colony-stat.pos { color: #64ff96; }
-.colony-stat.neg { color: #ff6464; }
+.colony-stat strong {
+    color: #fff;
+}
+
+.colony-stat.pos {
+    color: #64ff96;
+}
+
+.colony-stat.neg {
+    color: #ff6464;
+}
 
 .colony-card-buildings {
     display: flex;
@@ -522,7 +555,7 @@
 
 .colony-building-slot-empty {
     font-size: 14px;
-    color: rgba(255,255,255,0.15);
+    color: rgba(255, 255, 255, 0.15);
 }
 
 .colony-constructing {
@@ -531,8 +564,15 @@
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
 }
 
 .colony-goto-btn {
@@ -558,15 +598,36 @@
 }
 
 /* ── Scrollbar styling for panels ───────────────────────────────────────────── */
-.fullscreen-panel-content::-webkit-scrollbar { width: 6px; }
-.fullscreen-panel-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
-.fullscreen-panel-content::-webkit-scrollbar-thumb { background: rgba(0, 242, 255, 0.3); border-radius: 3px; }
-.fullscreen-panel-content::-webkit-scrollbar-thumb:hover { background: rgba(0, 242, 255, 0.6); }
+.fullscreen-panel-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.fullscreen-panel-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.fullscreen-panel-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 242, 255, 0.3);
+    border-radius: 3px;
+}
+
+.fullscreen-panel-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 242, 255, 0.6);
+}
 
 @media (max-width: 768px) {
-    .research-tier-grid { grid-template-columns: 1fr; }
-    .colonies-grid { grid-template-columns: 1fr; }
-    .header-action-btn { font-size: 11px; padding: 5px 10px; }
+    .research-tier-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .colonies-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .header-action-btn {
+        font-size: 11px;
+        padding: 5px 10px;
+    }
 
     /* Fullscreen panels (colonies, research, fleets) — proper mobile layout */
     .fullscreen-panel {
@@ -577,7 +638,7 @@
         border-radius: 12px 12px 12px 12px;
         border: 1px solid rgba(0, 242, 255, 0.2);
         border-top: 2px solid var(--color-primary);
-        box-shadow: 0 8px 40px rgba(0,0,0,0.9), 0 0 0 1px rgba(0,242,255,0.05);
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(0, 242, 255, 0.05);
         padding-bottom: env(safe-area-inset-bottom);
         /* Critical: flex column so content area can scroll */
         display: flex;
@@ -591,14 +652,20 @@
     }
 
     .fullscreen-panel-header {
-        padding: 12px 16px;
+        padding: 24px 16px 16px;
         border-radius: 10px 10px 0 0;
-        flex-shrink: 0;
     }
 
     .fullscreen-panel-header h2 {
-        font-size: 1.1em;
-        letter-spacing: 2px;
+        font-size: 1.3em;
+        letter-spacing: 3px;
+    }
+
+    .panel-close-btn {
+        top: 12px;
+        right: 12px;
+        padding: 6px 12px;
+        font-size: 11px;
     }
 
     /* Content area fills remaining space and scrolls */

@@ -812,32 +812,55 @@
 }
 
 .panel-header h2 .title-icon {
-    width: 24px;
-    height: 24px;
+    width: 60px;
+    height: 60px;
+    display: block;
+    margin: 0 auto;
     /* Base style, overridden below per panel */
     color: #ffffff;
     filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+    animation: heroFloat 3s ease-in-out infinite, heroPulse 4s ease-in-out infinite;
+}
+
+@keyframes heroFloat {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes heroPulse {
+
+    0%,
+    100% {
+        filter: drop-shadow(0 0 8px currentColor) brightness(1);
+    }
+
+    50% {
+        filter: drop-shadow(0 0 16px currentColor) brightness(1.2);
+    }
 }
 
 /* Specific Panel Title Colors matching the UI icons */
 #colonies-panel .title-icon {
     color: #55ff88;
-    filter: drop-shadow(0 0 5px rgba(85, 255, 136, 0.8));
 }
 
 #fleets-panel .title-icon {
     color: #ff8844;
-    filter: drop-shadow(0 0 5px rgba(255, 136, 68, 0.8));
 }
 
 #research-panel .title-icon {
     color: #dd66ff;
-    filter: drop-shadow(0 0 5px rgba(221, 102, 255, 0.8));
 }
 
 #codex-panel .title-icon {
     color: #ffeb3b;
-    filter: drop-shadow(0 0 5px rgba(255, 235, 59, 0.8));
 }
 
 .panel-content {

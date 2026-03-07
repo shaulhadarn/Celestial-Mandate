@@ -244,15 +244,10 @@ export async function enterSystemView(systemId, instant = false) {
 
         const targetPos = new THREE.Vector3(0, 0, 0);
 
-        if (instant) {
-            // Instant camera jump
-            camera.position.set(0, 40, 50);
-            controls.target.copy(targetPos);
-            controls.update();
-        } else {
-            // Animate camera
-            animateCamera(targetPos, 50, 40);
-        }
+        // Snap camera to system view position (fade overlay hides the jump)
+        camera.position.set(0, 40, 50);
+        controls.target.copy(targetPos);
+        controls.update();
 
         // Force R3F to render frames so the scene is ready before revealing
         _forceFrames(10);
