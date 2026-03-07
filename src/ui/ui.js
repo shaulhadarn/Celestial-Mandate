@@ -426,7 +426,6 @@ async function returnToSystemViewFromPlanet() {
 
     document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
     document.getElementById('exploration-controls').classList.add('hidden');
-    document.getElementById('hint-text').classList.remove('hidden');
     document.getElementById('btn-view-toggle').classList.remove('hidden');
     document.getElementById('btn-empire-hub').classList.add('hidden');
     const mdb = document.getElementById('mobile-date-badge');

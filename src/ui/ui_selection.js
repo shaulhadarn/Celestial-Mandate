@@ -65,16 +65,14 @@ export function updateSelectionPanel() {
         if (planet) {
             if (window.innerWidth <= 768) sysPanel.classList.add('hidden');
 
-            // Fade-in planet panel content
+            // Fade-in planet panel content (opacity only — no translateY to avoid scrollbar flash)
             const pContent = planetPanel.querySelector('.panel-content');
             if (pContent) {
                 pContent.style.transition = 'none';
                 pContent.style.opacity = '0';
-                pContent.style.transform = 'translateY(6px)';
                 requestAnimationFrame(() => {
-                    pContent.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+                    pContent.style.transition = 'opacity 0.25s ease-out';
                     pContent.style.opacity = '1';
-                    pContent.style.transform = 'translateY(0)';
                 });
             }
 

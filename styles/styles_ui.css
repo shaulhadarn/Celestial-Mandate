@@ -414,6 +414,26 @@
     min-width: 360px;
     max-height: 80vh;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 242, 255, 0.2) transparent;
+}
+
+/* Hide scrollbar during show/hide transition to prevent flash */
+#planet-panel.hidden {
+    overflow-y: hidden;
+}
+
+#planet-panel::-webkit-scrollbar {
+    width: 4px;
+}
+
+#planet-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#planet-panel::-webkit-scrollbar-thumb {
+    background: rgba(0, 242, 255, 0.2);
+    border-radius: 2px;
 }
 
 /* ── SETTINGS PANEL ─────────────────────────────────────────────────────────── */
@@ -941,7 +961,7 @@
     background: linear-gradient(180deg, rgba(0, 150, 255, 0.2) 0%, rgba(10, 30, 50, 0.9) 100%);
     color: #ffffff;
     border-color: rgba(0, 242, 255, 0.5);
-    border-bottom: 2px solid rgba(0, 242, 255, 1);
+    border-bottom-color: rgba(0, 242, 255, 1);
     box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
 }
 
@@ -1007,19 +1027,7 @@
 }
 
 #hint-text::before {
-    content: 'i';
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: rgba(0, 242, 255, 0.18);
-    color: var(--color-primary);
-    font-weight: bold;
-    font-size: 9px;
-    border: 1px solid rgba(0, 242, 255, 0.4);
-    flex-shrink: 0;
+    content: none;
 }
 
 .bottom-actions {
@@ -1398,6 +1406,7 @@
 .action-btn {
     background: rgba(0, 0, 0, 0.6);
     border: 1px solid rgba(0, 242, 255, 0.5);
+    border-bottom: 2px solid rgba(0, 242, 255, 0.3);
     color: var(--color-primary);
     font-family: var(--font-main);
     font-size: 12px;
@@ -1406,7 +1415,7 @@
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 1px;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
     pointer-events: auto;
 }
@@ -1414,6 +1423,7 @@
 .action-btn:hover {
     background: rgba(0, 242, 255, 0.15);
     border-color: var(--color-primary);
+    border-bottom-color: rgba(0, 242, 255, 1);
     color: #fff;
     box-shadow: 0 0 12px rgba(0, 242, 255, 0.3);
 }
