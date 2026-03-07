@@ -166,7 +166,7 @@ function recreateRenderer() {
     newRenderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : window.devicePixelRatio);
     newRenderer.outputColorSpace = THREE.SRGBColorSpace;
     newRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-    newRenderer.toneMappingExposure = isMobile ? 0.75 : 1.2;
+    newRenderer.toneMappingExposure = isMobile ? 1.0 : 1.2;
 
     // Swap canvas
     container.replaceChild(newRenderer.domElement, oldCanvas);
@@ -264,27 +264,30 @@ export function setGraphicsPreset(level) {
 }
 
 export function applyGraphicsConfig() {
-    // Bloom — toggle on both desktop and mobile (mobile now has a composer)
+    // Guard: wait for R3F to provide globals before applying
+    if (!renderer) return;
+
+    // Bloom — toggle on both desktop and mobile
     if (composer) {
         composer.passes.forEach(pass => {
             if (pass instanceof UnrealBloomPass) pass.enabled = config.bloom;
         });
     }
 
-    // Calculate Logical Size
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+    // Calculate Logical Size — read from renderer (R3F manages canvas size)
+    const currentSize = new THREE.Vector2();
+    renderer.getSize(currentSize);
+    let width = currentSize.x || window.innerWidth;
+    let height = currentSize.y || window.innerHeight;
 
     if (config.resolution !== 'native') {
         const targetH = parseInt(config.resolution);
         const aspect = width / height;
         height = targetH;
         width = Math.round(targetH * aspect);
+        // Only override size for non-native resolutions
+        renderer.setSize(width, height, false);
     }
-
-    // Set Canvas Size (Logical Resolution)
-    // Third arg false prevents changing CSS size (keeps it 100% of window)
-    renderer.setSize(width, height, false);
 
     // Set Render Scale (Pixel Ratio)
     let basePixelRatio = 1.0;
@@ -294,13 +297,12 @@ export function applyGraphicsConfig() {
 
     // Ultra Sharp: supersample at 2x device pixel ratio
     const ultraMultiplier = config.ultraSharp ? 2.0 : 1.0;
-    // Mobile bloom uses half-res UnsignedByte RT; ultra can safely go higher; normal mode stays capped at 1.5
     const maxRatio = isMobile ? (config.ultraSharp ? 2.5 : 1.5) : 4.0;
     const pixelRatio = Math.min(basePixelRatio * config.scale * ultraMultiplier, maxRatio);
     renderer.setPixelRatio(pixelRatio);
 
     // Ultra Sharp: max anisotropy on all textures
-    if (renderer && config.ultraSharp) {
+    if (config.ultraSharp) {
         const maxAniso = renderer.capabilities.getMaxAnisotropy();
         if (scene) {
             scene.traverse(obj => {
@@ -326,15 +328,13 @@ export function applyGraphicsConfig() {
     }
 
     // Shadows
-    if (renderer) {
-        if (config.shadows === 'off') {
-            renderer.shadowMap.enabled = false;
-        } else {
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = config.shadows === 'high' ? THREE.PCFSoftShadowMap : THREE.BasicShadowMap;
-        }
+    if (config.shadows === 'off') {
+        renderer.shadowMap.enabled = false;
+    } else {
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = config.shadows === 'high' ? THREE.PCFSoftShadowMap : THREE.BasicShadowMap;
     }
-    
+
     // Force material update for shadows
     if (scene) {
         scene.traverse(obj => {

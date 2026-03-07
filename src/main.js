@@ -42,10 +42,18 @@ function fadeOutSplash() {
   const container = document.getElementById("game-container");
   container.style.transition = "opacity 0.8s ease";
   container.style.opacity = "1";
+  // Force R3F to recalculate canvas size now that the container is visible.
+  // Chrome throttles rendering of opacity:0 elements, so this kick-starts
+  // proper compositing, shader compilation, and DPR detection.
+  requestAnimationFrame(() => {
+    window.dispatchEvent(new Event('resize'));
+  });
   setTimeout(() => {
     splash.classList.add("hidden");
     splash.style.opacity = "";
     splash.style.pointerEvents = "";
+    // Second resize after transition completes to ensure final dimensions are correct
+    window.dispatchEvent(new Event('resize'));
   }, 1000);
 }
 function startGame(playerCiv) {

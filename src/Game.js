@@ -21,13 +21,13 @@ const SceneBindings = () => {
     // Enable high-quality rendering settings
     gl.outputColorSpace = THREE.SRGBColorSpace;
     gl.toneMapping = THREE.ACESFilmicToneMapping;
-    gl.toneMappingExposure = isMobileDevice ? 0.85 : 1.1;
+    gl.toneMappingExposure = isMobileDevice ? 1.0 : 1.1;
     if (!isMobileDevice) {
       gl.shadowMap.enabled = true;
       gl.shadowMap.type = THREE.PCFSoftShadowMap;
     }
-    // Apply graphics config (ultra sharp pixel ratio, anisotropy, etc.) on startup
-    applyGraphicsConfig();
+    // Note: applyGraphicsConfig() is called from GameLoop after composer is created,
+    // so that pixel ratio, bloom, and anisotropy settings are applied in the right order.
     scene.background = new THREE.Color(132104);
     scene.fog = new THREE.FogExp2(132104, 15e-4);
     // Start with galaxy hidden — focusHome will call enterSystemView which sets visibility correctly
@@ -60,23 +60,28 @@ const GameLoop = () => {
     return () => { window.__r3fInvalidate = null; };
   }, [invalidate]);
   useEffect(() => {
-    if (isMobileDevice) {
-      composer.current = null;
-      setGlobalComposer(null);
-      return () => {
-        setGlobalComposer(null);
-      };
-    }
-
     const comp = new EffectComposer(gl);
     comp.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(size.width, size.height), 0.8, 0.5, 0.6);
-    bloomPass.threshold = 0.6;
-    bloomPass.strength = 0.9;
-    bloomPass.radius = 0.6;
-    comp.addPass(bloomPass);
+
+    if (isMobileDevice) {
+      // Mobile: lighter bloom to show planet glow without killing performance
+      const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(Math.floor(size.width / 2), Math.floor(size.height / 2)),
+        0.75, 0.45, 0.75
+      );
+      comp.addPass(bloomPass);
+    } else {
+      const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(size.width, size.height),
+        0.9, 0.6, 0.6
+      );
+      comp.addPass(bloomPass);
+    }
+
     composer.current = comp;
     setGlobalComposer(comp);
+    // Apply graphics config now that composer exists
+    applyGraphicsConfig();
     return () => {
       comp.dispose();
       setGlobalComposer(null);
@@ -178,7 +183,7 @@ const Game = () => {
         alpha: true,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: isMobileDevice ? 0.85 : 1.1,
+        toneMappingExposure: isMobileDevice ? 1.0 : 1.1,
         outputColorSpace: THREE.SRGBColorSpace
       },
       style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0, touchAction: "none" },
