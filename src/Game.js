@@ -59,20 +59,23 @@ const GameLoop = () => {
     window.__r3fInvalidate = invalidate;
     return () => { window.__r3fInvalidate = null; };
   }, [invalidate]);
+
+  // Create composer once — depends only on gl/scene/camera (stable after mount)
   useEffect(() => {
+    const w = gl.domElement.width || window.innerWidth;
+    const h = gl.domElement.height || window.innerHeight;
     const comp = new EffectComposer(gl);
     comp.addPass(new RenderPass(scene, camera));
 
     if (isMobileDevice) {
-      // Mobile: lighter bloom to show planet glow without killing performance
       const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(Math.floor(size.width / 2), Math.floor(size.height / 2)),
+        new THREE.Vector2(Math.floor(w / 2), Math.floor(h / 2)),
         0.75, 0.45, 0.75
       );
       comp.addPass(bloomPass);
     } else {
       const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(size.width, size.height),
+        new THREE.Vector2(w, h),
         0.9, 0.6, 0.6
       );
       comp.addPass(bloomPass);
@@ -80,13 +83,25 @@ const GameLoop = () => {
 
     composer.current = comp;
     setGlobalComposer(comp);
-    // Apply graphics config now that composer exists
     applyGraphicsConfig();
     return () => {
       comp.dispose();
+      composer.current = null;
       setGlobalComposer(null);
     };
-  }, [gl, scene, camera, size]);
+  }, [gl, scene, camera]);
+
+  // Resize composer cheaply when window size changes — no rebuild
+  useEffect(() => {
+    if (!composer.current) return;
+    const w = isMobileDevice ? Math.floor(size.width / 2) : size.width;
+    const h = isMobileDevice ? Math.floor(size.height / 2) : size.height;
+    composer.current.setSize(w, h);
+    composer.current.passes.forEach(pass => {
+      if (pass.resolution) pass.resolution.set(w, h);
+    });
+  }, [size]);
+
   useFrame((state, delta) => {
     updateFrame(state, delta);
     if (composer.current) {

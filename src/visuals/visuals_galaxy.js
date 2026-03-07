@@ -622,20 +622,20 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
         });
         pMesh.add(new THREE.Mesh(atmoGeo, atmoMat));
 
-        // Outer soft glow sprite for all planets (boosted on mobile for visible halos)
+        // Outer soft glow sprite for all planets (mobile has bloom now, so less sprite boost needed)
         const glowSprite = new THREE.Sprite(
           new THREE.SpriteMaterial({
             map: textures.glow,
             color: atmoColor,
             transparent: true,
             opacity: isMobileDevice
-              ? (hasThickAtmo ? 0.85 : 0.7)
+              ? (hasThickAtmo ? 0.6 : 0.5)
               : (hasThickAtmo ? 0.45 : 0.35),
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           })
         );
-        const glowScale = isMobileDevice ? size * 7.5 : size * 5;
+        const glowScale = isMobileDevice ? size * 6 : size * 5;
         glowSprite.scale.set(glowScale, glowScale, 1);
         pMesh.add(glowSprite);
 
@@ -646,13 +646,13 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
             color: atmoColor,
             transparent: true,
             opacity: isMobileDevice
-              ? (hasThickAtmo ? 0.6 : 0.5)
+              ? (hasThickAtmo ? 0.4 : 0.3)
               : (hasThickAtmo ? 0.25 : 0.18),
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           })
         );
-        const haloScale = isMobileDevice ? size * 13 : size * 8;
+        const haloScale = isMobileDevice ? size * 10 : size * 8;
         haloSprite.scale.set(haloScale, haloScale, 1);
         pMesh.add(haloSprite);
       }

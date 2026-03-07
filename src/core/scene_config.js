@@ -137,7 +137,7 @@ const config = {
     shadows: 'high',
     scale: 1.0,
     resolution: 'native',
-    ultraSharp: true,   // supersampling + max anisotropy (ultra sharp default)
+    ultraSharp: false,  // supersampling at 2x is very expensive; off by default
     antialias: true
 };
 
