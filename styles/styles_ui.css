@@ -279,16 +279,42 @@
     height: 18px;
     line-height: 1;
     flex-shrink: 0;
+    transition: filter 0.2s ease, opacity 0.2s ease;
+    /* Default base for generic buttons if missed below */
     color: #44ddff;
-    filter: drop-shadow(0 0 3px rgba(68, 221, 255, 0.6));
+    filter: drop-shadow(0 0 3px rgba(68, 221, 255, 0.4));
 }
 
 .hdr-btn-icon-only .hdr-btn-icon {
     font-size: 17px;
     width: 20px;
     height: 20px;
-    color: #44ddff;
-    filter: drop-shadow(0 0 3px rgba(68, 221, 255, 0.6));
+}
+
+/* Specific Header Tool Colors */
+#btn-colonies .hdr-btn-icon {
+    color: #55ff88;
+    filter: drop-shadow(0 0 4px rgba(85, 255, 136, 0.6));
+}
+
+#btn-fleets .hdr-btn-icon {
+    color: #ff8844;
+    filter: drop-shadow(0 0 4px rgba(255, 136, 68, 0.6));
+}
+
+#btn-research .hdr-btn-icon {
+    color: #dd66ff;
+    filter: drop-shadow(0 0 4px rgba(221, 102, 255, 0.6));
+}
+
+#btn-codex .hdr-btn-icon {
+    color: #ffeb3b;
+    filter: drop-shadow(0 0 4px rgba(255, 235, 59, 0.6));
+}
+
+#btn-settings .hdr-btn-icon {
+    color: #bbbbbb;
+    filter: drop-shadow(0 0 4px rgba(200, 200, 200, 0.6));
 }
 
 .hdr-btn-label {
@@ -455,8 +481,8 @@
     width: 22px;
     height: 22px;
     opacity: 0.9;
-    color: #44ddff;
-    filter: drop-shadow(0 0 4px rgba(68, 221, 255, 0.6));
+    color: #bbbbbb;
+    filter: drop-shadow(0 0 4px rgba(200, 200, 200, 0.6));
 }
 
 .sett-title-text {
@@ -788,13 +814,66 @@
 .panel-header h2 .title-icon {
     width: 24px;
     height: 24px;
-    color: #44ddff;
-    filter: drop-shadow(0 0 5px rgba(68, 221, 255, 0.8));
+    /* Base style, overridden below per panel */
+    color: #ffffff;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+}
+
+/* Specific Panel Title Colors matching the UI icons */
+#colonies-panel .title-icon {
+    color: #55ff88;
+    filter: drop-shadow(0 0 5px rgba(85, 255, 136, 0.8));
+}
+
+#fleets-panel .title-icon {
+    color: #ff8844;
+    filter: drop-shadow(0 0 5px rgba(255, 136, 68, 0.8));
+}
+
+#research-panel .title-icon {
+    color: #dd66ff;
+    filter: drop-shadow(0 0 5px rgba(221, 102, 255, 0.8));
+}
+
+#codex-panel .title-icon {
+    color: #ffeb3b;
+    filter: drop-shadow(0 0 5px rgba(255, 235, 59, 0.8));
 }
 
 .panel-content {
     padding: 20px;
     font-size: 15px;
+}
+
+/* Empire Hub Specific Icon Colors */
+#hub-colonies .hub-icon {
+    color: #55ff88;
+    filter: drop-shadow(0 0 4px rgba(85, 255, 136, 0.6));
+}
+
+#hub-fleets .hub-icon {
+    color: #ff8844;
+    filter: drop-shadow(0 0 4px rgba(255, 136, 68, 0.6));
+}
+
+#hub-research .hub-icon {
+    color: #dd66ff;
+    filter: drop-shadow(0 0 4px rgba(221, 102, 255, 0.6));
+}
+
+#hub-codex .hub-icon {
+    color: #ffeb3b;
+    filter: drop-shadow(0 0 4px rgba(255, 235, 59, 0.6));
+}
+
+#hub-diplomacy .hub-icon {
+    color: #44ddff;
+    filter: drop-shadow(0 0 4px rgba(68, 221, 255, 0.6));
+}
+
+#hub-settings .hub-icon {
+    color: #bbbbbb;
+    filter: drop-shadow(0 0 4px rgba(200, 200, 200, 0.6));
 }
 
 #sys-details p,
