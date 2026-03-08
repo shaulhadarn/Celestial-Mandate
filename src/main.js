@@ -10,6 +10,7 @@ import { initUI } from "./ui/ui.js";
 import { initCreationUI } from "./ui/ui_creation.js";
 import { initSplashPlanet, stopSplashPlanet } from "./visuals/splash_renderer.js";
 import { showRaceIntro } from "./ui/ui_intro.js";
+import { playWarpAnimation } from "./visuals/warp_animation.js";
 import { Game } from "./Game.js";
 document.querySelector('script[src="main.js"]')?.remove();
 async function start() {
@@ -83,7 +84,7 @@ function startGame(playerCiv) {
   
   // Set initial state to SYSTEM before React Three Fiber even renders the first frame
   gameState.viewMode = 'SYSTEM';
-  focusHome(homeSystem, homePlanet);
+  focusHome(homeSystem, homePlanet, true);
 }
 function startLoadedGame() {
   gameState.playerCivilization = gameState.playerCivilization || {};
@@ -125,15 +126,31 @@ function startLogicLoop() {
     }
   }, 1e3);
 }
-function focusHome(homeSystem, homePlanet) {
+function focusHome(homeSystem, homePlanet, useWarp = false) {
   const attemptFocus = (retries = 0) => {
     if (isRendererReady()) {
       if (homeSystem) {
-        // instant=true skips camera animation so galaxy is never visible for even one frame
-        enterSystemView(homeSystem.id, true);
-        selectSystem(homeSystem.id);
-        if (homePlanet) {
-          selectPlanet(homePlanet.id);
+        if (useWarp) {
+          // Hide UI during warp so only the animation is visible
+          const uiLayer = document.getElementById('ui-layer');
+          if (uiLayer) uiLayer.style.opacity = '0';
+
+          // Play warp animation, set up system view behind it, then reveal
+          playWarpAnimation().then(() => {
+            enterSystemView(homeSystem.id, true);
+            selectSystem(homeSystem.id);
+            if (homePlanet) selectPlanet(homePlanet.id);
+            // Fade UI back in
+            if (uiLayer) {
+              uiLayer.style.transition = 'opacity 0.6s ease';
+              uiLayer.style.opacity = '1';
+              setTimeout(() => { uiLayer.style.transition = ''; }, 700);
+            }
+          });
+        } else {
+          enterSystemView(homeSystem.id, true);
+          selectSystem(homeSystem.id);
+          if (homePlanet) selectPlanet(homePlanet.id);
         }
       }
     } else if (retries < 40) {
