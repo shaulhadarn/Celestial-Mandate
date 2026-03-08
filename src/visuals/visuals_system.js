@@ -659,46 +659,95 @@ export function createSystemVisuals(system, group) {
         const belt = system.asteroidBelt;
         const beltGroup = new THREE.Group();
 
-        // Procedural rock geometry — deform icosahedron vertices for natural shape
-        const rockGeo = new THREE.IcosahedronGeometry(0.25, 1);
-        const posAttr = rockGeo.getAttribute('position');
-        for (let v = 0; v < posAttr.count; v++) {
-            const nx = posAttr.getX(v), ny = posAttr.getY(v), nz = posAttr.getZ(v);
-            const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-            // Deform each vertex by 15-40% for irregular rocky surface
-            const deform = 0.6 + Math.random() * 0.4;
-            posAttr.setXYZ(v, nx / len * 0.25 * deform, ny / len * 0.25 * deform, nz / len * 0.25 * deform);
+        // Simple 3D hash for coherent noise deformation
+        function rockHash(x, y, z) {
+            let h = x * 374761393 + y * 668265263 + z * 1274126177;
+            h = Math.abs(h);
+            h = ((h >> 13) ^ h) * 1274126177;
+            return ((h >> 16) ^ h & 0x7fffffff) / 0x7fffffff;
         }
-        posAttr.needsUpdate = true;
-        rockGeo.computeVertexNormals();
+        function rockNoise3D(px, py, pz, scale) {
+            const gx = px / scale, gy = py / scale, gz = pz / scale;
+            const x0 = Math.floor(gx), y0 = Math.floor(gy), z0 = Math.floor(gz);
+            const fx = gx - x0, fy = gy - y0, fz = gz - z0;
+            const sx = fx * fx * (3 - 2 * fx);
+            const sy = fy * fy * (3 - 2 * fy);
+            const sz = fz * fz * (3 - 2 * fz);
+            const lerp = (a, b, t) => a + (b - a) * t;
+            const v000 = rockHash(x0, y0, z0);
+            const v100 = rockHash(x0+1, y0, z0);
+            const v010 = rockHash(x0, y0+1, z0);
+            const v110 = rockHash(x0+1, y0+1, z0);
+            const v001 = rockHash(x0, y0, z0+1);
+            const v101 = rockHash(x0+1, y0, z0+1);
+            const v011 = rockHash(x0, y0+1, z0+1);
+            const v111 = rockHash(x0+1, y0+1, z0+1);
+            return lerp(
+                lerp(lerp(v000,v100,sx), lerp(v010,v110,sx), sy),
+                lerp(lerp(v001,v101,sx), lerp(v011,v111,sx), sy),
+                sz
+            );
+        }
+
+        // Create a few varied asteroid geometries to pick from
+        const asteroidGeos = [];
+        const geoVariants = 4;
+        for (let g = 0; g < geoVariants; g++) {
+            const baseGeo = new THREE.IcosahedronGeometry(0.25, 2);
+            const posAttr = baseGeo.getAttribute('position');
+            const seed = g * 137.5;
+            for (let v = 0; v < posAttr.count; v++) {
+                const vx = posAttr.getX(v), vy = posAttr.getY(v), vz = posAttr.getZ(v);
+                const len = Math.sqrt(vx * vx + vy * vy + vz * vz);
+                if (len === 0) continue;
+                const nx = vx / len, ny = vy / len, nz = vz / len;
+                // Multi-octave noise deformation for natural lumps and craters
+                const n1 = rockNoise3D(nx * 3 + seed, ny * 3 + seed, nz * 3 + seed, 1.0);
+                const n2 = rockNoise3D(nx * 6 + seed, ny * 6 + seed, nz * 6 + seed, 1.0) * 0.5;
+                const n3 = rockNoise3D(nx * 12 + seed, ny * 12 + seed, nz * 12 + seed, 1.0) * 0.2;
+                const deform = 0.65 + (n1 + n2 + n3) * 0.35 / 1.7;
+                posAttr.setXYZ(v, nx * 0.25 * deform, ny * 0.25 * deform, nz * 0.25 * deform);
+            }
+            posAttr.needsUpdate = true;
+            baseGeo.computeVertexNormals();
+            asteroidGeos.push(baseGeo);
+        }
 
         const rockMat = new THREE.MeshStandardMaterial({
             color: 0x99887a,
-            roughness: 0.95,
-            metalness: 0.05,
+            roughness: 0.92,
+            metalness: 0.08,
             emissive: new THREE.Color(0x1a1510),
-            emissiveIntensity: 0.12
+            emissiveIntensity: 0.12,
+            flatShading: true
         });
+
+        // Create instanced meshes per geometry variant
         const count = belt.count;
-        const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, count);
+        const perVariant = Math.ceil(count / geoVariants);
         const dummy = new THREE.Object3D();
 
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const r = belt.distance + (Math.random() - 0.5) * belt.width;
-            const y = (Math.random() - 0.5) * 1.2;
+        for (let g = 0; g < geoVariants; g++) {
+            const varCount = Math.min(perVariant, count - g * perVariant);
+            if (varCount <= 0) break;
+            const rockMesh = new THREE.InstancedMesh(asteroidGeos[g], rockMat, varCount);
 
-            dummy.position.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
-            dummy.rotation.set(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
-            // Varied sizes: mostly small with occasional larger chunks
-            const sRand = Math.random();
-            const s = sRand > 0.9 ? 1.5 + Math.random() * 1.0 : 0.4 + Math.random() * 0.8;
-            dummy.scale.set(s, s * (0.7 + Math.random() * 0.6), s * (0.7 + Math.random() * 0.6));
-            dummy.updateMatrix();
-            rockMesh.setMatrixAt(i, dummy.matrix);
+            for (let i = 0; i < varCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = belt.distance + (Math.random() - 0.5) * belt.width;
+                const y = (Math.random() - 0.5) * 1.2;
+
+                dummy.position.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+                dummy.rotation.set(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
+                const sRand = Math.random();
+                const s = sRand > 0.9 ? 1.5 + Math.random() * 1.0 : 0.4 + Math.random() * 0.8;
+                dummy.scale.set(s, s * (0.7 + Math.random() * 0.6), s * (0.7 + Math.random() * 0.6));
+                dummy.updateMatrix();
+                rockMesh.setMatrixAt(i, dummy.matrix);
+            }
+            rockMesh.instanceMatrix.needsUpdate = true;
+            beltGroup.add(rockMesh);
         }
-        rockMesh.instanceMatrix.needsUpdate = true;
-        beltGroup.add(rockMesh);
 
         // Faint guide ring at belt center distance
         const beltRingPts = [];
