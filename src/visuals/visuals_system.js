@@ -1264,56 +1264,68 @@ export function addPirateBaseVisual(planetMesh) {
 function _createPirateRaiderMesh() {
     const shipGroup = new THREE.Group();
 
-    // Aggressive wedge hull
+    // Aggressive wedge hull — sized to be visible in system view
     const hullShape = new THREE.Shape();
-    hullShape.moveTo(0, 0.14);
-    hullShape.lineTo(-0.1, -0.12);
-    hullShape.lineTo(0, -0.06);
-    hullShape.lineTo(0.1, -0.12);
+    hullShape.moveTo(0, 1.2);
+    hullShape.lineTo(-0.7, -1.0);
+    hullShape.lineTo(-0.2, -0.5);
+    hullShape.lineTo(0, -0.7);
+    hullShape.lineTo(0.2, -0.5);
+    hullShape.lineTo(0.7, -1.0);
     hullShape.closePath();
-    const hullGeo = new THREE.ExtrudeGeometry(hullShape, { depth: 0.05, bevelEnabled: false });
+    const hullGeo = new THREE.ExtrudeGeometry(hullShape, { depth: 0.35, bevelEnabled: false });
     hullGeo.center();
     const hullMat = new THREE.MeshStandardMaterial({
         color: 0x2a2a2a, metalness: 0.8, roughness: 0.3,
-        emissive: 0x330500, emissiveIntensity: 0.3
+        emissive: 0x660800, emissiveIntensity: 0.4
     });
     const hull = new THREE.Mesh(hullGeo, hullMat);
     hull.rotation.x = Math.PI / 2;
     shipGroup.add(hull);
 
-    // Red engine glow
+    // Red engine glow — large and visible
     const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
         map: textures.glow, color: 0xff3300,
-        transparent: true, opacity: 0.7,
+        transparent: true, opacity: 0.8,
         blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    engineGlow.scale.set(0.35, 0.35, 1);
-    engineGlow.position.set(0, 0, -0.12);
+    engineGlow.scale.set(2.5, 2.5, 1);
+    engineGlow.position.set(0, 0, -1.0);
     shipGroup.add(engineGlow);
 
     // Trail anchor
     const trailAnchor = new THREE.Object3D();
-    trailAnchor.position.set(0, 0, -0.18);
+    trailAnchor.position.set(0, 0, -1.4);
     shipGroup.add(trailAnchor);
 
-    // Red running lights
+    // Red running lights — wing tips
     const navL = new THREE.Sprite(new THREE.SpriteMaterial({
         map: textures.glow, color: 0xff2200,
-        transparent: true, opacity: 0.4,
+        transparent: true, opacity: 0.6,
         blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    navL.scale.set(0.08, 0.08, 1);
-    navL.position.set(-0.1, 0, 0);
+    navL.scale.set(0.6, 0.6, 1);
+    navL.position.set(-0.7, 0, -0.3);
     shipGroup.add(navL);
 
     const navR = new THREE.Sprite(new THREE.SpriteMaterial({
         map: textures.glow, color: 0xff2200,
-        transparent: true, opacity: 0.4,
+        transparent: true, opacity: 0.6,
         blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    navR.scale.set(0.08, 0.08, 1);
-    navR.position.set(0.1, 0, 0);
+    navR.scale.set(0.6, 0.6, 1);
+    navR.position.set(0.7, 0, -0.3);
     shipGroup.add(navR);
+
+    // Forward targeting glow
+    const targetGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff0000,
+        transparent: true, opacity: 0.5,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    targetGlow.scale.set(1.0, 1.0, 1);
+    targetGlow.position.set(0, 0, 1.0);
+    shipGroup.add(targetGlow);
 
     return { shipGroup, engineGlow, trailAnchor };
 }
@@ -1333,7 +1345,7 @@ export function buildPirateRaidRoutes(group) {
     const raiderCount = 2 + (Math.random() > 0.5 ? 1 : 0);
     for (let s = 0; s < raiderCount; s++) {
         const { shipGroup, engineGlow, trailAnchor } = _createPirateRaiderMesh();
-        const scale = 0.9 + Math.random() * 0.4;
+        const scale = 1.0 + Math.random() * 0.5;
         shipGroup.scale.setScalar(scale);
         group.add(shipGroup);
 
@@ -1346,8 +1358,8 @@ export function buildPirateRaidRoutes(group) {
             toMesh: goingForward ? homeMesh : pirateMesh,
             progress: s / raiderCount,
             speed: 0.012 + Math.random() * 0.008,
-            arcHeight: 2 + Math.random() * 3,
-            lateralOffset: (Math.random() - 0.5) * 1.5,
+            arcHeight: 4 + Math.random() * 5,
+            lateralOffset: (Math.random() - 0.5) * 3,
             _prevPos: new THREE.Vector3()
         });
     }
