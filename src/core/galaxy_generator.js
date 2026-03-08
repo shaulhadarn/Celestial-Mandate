@@ -111,6 +111,10 @@ function generateSystemData(id, position, playerSettings) {
 
     for(let i=planets.length; i<planetCount; i++) {
         const pType = PLANET_TYPES[Math.floor(Math.random() * PLANET_TYPES.length)];
+        const pSize = 0.5 + Math.random();
+        const pScale = pType === 'Asteroid' ? 0.5 : 1;
+        // Visual radius of the planet mesh in world units
+        const planetVisualRadius = pSize * 2 * pScale;
 
         // Generate moons based on planet type
         const moons = [];
@@ -129,7 +133,7 @@ function generateSystemData(id, position, playerSettings) {
             for (let m = 0; m < Math.min(moonCount, maxMoons); m++) {
                 moons.push({
                     size: 0.2 + Math.random() * 0.15,
-                    orbitRadius: 3.0 + m * 2.0 + Math.random(),
+                    orbitRadius: planetVisualRadius * 1.8 + m * 2.5 + Math.random(),
                     angle: Math.random() * Math.PI * 2,
                     speed: 0.015 + Math.random() * 0.015,
                     inclination: 0.1 + Math.random() * 0.3,
@@ -143,7 +147,7 @@ function generateSystemData(id, position, playerSettings) {
             name: `${name} ${['I', 'II', 'III', 'IV', 'V', 'VI'][i]}`,
             type: pType,
             distance: 18 + (i * 12) + (Math.random() * 3),
-            size: 0.5 + Math.random(),
+            size: pSize,
             angle: Math.random() * Math.PI * 2,
             speed: 0.001 + (Math.random() * 0.005),
             moons
