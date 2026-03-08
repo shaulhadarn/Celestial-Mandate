@@ -61,7 +61,10 @@ function startGame(playerCiv) {
   gameState.playerCivilization = playerCiv;
   fadeOutSplash();
   document.getElementById("creation-screen").classList.add("hidden");
-  document.getElementById("ui-layer").classList.remove("hidden");
+  // Keep UI hidden during warp — it will be revealed after the animation
+  const uiLayer = document.getElementById("ui-layer");
+  uiLayer.style.opacity = '0';
+  uiLayer.classList.remove("hidden");
   const container = document.getElementById("game-container");
   const root = createRoot(container);
   root.render(/* @__PURE__ */ jsxDEV(Game, {}, void 0, false, {
@@ -81,7 +84,7 @@ function startGame(playerCiv) {
   if (homePlanet) {
     colonizePlanet(homePlanet.id);
   }
-  
+
   // Set initial state to SYSTEM before React Three Fiber even renders the first frame
   gameState.viewMode = 'SYSTEM';
   focusHome(homeSystem, homePlanet, true);
@@ -131,24 +134,23 @@ function focusHome(homeSystem, homePlanet, useWarp = false) {
     if (isRendererReady()) {
       if (homeSystem) {
         if (useWarp) {
-          // Hide UI during warp so only the animation is visible
           const uiLayer = document.getElementById('ui-layer');
-          if (uiLayer) uiLayer.style.opacity = '0';
 
-          // Play warp animation — onFlash fires at peak white so we
-          // set up the 3D scene behind the overlay before it dissolves
+          // Warp canvas is created immediately as solid black — covers
+          // everything so no UI or 3D content is ever visible during warp.
           playWarpAnimation({
             onFlash: () => {
+              // Scene is set up behind the white overlay at peak flash
               enterSystemView(homeSystem.id, true);
               selectSystem(homeSystem.id);
               if (homePlanet) selectPlanet(homePlanet.id);
             }
           }).then(() => {
-            // Warp overlay is gone — fade UI in
+            // Overlay is gone — smoothly reveal UI
             if (uiLayer) {
-              uiLayer.style.transition = 'opacity 0.6s ease';
+              uiLayer.style.transition = 'opacity 0.8s ease';
               uiLayer.style.opacity = '1';
-              setTimeout(() => { uiLayer.style.transition = ''; }, 700);
+              setTimeout(() => { uiLayer.style.transition = ''; }, 900);
             }
           });
         } else {
