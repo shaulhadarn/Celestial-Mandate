@@ -1263,49 +1263,195 @@ export function addPirateBaseVisual(planetMesh) {
 
 function _createPirateRaiderMesh() {
     const shipGroup = new THREE.Group();
+    const hullTex = textures.pirateHull;
 
-    // Aggressive wedge hull — sized to be visible in system view
-    const hullShape = new THREE.Shape();
-    hullShape.moveTo(0, 1.2);
-    hullShape.lineTo(-0.7, -1.0);
-    hullShape.lineTo(-0.2, -0.5);
-    hullShape.lineTo(0, -0.7);
-    hullShape.lineTo(0.2, -0.5);
-    hullShape.lineTo(0.7, -1.0);
-    hullShape.closePath();
-    const hullGeo = new THREE.ExtrudeGeometry(hullShape, { depth: 0.35, bevelEnabled: false });
-    hullGeo.center();
+    // ── Materials ──
     const hullMat = new THREE.MeshStandardMaterial({
-        color: 0x2a2a2a, metalness: 0.8, roughness: 0.3,
-        emissive: 0x660800, emissiveIntensity: 0.4
+        map: hullTex,
+        color: 0x888888, metalness: 0.85, roughness: 0.35,
+        emissive: 0x220500, emissiveIntensity: 0.15
     });
-    const hull = new THREE.Mesh(hullGeo, hullMat);
-    hull.rotation.x = Math.PI / 2;
-    shipGroup.add(hull);
+    const ribMat = new THREE.MeshStandardMaterial({
+        color: 0x111111, metalness: 0.9, roughness: 0.1
+    });
+    const engineMat = new THREE.MeshStandardMaterial({
+        color: 0x222222, metalness: 0.9, roughness: 0.2
+    });
+    const weaponMat = new THREE.MeshStandardMaterial({
+        map: hullTex,
+        color: 0x553322, metalness: 0.8, roughness: 0.4,
+        emissive: 0x110200, emissiveIntensity: 0.2
+    });
 
-    // Red engine glow — large and visible
-    const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: textures.glow, color: 0xff3300,
-        transparent: true, opacity: 0.8,
+    // ── Nose — aggressive pointed cone ──
+    const noseGeo = new THREE.CylinderGeometry(0.04, 0.35, 1.1, 6);
+    const nose = new THREE.Mesh(noseGeo, hullMat);
+    nose.rotation.x = -Math.PI / 2;
+    nose.position.z = 1.5;
+    shipGroup.add(nose);
+
+    // ── Main body — angular fuselage ──
+    const bodyGeo = new THREE.BoxGeometry(0.7, 0.5, 1.6);
+    const body = new THREE.Mesh(bodyGeo, hullMat);
+    body.position.z = 0;
+    shipGroup.add(body);
+
+    // ── Cockpit canopy ──
+    const cockpitGeo = new THREE.BoxGeometry(0.35, 0.22, 0.55);
+    const cockpitMat = new THREE.MeshStandardMaterial({
+        color: 0x220000, metalness: 0.6, roughness: 0.1,
+        emissive: 0x440000, emissiveIntensity: 0.5
+    });
+    const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+    cockpit.position.set(0, 0.32, 0.6);
+    shipGroup.add(cockpit);
+
+    // ── Spine ridge on top ──
+    const spineGeo = new THREE.BoxGeometry(0.12, 0.18, 1.8);
+    const spine = new THREE.Mesh(spineGeo, ribMat);
+    spine.position.set(0, 0.3, -0.1);
+    shipGroup.add(spine);
+
+    // ── Forward-swept wings ──
+    const wingShape = new THREE.Shape();
+    wingShape.moveTo(0, 0);
+    wingShape.lineTo(0.4, 0);
+    wingShape.lineTo(1.6, 0.8);
+    wingShape.lineTo(1.4, 1.1);
+    wingShape.lineTo(0.1, 0.3);
+    wingShape.lineTo(0, 0);
+    const wingGeo = new THREE.ExtrudeGeometry(wingShape, { depth: 0.06, bevelEnabled: false });
+
+    const lw = new THREE.Mesh(wingGeo, hullMat);
+    lw.rotation.x = -Math.PI / 2;
+    lw.position.set(0.3, 0, 0.2);
+    shipGroup.add(lw);
+
+    const rw = new THREE.Mesh(wingGeo, hullMat);
+    rw.rotation.x = -Math.PI / 2;
+    rw.rotation.y = Math.PI;
+    rw.position.set(-0.3, 0, 0.2);
+    shipGroup.add(rw);
+
+    // ── Tail fins — angled vertical stabilizers ──
+    const finShape = new THREE.Shape();
+    finShape.moveTo(0, 0);
+    finShape.lineTo(-0.3, 0);
+    finShape.lineTo(-0.5, 0.7);
+    finShape.lineTo(-0.15, 0.5);
+    finShape.lineTo(0, 0);
+    const finGeo = new THREE.ExtrudeGeometry(finShape, { depth: 0.04, bevelEnabled: false });
+
+    const lFin = new THREE.Mesh(finGeo, hullMat);
+    lFin.position.set(0.25, 0.2, -0.8);
+    lFin.rotation.z = -0.15;
+    shipGroup.add(lFin);
+
+    const rFin = new THREE.Mesh(finGeo, hullMat);
+    rFin.position.set(-0.25, 0.2, -0.8);
+    rFin.rotation.z = 0.15;
+    rFin.scale.x = -1;
+    shipGroup.add(rFin);
+
+    // ── Wing-mounted weapon pods ──
+    const podGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.7, 6);
+    const podL = new THREE.Mesh(podGeo, weaponMat);
+    podL.rotation.x = Math.PI / 2;
+    podL.position.set(1.1, -0.05, 0.7);
+    shipGroup.add(podL);
+
+    const podR = new THREE.Mesh(podGeo, weaponMat);
+    podR.rotation.x = Math.PI / 2;
+    podR.position.set(-1.1, -0.05, 0.7);
+    shipGroup.add(podR);
+
+    // Weapon barrel tips glow
+    const barrelGlowL = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff2200,
+        transparent: true, opacity: 0.5,
         blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    engineGlow.scale.set(2.5, 2.5, 1);
-    engineGlow.position.set(0, 0, -1.0);
-    shipGroup.add(engineGlow);
+    barrelGlowL.scale.set(0.25, 0.25, 1);
+    barrelGlowL.position.set(1.1, -0.05, 1.1);
+    shipGroup.add(barrelGlowL);
 
-    // Trail anchor
-    const trailAnchor = new THREE.Object3D();
-    trailAnchor.position.set(0, 0, -1.4);
-    shipGroup.add(trailAnchor);
+    const barrelGlowR = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff2200,
+        transparent: true, opacity: 0.5,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    barrelGlowR.scale.set(0.25, 0.25, 1);
+    barrelGlowR.position.set(-1.1, -0.05, 1.1);
+    shipGroup.add(barrelGlowR);
 
-    // Red running lights — wing tips
+    // ── Engine block — rear housing ──
+    const engineBlockGeo = new THREE.BoxGeometry(0.8, 0.45, 0.5);
+    const engineBlock = new THREE.Mesh(engineBlockGeo, ribMat);
+    engineBlock.position.set(0, 0, -0.9);
+    shipGroup.add(engineBlock);
+
+    // ── Engine nozzles (3 — center + 2 outer) ──
+    const enginePositions = [
+        { x: 0, y: 0, z: -1.15 },
+        { x: 0.28, y: 0.1, z: -1.1 },
+        { x: -0.28, y: 0.1, z: -1.1 }
+    ];
+    const engineGlows = [];
+    const engineCores = [];
+    const trailAnchors = [];
+
+    enginePositions.forEach(pos => {
+        // Nozzle cylinder
+        const nozzle = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.1, 0.14, 0.3, 8),
+            engineMat
+        );
+        nozzle.rotation.x = Math.PI / 2;
+        nozzle.position.set(pos.x, pos.y, pos.z);
+        shipGroup.add(nozzle);
+
+        // Trail anchor behind nozzle
+        const anchor = new THREE.Object3D();
+        anchor.position.set(pos.x, pos.y, pos.z - 0.25);
+        shipGroup.add(anchor);
+        trailAnchors.push(anchor);
+
+        // Engine flare — red glow
+        const flare = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: 0xff3300,
+            transparent: true, opacity: 0.8,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        flare.scale.set(0.9, 0.9, 1);
+        flare.position.set(pos.x, pos.y, pos.z - 0.05);
+        shipGroup.add(flare);
+        engineGlows.push(flare);
+
+        // White-hot core — bright inner glow
+        const core = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: 0xffffff,
+            transparent: true, opacity: 0.7,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        core.scale.set(0.35, 0.35, 1);
+        core.position.set(pos.x, pos.y, pos.z - 0.02);
+        shipGroup.add(core);
+        engineCores.push(core);
+    });
+
+    // ── Engine point light — red illumination cast on surroundings ──
+    const engineLight = new THREE.PointLight(0xff3300, 8, 12);
+    engineLight.position.set(0, 0, -1.3);
+    shipGroup.add(engineLight);
+
+    // ── Wing-tip nav lights ──
     const navL = new THREE.Sprite(new THREE.SpriteMaterial({
         map: textures.glow, color: 0xff2200,
         transparent: true, opacity: 0.6,
         blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    navL.scale.set(0.6, 0.6, 1);
-    navL.position.set(-0.7, 0, -0.3);
+    navL.scale.set(0.3, 0.3, 1);
+    navL.position.set(1.5, 0, 0.9);
     shipGroup.add(navL);
 
     const navR = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -1313,21 +1459,22 @@ function _createPirateRaiderMesh() {
         transparent: true, opacity: 0.6,
         blending: THREE.AdditiveBlending, depthWrite: false
     }));
-    navR.scale.set(0.6, 0.6, 1);
-    navR.position.set(0.7, 0, -0.3);
+    navR.scale.set(0.3, 0.3, 1);
+    navR.position.set(-1.5, 0, 0.9);
     shipGroup.add(navR);
 
-    // Forward targeting glow
-    const targetGlow = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: textures.glow, color: 0xff0000,
-        transparent: true, opacity: 0.5,
-        blending: THREE.AdditiveBlending, depthWrite: false
-    }));
-    targetGlow.scale.set(1.0, 1.0, 1);
-    targetGlow.position.set(0, 0, 1.0);
-    shipGroup.add(targetGlow);
+    // Store references for animation
+    shipGroup.userData.engineGlows = engineGlows;
+    shipGroup.userData.engineCores = engineCores;
+    shipGroup.userData.navLights = [navL, navR, barrelGlowL, barrelGlowR];
+    shipGroup.userData.engineLight = engineLight;
 
-    return { shipGroup, engineGlow, trailAnchor };
+    return {
+        shipGroup,
+        engineGlow: engineGlows[0],
+        trailAnchor: trailAnchors[0],
+        trailAnchors
+    };
 }
 
 export function buildPirateRaidRoutes(group) {
@@ -1344,16 +1491,17 @@ export function buildPirateRaidRoutes(group) {
     // 2-3 raider ships flying between pirate base and homeworld
     const raiderCount = 2 + (Math.random() > 0.5 ? 1 : 0);
     for (let s = 0; s < raiderCount; s++) {
-        const { shipGroup, engineGlow, trailAnchor } = _createPirateRaiderMesh();
+        const raider = _createPirateRaiderMesh();
         const scale = 1.0 + Math.random() * 0.5;
-        shipGroup.scale.setScalar(scale);
-        group.add(shipGroup);
+        raider.shipGroup.scale.setScalar(scale);
+        group.add(raider.shipGroup);
 
         const goingForward = s % 2 === 0;
         _pirateRaiders.push({
-            mesh: shipGroup,
-            engineGlow,
-            trailAnchor,
+            mesh: raider.shipGroup,
+            engineGlow: raider.engineGlow,
+            trailAnchor: raider.trailAnchor,
+            trailAnchors: raider.trailAnchors,
             fromMesh: goingForward ? pirateMesh : homeMesh,
             toMesh: goingForward ? homeMesh : pirateMesh,
             progress: s / raiderCount,
@@ -1843,7 +1991,7 @@ export function updateSystemAnimations(time, dt, group) {
         }
     });
 
-    // ── Animate pirate raiders (same logic as trade ships) ────────────────────
+    // ── Animate pirate raiders (splash-quality multi-engine ships) ─────────────
     _pirateRaiders.forEach(ts => {
         ts.progress += ts.speed * dt;
         if (ts.progress >= 1) {
@@ -1874,11 +2022,53 @@ export function updateSystemAnimations(time, dt, group) {
         _shipTmpDir.subVectors(_shipTmpTo, _shipTmpFrom).normalize();
         ts.mesh.lookAt(ts.mesh.position.clone().add(_shipTmpDir));
 
-        if (ts.engineGlow) {
-            ts.engineGlow.material.opacity = 0.5 + 0.25 * Math.sin(time * 6.0);
+        // Animate all engine flares + white-hot cores
+        const ud = ts.mesh.userData;
+        if (ud.engineGlows) {
+            ud.engineGlows.forEach((flare, i) => {
+                flare.material.opacity = 0.6 + 0.3 * Math.sin(time * 6.0 + i * 1.2);
+                const s = 0.8 + 0.15 * Math.sin(time * 8.0 + i * 0.8);
+                flare.scale.set(s, s, 1);
+            });
+        }
+        if (ud.engineCores) {
+            ud.engineCores.forEach((core, i) => {
+                core.material.opacity = 0.5 + 0.3 * Math.sin(time * 7.0 + i * 1.5);
+            });
         }
 
-        if (ts.trailAnchor && _trailInited) {
+        // Engine point light intensity pulse
+        if (ud.engineLight) {
+            ud.engineLight.intensity = 6 + 3 * Math.sin(time * 5.0);
+        }
+
+        // Nav light blink — alternating pattern
+        if (ud.navLights) {
+            ud.navLights.forEach((nav, i) => {
+                const blinkOn = Math.sin(time * 3.5 + i * Math.PI) > 0;
+                nav.material.opacity = blinkOn ? 0.7 : 0.1;
+            });
+        }
+
+        // Spawn trail particles from all engine trail anchors
+        if (ts.trailAnchors && _trailInited) {
+            ts.trailAnchors.forEach(anchor => {
+                anchor.getWorldPosition(_trailWorldPos);
+                const dx = _trailWorldPos.x - ts._prevPos.x;
+                const dy = _trailWorldPos.y - ts._prevPos.y;
+                const dz = _trailWorldPos.z - ts._prevPos.z;
+                const hasValid = ts._prevPos.lengthSq() > 0.001;
+                if (hasValid) {
+                    _spawnSatTrail(
+                        _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
+                        -dx * 2, -dy * 2, -dz * 2
+                    );
+                }
+            });
+            // Update _prevPos from primary trail anchor
+            ts.trailAnchors[0].getWorldPosition(_trailWorldPos);
+            ts._prevPos.copy(_trailWorldPos);
+        } else if (ts.trailAnchor && _trailInited) {
             ts.trailAnchor.getWorldPosition(_trailWorldPos);
             const dx = _trailWorldPos.x - ts._prevPos.x;
             const dy = _trailWorldPos.y - ts._prevPos.y;

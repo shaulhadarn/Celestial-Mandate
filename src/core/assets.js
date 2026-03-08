@@ -25,6 +25,8 @@ export function loadAssets() {
     textures.gas = createGasGiantTexture();
     textures.tomb = createTombTexture();
 
+    textures.pirateHull = createPirateHullTexture();
+
     // Mark all shared textures so disposeGroup() skips them during cleanup
     for (const tex of Object.values(textures)) {
         if (tex && tex.isTexture) tex.userData.shared = true;
@@ -109,6 +111,105 @@ function createSoftHaloTexture() {
     const tex = new THREE.CanvasTexture(canvas);
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.generateMipmaps = true;
+    return tex;
+}
+
+function createPirateHullTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // Base dark metallic hull
+    ctx.fillStyle = '#0f1114';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Armor panels — darker greys with slight variation
+    for (let i = 0; i < 70; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const w = Math.random() * 100 + 30;
+        const h = Math.random() * 100 + 30;
+        const brightness = 14 + Math.random() * 18;
+        ctx.fillStyle = `rgb(${brightness}, ${brightness}, ${Math.floor(brightness * 0.9)})`;
+        ctx.fillRect(x, y, w, h);
+
+        // Panel gaps
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x, y, w, h);
+
+        // Inner tech lines
+        if (Math.random() > 0.6) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.fillRect(x + 4, y + 4, w - 8, 1);
+        }
+    }
+
+    // Red war paint streaks — irregular slashes
+    for (let i = 0; i < 18; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const len = 20 + Math.random() * 80;
+        const angle = Math.random() * Math.PI;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.fillStyle = `rgba(${180 + Math.floor(Math.random() * 75)}, ${Math.floor(Math.random() * 30)}, 0, ${0.15 + Math.random() * 0.25})`;
+        ctx.fillRect(-len / 2, -2, len, 3 + Math.random() * 4);
+        ctx.restore();
+    }
+
+    // Battle scars / gouges
+    for (let i = 0; i < 40; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const r = 1 + Math.random() * 5;
+        ctx.fillStyle = `rgba(0, 0, 0, ${0.3 + Math.random() * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+        // Bright scratch rim
+        ctx.strokeStyle = `rgba(80, 80, 80, ${0.2 + Math.random() * 0.2})`;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.arc(x - 0.5, y - 0.5, r + 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    // Red glow accents — pulsing light strips
+    for (let i = 0; i < 8; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const w = 40 + Math.random() * 100;
+        ctx.fillStyle = `rgba(255, 40, 0, ${0.08 + Math.random() * 0.12})`;
+        ctx.fillRect(x, y, w, 2);
+    }
+
+    // Rivets and bolt details
+    for (let i = 0; i < 200; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        ctx.fillStyle = `rgba(0, 0, 0, ${0.2 + Math.random() * 0.2})`;
+        ctx.beginPath();
+        ctx.arc(x, y, 0.8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Structural grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < 12; i++) {
+        const x = (i / 12) * 512;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, 512);
+        ctx.stroke();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
     return tex;
 }
 
