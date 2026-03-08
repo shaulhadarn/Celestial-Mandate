@@ -1025,7 +1025,7 @@ export function buildTradeRoutes(group) {
                 fromMesh: goingForward ? meshA : meshB,
                 toMesh: goingForward ? meshB : meshA,
                 progress: s / shipsPerRoute,  // stagger start
-                speed: 0.06 + Math.random() * 0.03,  // full trip in ~15-20s
+                speed: 0.015 + Math.random() * 0.01,  // full trip in ~50-70s
                 arcHeight: 3 + Math.random() * 4,
                 lateralOffset: (Math.random() - 0.5) * 2,
                 _prevPos: new THREE.Vector3()
