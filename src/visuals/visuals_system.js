@@ -427,7 +427,7 @@ export function createSystemVisuals(system, group) {
         group.add(orbit);
 
         // Label
-        const label = createTextSprite(p.name, { fontSize: 0.7 });
+        const label = createTextSprite(p.name, { fontSize: 1.1 });
         label.userData = { id: p.id, data: p };
         group.add(label);
         planetLabels.push({ sprite: label, target: mesh, offsetY: - (p.size * 2.5) - 2 });

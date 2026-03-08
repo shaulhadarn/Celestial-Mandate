@@ -25,6 +25,7 @@ export function isGalaxyBuilt() { return _galaxyBuilt; }
 let starGlows = [];       // kept for legacy ref; animation uses instanced data now
 let starShaderMats = [];
 let atmosphereGroup = null;
+let _bgStarfield = null;   // camera-following background starfield
 
 // Instanced batches
 let starInstancedMesh = null;       // InstancedMesh for visible star spheres
@@ -195,6 +196,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   midGlowInstanced = null;
   coreInstanced = null;
   hotCoreInstanced = null;
+  _bgStarfield = null;
 
   _galaxyBuilt = false;
 
@@ -887,7 +889,13 @@ export function updateGalaxyAnimations(time, group, camera) {
     }
   }
 
-  // ── Animate Atmosphere (Starfield twinkling and Nebula rotation) ────────
+  // ── Background starfield follows camera (no dome edge) ──────────────
+  if (_bgStarfield && camera) {
+    _bgStarfield.position.copy(camera.position);
+    _bgStarfield.material.uniforms.time.value = time * 0.4;
+  }
+
+  // ── Animate Atmosphere (Nebula rotation) ──────────────────────────────
   if (atmosphereGroup) {
     atmosphereGroup.children.forEach((child, i) => {
       if (child.userData.isStarfield) {
@@ -958,11 +966,9 @@ export function updateGalaxyAnimations(time, group, camera) {
 function createAtmosphere(group) {
   atmosphereGroup = new THREE.Group();
 
-  // Galaxy's own background starfield removed — the R3F <Stars> component
-  // (which follows the camera) provides uniform background stars everywhere.
-  // Only nebula color washes remain here as subtle galactic ambience.
-  if (false) { // was: !isMobileDevice
-    // ── Shared starfield shaders (robust: clamped size, smooth edges, stable alpha) ──
+  // ── Camera-following background starfield ──────────────────────────────
+  // Follows camera position each frame so there's never a visible dome edge.
+  {
     const sfVertexShader = /* glsl */ `
       precision highp float;
       attribute float size;
@@ -975,7 +981,6 @@ function createAtmosphere(group) {
         vOffset = offset;
         vColor  = color;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        // Clamp point size: min 0.8px prevents sub-pixel pop, max 4px keeps them star-like
         float rawSize = size * (300.0 / -mvPosition.z);
         gl_PointSize = clamp(rawSize, 0.8, 4.0);
         vSize = gl_PointSize;
@@ -991,50 +996,14 @@ function createAtmosphere(group) {
       void main() {
         vec2 coord = gl_PointCoord - vec2(0.5);
         float d = length(coord);
-        // Smooth circular falloff — no hard discard, soft edge prevents aliasing
         float circle = smoothstep(0.5, 0.15, d);
-        // Gentle twinkle: alpha stays in 0.55–1.0 range, never fully vanishes
         float twinkle = 0.55 + 0.45 * sin(time * 0.8 + vOffset * 6.2831);
-        // Fade tiny points gracefully instead of popping
         float sizeFade = smoothstep(0.5, 1.5, vSize);
         gl_FragColor = vec4(vColor, circle * twinkle * sizeFade * 0.85);
       }
     `;
 
-    // Band-only vertex/fragment (single uniform color)
-    const bandVertexShader = /* glsl */ `
-      precision highp float;
-      attribute float size;
-      attribute float offset;
-      varying float vOffset;
-      varying float vSize;
-      void main() {
-        vOffset = offset;
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        float rawSize = size * (300.0 / -mvPosition.z);
-        gl_PointSize = clamp(rawSize, 0.6, 3.5);
-        vSize = gl_PointSize;
-        gl_Position  = projectionMatrix * mvPosition;
-      }
-    `;
-    const bandFragmentShader = /* glsl */ `
-      precision highp float;
-      uniform float time;
-      uniform vec3  color;
-      varying float vOffset;
-      varying float vSize;
-      void main() {
-        vec2 coord = gl_PointCoord - vec2(0.5);
-        float d = length(coord);
-        float circle = smoothstep(0.5, 0.15, d);
-        float twinkle = 0.6 + 0.4 * sin(time * 0.5 + vOffset * 6.2831);
-        float sizeFade = smoothstep(0.3, 1.2, vSize);
-        gl_FragColor = vec4(color, circle * twinkle * sizeFade * 0.6);
-      }
-    `;
-
-    // ── 1. Deep background starfield (12000 distant points, multi-tint) ──
-    const starCount = 12000;
+    const starCount = isMobileDevice ? 6000 : 12000;
     const positions = new Float32Array(starCount * 3);
     const sizes = new Float32Array(starCount);
     const offsets = new Float32Array(starCount);
@@ -1049,7 +1018,7 @@ function createAtmosphere(group) {
     ];
 
     for (let i = 0; i < starCount; i++) {
-      const r = 500 + Math.random() * 1800;
+      const r = 400 + Math.random() * 1200;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
@@ -1079,63 +1048,24 @@ function createAtmosphere(group) {
       fog: false,
     });
 
-    const starPoints = new THREE.Points(starGeo, starMat);
-    starPoints.userData.isStarfield = true;
-    starPoints.frustumCulled = false;
-    atmosphereGroup.add(starPoints);
-
-    // ── 2. Dense galactic-plane star band ────────────────────────────────
-    const bandCount = 3000;
-    const bPos = new Float32Array(bandCount * 3);
-    const bSize = new Float32Array(bandCount);
-    const bOff = new Float32Array(bandCount);
-
-    for (let i = 0; i < bandCount; i++) {
-      const r = 300 + Math.random() * 900;
-      const theta = Math.random() * Math.PI * 2;
-      bPos[i * 3] = Math.cos(theta) * r;
-      bPos[i * 3 + 1] = (Math.random() - 0.5) * 60;
-      bPos[i * 3 + 2] = Math.sin(theta) * r;
-      bSize[i] = 0.3 + Math.random() * 1.2;
-      bOff[i] = Math.random() * Math.PI * 2;
-    }
-
-    const bandGeo = new THREE.BufferGeometry();
-    bandGeo.setAttribute("position", new THREE.BufferAttribute(bPos, 3));
-    bandGeo.setAttribute("size", new THREE.BufferAttribute(bSize, 1));
-    bandGeo.setAttribute("offset", new THREE.BufferAttribute(bOff, 1));
-
-    const bandMat = new THREE.ShaderMaterial({
-      uniforms: {
-        time: { value: 0 },
-        color: { value: new THREE.Color(0xaabbdd) },
-      },
-      vertexShader: bandVertexShader,
-      fragmentShader: bandFragmentShader,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      fog: false,
-    });
-
-    const bandPoints = new THREE.Points(bandGeo, bandMat);
-    bandPoints.userData.isStarfield = true;
-    bandPoints.frustumCulled = false;
-    atmosphereGroup.add(bandPoints);
+    _bgStarfield = new THREE.Points(starGeo, starMat);
+    _bgStarfield.frustumCulled = false;
+    _bgStarfield.renderOrder = -1; // render behind everything
+    group.add(_bgStarfield);
   }
 
   // ── Nebula sprites — very subtle color washes scattered across the galaxy ──
   // Kept low-opacity so they tint the background without creating a visible dome
   const nebulaDefs = [
-    { color: 0x1122cc, opMin: 0.02, opMax: 0.05, sMin: 400, sMax: 700 },
-    { color: 0x4411aa, opMin: 0.02, opMax: 0.04, sMin: 350, sMax: 650 },
-    { color: 0x881166, opMin: 0.015, opMax: 0.04, sMin: 350, sMax: 600 },
-    { color: 0x0d3366, opMin: 0.025, opMax: 0.05, sMin: 450, sMax: 800 },
-    { color: 0x220055, opMin: 0.02, opMax: 0.04, sMin: 400, sMax: 700 },
-    { color: 0x003355, opMin: 0.02, opMax: 0.04, sMin: 350, sMax: 600 },
+    { color: 0x1122cc, opMin: 0.03, opMax: 0.07, sMin: 300, sMax: 600 },
+    { color: 0x4411aa, opMin: 0.025, opMax: 0.06, sMin: 280, sMax: 550 },
+    { color: 0x881166, opMin: 0.02, opMax: 0.05, sMin: 280, sMax: 500 },
+    { color: 0x0d3366, opMin: 0.03, opMax: 0.07, sMin: 350, sMax: 650 },
+    { color: 0x220055, opMin: 0.025, opMax: 0.06, sMin: 300, sMax: 600 },
+    { color: 0x003355, opMin: 0.025, opMax: 0.06, sMin: 280, sMax: 500 },
   ];
 
-  const nebulaCount = isMobileDevice ? 2 : 3;
+  const nebulaCount = isMobileDevice ? 3 : 4;
 
   nebulaDefs.forEach((def) => {
     for (let j = 0; j < nebulaCount; j++) {
