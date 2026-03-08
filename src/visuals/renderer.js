@@ -5,7 +5,7 @@ import { loadAssets, playSound } from '../core/assets.js';
 import { disposeGroup } from '../core/dispose.js';
 import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
 import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
-import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, planetMeshes, planetLabels } from './visuals_system.js';
+import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, removePirateVisuals, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput } from './visuals_planet.js';
 
 const raycaster = new THREE.Raycaster();
@@ -107,6 +107,21 @@ export async function init() {
         if (gameState.viewMode !== 'SYSTEM') return;
         const mesh = planetMeshes.find(m => m.userData.id === e.detail.planetId);
         if (mesh) addShipyardVisual(mesh);
+    });
+
+    // Pirate raid notifications
+    events.addEventListener('pirate-raid', (e) => {
+        const d = e.detail;
+        import('../ui/ui_notifications.js').then(({ showNotification }) => {
+            showNotification(`Pirate raiders hit your colony! Lost ${d.minerals} minerals and ${d.energy} energy`, 'alert');
+        });
+    });
+
+    // Pirate defeated — clean up visuals
+    events.addEventListener('pirate-defeated', () => {
+        if (gameState.viewMode === 'SYSTEM') {
+            removePirateVisuals();
+        }
     });
 
 }

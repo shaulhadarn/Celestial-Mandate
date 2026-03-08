@@ -60,6 +60,7 @@ export const gameState = {
         researchPoints: 0,       // accumulated per tick from research labs
         bonuses: {}              // accumulated bonuses from completed techs
     },
+    pirateBase: null, // { planetId, systemId, power, raidTimer, raidInterval, defeated, battleInProgress }
     // Story & lore state
     eventChains: {
         active: [],              // [{ chainId, nextStepId, ticksRemaining }]
@@ -195,6 +196,7 @@ export function saveGame() {
             eventChains: gameState.eventChains,
             milestonesFired: gameState.milestonesFired,
             codex: gameState.codex,
+            pirateBase: gameState.pirateBase,
             version: '1.3.0'
         };
         localStorage.setItem('celestial_mandate_save', JSON.stringify(data));
@@ -235,6 +237,7 @@ export function loadGame() {
         gameState.eventChains = data.eventChains || { active: [], completed: [] };
         gameState.milestonesFired = data.milestonesFired || [];
         gameState.codex = data.codex || { unlocked: [] };
+        gameState.pirateBase = data.pirateBase || null;
 
         // Reset View
         gameState.viewMode = 'GALAXY';
@@ -499,6 +502,7 @@ export function updateResources() {
     gameState.date.setDate(gameState.date.getDate() + 1);
 
     tickFleetMovement();
+    tickPirateRaids();
     tickRandomEvents();
 
     // Autosave every 60 ticks (~60 game-days)
@@ -615,7 +619,10 @@ export function surveySystem(systemId) {
 
 export function colonizePlanet(planetId) {
     if (gameState.colonies[planetId]) return false;
-    
+
+    // Block colonization of active pirate base
+    if (gameState.pirateBase && !gameState.pirateBase.defeated && gameState.pirateBase.planetId === planetId) return false;
+
     const archetypeId = gameState.playerCivilization?.archetype || 'standard';
     const modifiers = ARCHETYPES.find(a => a.id === archetypeId)?.modifiers || { colony_cost_factor: 1 };
     const costFactor = modifiers.colony_cost_factor || 1;
@@ -725,6 +732,85 @@ function tickFleetMovement() {
             events.dispatchEvent(new CustomEvent('fleet-arrived', { detail: { fleet, arrival } }));
         }
     });
+}
+
+// ── Pirate Raids ─────────────────────────────────────────────────────────────
+function tickPirateRaids() {
+    const pb = gameState.pirateBase;
+    if (!pb || pb.defeated || pb.battleInProgress) return;
+
+    pb.raidTimer++;
+    if (pb.raidTimer < pb.raidInterval) return;
+
+    // Raid! Steal resources
+    const stolenMinerals = Math.min(gameState.resources.minerals, 3 + Math.floor(Math.random() * 6));
+    const stolenEnergy = Math.min(gameState.resources.energy, 2 + Math.floor(Math.random() * 4));
+
+    if (stolenMinerals <= 0 && stolenEnergy <= 0) {
+        pb.raidTimer = 0;
+        return; // Nothing to steal
+    }
+
+    gameState.resources.minerals -= stolenMinerals;
+    gameState.resources.energy -= stolenEnergy;
+
+    events.dispatchEvent(new CustomEvent('pirate-raid', {
+        detail: { minerals: stolenMinerals, energy: stolenEnergy }
+    }));
+    events.dispatchEvent(new CustomEvent('resources-updated'));
+
+    // Reset with randomness
+    pb.raidTimer = 0;
+    pb.raidInterval = 12 + Math.floor(Math.random() * 7);
+}
+
+// ── Pirate Battle Resolution ─────────────────────────────────────────────────
+export function resolvePirateBattle() {
+    const pb = gameState.pirateBase;
+    if (!pb || pb.defeated) return null;
+
+    const playerFleets = (gameState.fleets || []).filter(f => f.systemId === pb.systemId && !f.moving);
+    const playerPower = playerFleets.reduce((sum, f) => sum + (f.power || 1), 0);
+
+    if (playerPower <= 0) return null;
+
+    const result = { playerPower, piratePower: pb.power, won: false, shipsLost: [] };
+
+    if (playerPower > pb.power) {
+        // Victory
+        pb.defeated = true;
+        result.won = true;
+
+        // Remove pirate flag from planet so it can be colonized
+        for (const sys of gameState.systems) {
+            const planet = sys.planets.find(p => p.id === pb.planetId);
+            if (planet) { planet.pirate = false; break; }
+        }
+
+        events.dispatchEvent(new CustomEvent('pirate-defeated', { detail: result }));
+    } else {
+        // Defeat — lose ships worth the difference, reduce pirate power
+        let powerToLose = pb.power - playerPower;
+        // Sort weakest first for removal
+        const sorted = [...playerFleets].sort((a, b) => (a.power || 1) - (b.power || 1));
+        for (const fleet of sorted) {
+            if (powerToLose <= 0) break;
+            result.shipsLost.push(fleet);
+            powerToLose -= (fleet.power || 1);
+        }
+        // Remove lost ships from gameState
+        result.shipsLost.forEach(lost => {
+            const idx = gameState.fleets.indexOf(lost);
+            if (idx >= 0) gameState.fleets.splice(idx, 1);
+        });
+        // Reduce pirate power by what the player brought
+        pb.power = Math.max(1, pb.power - playerPower);
+
+        events.dispatchEvent(new CustomEvent('pirate-battle-lost', { detail: result }));
+    }
+
+    events.dispatchEvent(new CustomEvent('resources-updated'));
+    return result;
 }
 
 export function getConnectedSystems(systemId) {

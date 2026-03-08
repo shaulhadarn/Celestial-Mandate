@@ -95,7 +95,7 @@ function generateSystemData(id, position, playerSettings) {
     
     // Force Home System properties if it's the player's system (ID 0)
     if (id === 0 && playerSettings) {
-        planetCount = Math.max(planetCount, 3); // Ensure at least a few planets
+        planetCount = Math.max(planetCount, 4); // Ensure enough planets for homeworld + pirate base
         // Create Homeworld
         planets.push({
             id: `p-${id}-0`,
@@ -156,6 +156,17 @@ function generateSystemData(id, position, playerSettings) {
 
     // Sort by distance
     planets.sort((a,b) => a.distance - b.distance);
+
+    // Tag one planet as pirate base in the home system
+    if (id === 0 && playerSettings && planets.length >= 2) {
+        // Pick the 2nd planet (not homeworld) as pirate stronghold
+        const pirateIdx = planets[0].name.includes('Prime') ? 1 : planets.length - 1;
+        const piratePlanet = planets[pirateIdx];
+        piratePlanet.pirate = true;
+        piratePlanet.name = "Corsair's Den";
+        piratePlanet.type = Math.random() > 0.5 ? 'Barren' : 'Molten';
+        piratePlanet.size = Math.max(piratePlanet.size, 0.8); // Ensure it's not too tiny
+    }
 
     // Generate asteroid belt in ~35% of systems with 2+ planets
     let asteroidBelt = null;

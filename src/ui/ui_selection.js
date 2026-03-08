@@ -1,7 +1,8 @@
 /* Updated: System panel now shows planets of the current system (not all galaxy stars) with type, size, colony indicator, and click-to-select */
-import { gameState, getSystem, getPlanet, SURVEY_COST, selectSystem, selectPlanet } from '../core/state.js';
+import { gameState, getSystem, getPlanet, SURVEY_COST, selectSystem, selectPlanet, resolvePirateBattle } from '../core/state.js';
 import { renderColonyView } from './ui_colony.js';
 import { enterSystemView } from '../visuals/renderer.js';
+import { playPirateBattle, planetMeshes } from '../visuals/visuals_system.js';
 
 /** Track previous system to detect fresh opens vs content updates */
 let _prevSystemId = null;
@@ -76,14 +77,15 @@ export function updateSelectionPanel() {
                 });
             }
 
-            document.getElementById('planet-name').innerText = planet.name;
+            const isPirateActive = planet.pirate && gameState.pirateBase && !gameState.pirateBase.defeated;
+            document.getElementById('planet-name').innerText = isPirateActive ? `${planet.name} ☠️` : planet.name;
             const isSurveyed = sys ? sys.surveyed : false;
             const colony = gameState.colonies[planet.id];
 
             // Always explicitly set land button state for the current planet
             const landBtn = document.getElementById('btn-land');
             if (landBtn) {
-                if (planet.type === 'Gas Giant') {
+                if (planet.type === 'Gas Giant' || isPirateActive) {
                     landBtn.style.display = 'none';
                 } else {
                     landBtn.style.display = 'block';
@@ -101,11 +103,11 @@ export function updateSelectionPanel() {
                 }
             }
 
-            if (!isSurveyed && !colony) {
+            if (!isSurveyed && !colony && !isPirateActive) {
                 document.getElementById('planet-class').innerText = "Unknown";
                 document.getElementById('planet-size').innerText = "?";
             } else {
-                document.getElementById('planet-class').innerText = planet.type;
+                document.getElementById('planet-class').innerText = isPirateActive ? `Pirate Stronghold (Power: ${gameState.pirateBase.power})` : planet.type;
                 document.getElementById('planet-size').innerText = Math.floor(planet.size * 10);
             }
 
@@ -115,6 +117,9 @@ export function updateSelectionPanel() {
             const colonyView = document.getElementById('planet-colony-view');
             const colonizeBtn = document.getElementById('btn-colonize');
 
+            // Check if this is an active pirate base
+            const isPirateBase = planet.pirate && gameState.pirateBase && !gameState.pirateBase.defeated;
+
             if (colony) {
                 preColony.style.display = 'none';
                 colonyView.classList.remove('hidden');
@@ -123,11 +128,28 @@ export function updateSelectionPanel() {
                 if(!nameLabel.innerText.includes('🏗️')) nameLabel.innerText += " 🏗️";
 
                 renderColonyView(planet.id);
+            } else if (isPirateBase) {
+                // Pirate base — show attack UI instead of colonize
+                preColony.style.display = 'block';
+                preColony.classList.remove('hidden');
+                colonyView.classList.add('hidden');
+
+                const playerFleets = (gameState.fleets || []).filter(f => f.systemId === gameState.pirateBase.systemId && !f.moving);
+                const playerPower = playerFleets.reduce((sum, f) => sum + (f.power || 1), 0);
+                const hasFleets = playerPower > 0;
+
+                colonizeBtn.disabled = !hasFleets;
+                colonizeBtn.innerHTML = `⚔️ Attack Pirate Base${hasFleets ? ` (Power: ${playerPower} vs ${gameState.pirateBase.power})` : ''}`;
+                colonizeBtn.style.opacity = hasFleets ? '1' : '0.5';
+                colonizeBtn.style.background = hasFleets ? 'rgba(255, 50, 30, 0.3)' : '';
+                colonizeBtn.style.borderColor = '#ff3322';
             } else {
                 preColony.style.display = 'block';
                 preColony.classList.remove('hidden');
                 colonyView.classList.add('hidden');
 
+                colonizeBtn.style.background = '';
+                colonizeBtn.style.borderColor = '';
                 if (!isSurveyed) {
                     colonizeBtn.disabled = true;
                     colonizeBtn.innerText = "Survey System First";
@@ -163,22 +185,24 @@ function renderStarList(activeSystemId) {
         const isSelected = gameState.selectedPlanetId === planet.id;
         const isSurveyed = sys.surveyed;
 
-        const typeLabel = (isSurveyed || hasColony) ? planet.type : 'Unknown';
-        const sizeLabel = (isSurveyed || hasColony) ? Math.floor(planet.size * 10) : '?';
+        const isPirate = planet.pirate && gameState.pirateBase && !gameState.pirateBase.defeated;
+        const typeLabel = isPirate ? 'Pirate Base' : ((isSurveyed || hasColony) ? planet.type : 'Unknown');
+        const sizeLabel = (isSurveyed || hasColony || isPirate) ? Math.floor(planet.size * 10) : '?';
 
         const PLANET_COLORS = {
             'Terran': '#4a9eff', 'Continental': '#5bc8af', 'Ocean': '#2277cc',
             'Desert': '#e8a44a', 'Arctic': '#aaddff', 'Barren': '#888888',
             'Molten': '#ff5522', 'Gas Giant': '#cc8844', 'Tomb': '#667766',
         };
-        const dotColor = PLANET_COLORS[planet.type] || '#aaaaaa';
+        const dotColor = isPirate ? '#ff3322' : (PLANET_COLORS[planet.type] || '#aaaaaa');
 
         const row = document.createElement('div');
         row.className = `star-list-item${isSelected ? ' active' : ''}`;
+        const suffix = hasColony ? ' 🏛' : (isPirate ? ' ☠️' : '');
         row.innerHTML = `
             <span class="star-list-dot" style="background:${dotColor};box-shadow:0 0 5px ${dotColor};"></span>
             <span class="star-list-name">${planet.name}</span>
-            <span class="star-list-meta">${typeLabel} · ${sizeLabel}${hasColony ? ' 🏛' : ''}</span>
+            <span class="star-list-meta">${typeLabel} · ${sizeLabel}${suffix}</span>
         `;
         row.addEventListener('click', () => {
             selectPlanet(planet.id);

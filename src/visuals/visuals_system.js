@@ -78,6 +78,9 @@ let _moonGroups = [];  // { parentMesh, pivot, moonMesh, data }[]
 let _asteroidBelt = null;  // { group: Group }
 let _tradeShips = [];      // { mesh, engineGlow, trailAnchor, fromId, toId, progress, speed, arcHeight, _prevPos }
 let _shipyardStations = []; // { pivot, station, dockGlow, navLights[], trailAnchor, orbitSpeed, _prevPos }
+let _pirateStations = [];   // Same shape as _shipyardStations but red themed
+let _pirateRaiders = [];    // Same shape as _tradeShips but red themed
+let _battleAnim = null;     // Active battle animation state
 
 // ── Satellite engine trail particle pool ────────────────────────────────────
 const SAT_TRAIL_MAX = isMobileDevice ? 120 : 240;
@@ -239,6 +242,10 @@ export function clearSystemVisuals(group) {
     _asteroidBelt = null;
     _tradeShips = [];
     _shipyardStations = [];
+    _pirateStations = [];
+    _pirateRaiders.forEach(pr => { if (pr.mesh.parent) pr.mesh.parent.remove(pr.mesh); });
+    _pirateRaiders = [];
+    _battleAnim = null;
 }
 
 export function createSystemVisuals(system, group) {
@@ -665,6 +672,11 @@ export function createSystemVisuals(system, group) {
                 addShipyardVisual(mesh);
             }
         }
+
+        // Pirate base visual
+        if (p.pirate && gameState.pirateBase && !gameState.pirateBase.defeated) {
+            addPirateBaseVisual(mesh);
+        }
     });
 
     // ── Asteroid Belt ─────────────────────────────────────────────────────
@@ -783,6 +795,9 @@ export function createSystemVisuals(system, group) {
 
     // ── Trade ships between colonies ──
     buildTradeRoutes(group);
+
+    // ── Pirate raider ships ──
+    buildPirateRaidRoutes(group);
 }
 
 export function addColonyVisual(planetMesh) {
@@ -1113,6 +1128,388 @@ export function addShipyardVisual(planetMesh) {
     });
 }
 
+// ── Pirate base station ──────────────────────────────────────────────────────
+
+function _createPirateStationMesh() {
+    const stationGroup = new THREE.Group();
+
+    const hullMat = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a, metalness: 0.85, roughness: 0.3,
+        emissive: 0x220500, emissiveIntensity: 0.2
+    });
+    const accentMat = new THREE.MeshStandardMaterial({
+        color: 0xff3322, metalness: 0.7, roughness: 0.3,
+        emissive: 0xff3322, emissiveIntensity: 0.5
+    });
+    const frameMat = new THREE.MeshStandardMaterial({
+        color: 0x3a3a3a, metalness: 0.9, roughness: 0.2,
+        emissive: 0x1a0500, emissiveIntensity: 0.15
+    });
+
+    // Angular central hull — menacing wedge shape
+    const hullGeo = new THREE.BoxGeometry(1.2, 0.4, 2.4);
+    const hull = new THREE.Mesh(hullGeo, hullMat);
+    stationGroup.add(hull);
+
+    // Forward spike
+    const spikeGeo = new THREE.ConeGeometry(0.3, 1.2, 4);
+    const spike = new THREE.Mesh(spikeGeo, hullMat);
+    spike.rotation.x = -Math.PI / 2;
+    spike.position.z = 1.8;
+    stationGroup.add(spike);
+
+    // Weapon turrets on top
+    for (let side = -1; side <= 1; side += 2) {
+        const turret = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.3, 6), frameMat);
+        turret.position.set(side * 0.4, 0.3, 0.5);
+        stationGroup.add(turret);
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 4), frameMat);
+        barrel.rotation.x = Math.PI / 2;
+        barrel.position.set(side * 0.4, 0.35, 0.75);
+        stationGroup.add(barrel);
+    }
+
+    // Fin wings — angular outward
+    for (let side = -1; side <= 1; side += 2) {
+        const finGeo = new THREE.BoxGeometry(1.0, 0.05, 1.4);
+        const fin = new THREE.Mesh(finGeo, hullMat);
+        fin.position.set(side * 1.1, 0, -0.2);
+        fin.rotation.z = side * 0.25;
+        stationGroup.add(fin);
+
+        // Red stripe on fin
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.1), accentMat);
+        stripe.position.set(side * 1.1, 0.04, 0.3);
+        stripe.rotation.z = side * 0.25;
+        stationGroup.add(stripe);
+    }
+
+    // Red glow core
+    const dockGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff3322,
+        transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    dockGlow.scale.set(1.6, 1.6, 1);
+    stationGroup.add(dockGlow);
+
+    // Nav lights
+    const navLights = [];
+    const navPositions = [[0, 0.3, 1.8], [0, -0.25, -1.2], [1.5, 0.1, 0], [-1.5, 0.1, 0]];
+    navPositions.forEach(pos => {
+        const navMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.04, 6, 6),
+            new THREE.MeshBasicMaterial({ color: 0xff3322 })
+        );
+        navMesh.position.set(pos[0], pos[1], pos[2]);
+        stationGroup.add(navMesh);
+
+        const navGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color: 0xff3322,
+            transparent: true, opacity: 0.5,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        navGlow.scale.set(0.35, 0.35, 1);
+        navMesh.add(navGlow);
+        navLights.push({ mesh: navMesh, glow: navGlow });
+    });
+
+    // Engine glow
+    const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff5500,
+        transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    engineGlow.scale.set(0.7, 0.7, 1);
+    engineGlow.position.set(0, 0, -1.3);
+    stationGroup.add(engineGlow);
+
+    const trailAnchor = new THREE.Object3D();
+    trailAnchor.position.set(0, 0, -1.5);
+    stationGroup.add(trailAnchor);
+
+    return { stationGroup, dockGlow, navLights, engineGlow, trailAnchor };
+}
+
+export function addPirateBaseVisual(planetMesh) {
+    const planetRadius = planetMesh.geometry.parameters.radius;
+    const orbitRadius = planetRadius * 1.8;
+    const stationScale = Math.max(0.6, planetRadius * 0.35);
+
+    const orbitPivot = new THREE.Group();
+    planetMesh.add(orbitPivot);
+
+    const { stationGroup, dockGlow, navLights, engineGlow, trailAnchor } = _createPirateStationMesh();
+    stationGroup.scale.setScalar(stationScale);
+    stationGroup.position.set(orbitRadius, 0, 0);
+    orbitPivot.add(stationGroup);
+
+    orbitPivot.rotation.y = Math.random() * Math.PI * 2;
+    orbitPivot.rotation.x = 0.1 + Math.random() * 0.2;
+
+    _pirateStations.push({
+        pivot: orbitPivot,
+        station: stationGroup,
+        dockGlow,
+        navLights,
+        engineGlow,
+        trailAnchor,
+        orbitSpeed: 0.18 + Math.random() * 0.1,
+        _prevPos: new THREE.Vector3()
+    });
+}
+
+// ── Pirate raider ships ─────────────────────────────────────────────────────
+
+function _createPirateRaiderMesh() {
+    const shipGroup = new THREE.Group();
+
+    // Aggressive wedge hull
+    const hullShape = new THREE.Shape();
+    hullShape.moveTo(0, 0.14);
+    hullShape.lineTo(-0.1, -0.12);
+    hullShape.lineTo(0, -0.06);
+    hullShape.lineTo(0.1, -0.12);
+    hullShape.closePath();
+    const hullGeo = new THREE.ExtrudeGeometry(hullShape, { depth: 0.05, bevelEnabled: false });
+    hullGeo.center();
+    const hullMat = new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a, metalness: 0.8, roughness: 0.3,
+        emissive: 0x330500, emissiveIntensity: 0.3
+    });
+    const hull = new THREE.Mesh(hullGeo, hullMat);
+    hull.rotation.x = Math.PI / 2;
+    shipGroup.add(hull);
+
+    // Red engine glow
+    const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff3300,
+        transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    engineGlow.scale.set(0.35, 0.35, 1);
+    engineGlow.position.set(0, 0, -0.12);
+    shipGroup.add(engineGlow);
+
+    // Trail anchor
+    const trailAnchor = new THREE.Object3D();
+    trailAnchor.position.set(0, 0, -0.18);
+    shipGroup.add(trailAnchor);
+
+    // Red running lights
+    const navL = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff2200,
+        transparent: true, opacity: 0.4,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    navL.scale.set(0.08, 0.08, 1);
+    navL.position.set(-0.1, 0, 0);
+    shipGroup.add(navL);
+
+    const navR = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff2200,
+        transparent: true, opacity: 0.4,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    navR.scale.set(0.08, 0.08, 1);
+    navR.position.set(0.1, 0, 0);
+    shipGroup.add(navR);
+
+    return { shipGroup, engineGlow, trailAnchor };
+}
+
+export function buildPirateRaidRoutes(group) {
+    // Remove existing pirate raiders
+    _pirateRaiders.forEach(pr => { if (pr.mesh.parent) pr.mesh.parent.remove(pr.mesh); });
+    _pirateRaiders = [];
+
+    if (!gameState.pirateBase || gameState.pirateBase.defeated) return;
+
+    const pirateMesh = planetMeshes.find(m => m.userData.id === gameState.pirateBase.planetId);
+    const homeMesh = planetMeshes.find(m => gameState.colonies[m.userData.id]);
+    if (!pirateMesh || !homeMesh) return;
+
+    // 2-3 raider ships flying between pirate base and homeworld
+    const raiderCount = 2 + (Math.random() > 0.5 ? 1 : 0);
+    for (let s = 0; s < raiderCount; s++) {
+        const { shipGroup, engineGlow, trailAnchor } = _createPirateRaiderMesh();
+        const scale = 0.9 + Math.random() * 0.4;
+        shipGroup.scale.setScalar(scale);
+        group.add(shipGroup);
+
+        const goingForward = s % 2 === 0;
+        _pirateRaiders.push({
+            mesh: shipGroup,
+            engineGlow,
+            trailAnchor,
+            fromMesh: goingForward ? pirateMesh : homeMesh,
+            toMesh: goingForward ? homeMesh : pirateMesh,
+            progress: s / raiderCount,
+            speed: 0.012 + Math.random() * 0.008,
+            arcHeight: 2 + Math.random() * 3,
+            lateralOffset: (Math.random() - 0.5) * 1.5,
+            _prevPos: new THREE.Vector3()
+        });
+    }
+}
+
+// ── Pirate battle animation ─────────────────────────────────────────────────
+
+export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
+    if (!pirateMesh || !homeMesh) { onPhase('resolve'); return; }
+
+    const group = pirateMesh.parent; // system group
+    const battleShips = [];
+
+    // Create temporary player ship meshes at homeworld position
+    playerFleets.forEach((fleet, i) => {
+        const { shipGroup, engineGlow, trailAnchor } = _createTradeShipMesh();
+        // Blue tint for player ships
+        shipGroup.children.forEach(c => {
+            if (c.material && c.material.emissive) {
+                c.material.emissive.setHex(0x0044ff);
+                c.material.emissiveIntensity = 0.4;
+            }
+        });
+        const scale = 1.0 + (fleet.power || 1) * 0.2;
+        shipGroup.scale.setScalar(scale);
+        shipGroup.position.copy(homeMesh.position);
+        shipGroup.position.y += 1 + i * 0.8;
+        group.add(shipGroup);
+        battleShips.push({ mesh: shipGroup, engineGlow, trailAnchor, fleet });
+    });
+
+    const startTime = performance.now();
+    const totalDuration = 5000; // 5 seconds total
+    let resolved = false;
+
+    // Flash sprites for combat effects
+    const flashSprites = [];
+
+    function animateBattle() {
+        const elapsed = performance.now() - startTime;
+        const t = elapsed / totalDuration;
+
+        const pirateWorldPos = pirateMesh.position.clone();
+        const homeWorldPos = homeMesh.position.clone();
+
+        if (t < 0.4) {
+            // Phase 1: Ships fly toward pirate planet
+            const moveT = t / 0.4;
+            const eased = moveT < 0.5 ? 4 * moveT * moveT * moveT : 1 - Math.pow(-2 * moveT + 2, 3) / 2;
+            battleShips.forEach((bs, i) => {
+                bs.mesh.position.lerpVectors(homeWorldPos, pirateWorldPos, eased);
+                bs.mesh.position.y += Math.sin(moveT * Math.PI) * (2 + i * 0.5);
+                bs.mesh.position.x += (i - battleShips.length / 2) * 1.5 * (1 - eased);
+                // Face direction of travel
+                const dir = pirateWorldPos.clone().sub(homeWorldPos).normalize();
+                bs.mesh.lookAt(bs.mesh.position.clone().add(dir));
+            });
+        } else if (t < 0.8) {
+            // Phase 2: Combat flashes
+            const combatT = (t - 0.4) / 0.4;
+
+            // Keep ships at pirate position with slight scatter
+            battleShips.forEach((bs, i) => {
+                bs.mesh.position.copy(pirateWorldPos);
+                bs.mesh.position.x += Math.sin(elapsed * 0.01 + i * 2) * 2;
+                bs.mesh.position.y += 1 + Math.cos(elapsed * 0.008 + i) * 1.5;
+                bs.mesh.position.z += Math.cos(elapsed * 0.012 + i * 3) * 2;
+            });
+
+            // Spawn random flash sprites
+            if (Math.random() > 0.5) {
+                const flash = new THREE.Sprite(new THREE.SpriteMaterial({
+                    map: textures.glow,
+                    color: Math.random() > 0.5 ? 0xffaa00 : 0xffffff,
+                    transparent: true, opacity: 0.9,
+                    blending: THREE.AdditiveBlending, depthWrite: false
+                }));
+                const flashScale = 2 + Math.random() * 4;
+                flash.scale.set(flashScale, flashScale, 1);
+                flash.position.copy(pirateWorldPos);
+                flash.position.x += (Math.random() - 0.5) * 4;
+                flash.position.y += (Math.random() - 0.5) * 4 + 1;
+                flash.position.z += (Math.random() - 0.5) * 4;
+                group.add(flash);
+                flashSprites.push({ sprite: flash, life: 0.3 });
+            }
+
+            // Resolve combat at midpoint of phase 2
+            if (!resolved && combatT > 0.5) {
+                resolved = true;
+                onPhase('resolve');
+            }
+        } else {
+            // Phase 3: Aftermath
+            const afterT = (t - 0.8) / 0.2;
+
+            if (gameState.pirateBase && gameState.pirateBase.defeated) {
+                // Victory: explosion + fade pirate station
+                _pirateStations.forEach(ps => {
+                    ps.station.scale.setScalar(ps.station.scale.x * (1 - afterT * 0.5));
+                    if (ps.dockGlow) ps.dockGlow.material.opacity = (1 - afterT) * 0.8;
+                });
+                // Ships fly back
+                battleShips.forEach(bs => {
+                    bs.mesh.position.lerpVectors(pirateWorldPos, homeWorldPos, afterT);
+                    bs.mesh.position.y += Math.sin(afterT * Math.PI) * 2;
+                });
+            } else {
+                // Defeat: ships retreat
+                battleShips.forEach(bs => {
+                    bs.mesh.position.lerpVectors(pirateWorldPos, homeWorldPos, afterT);
+                    bs.mesh.position.y += Math.sin(afterT * Math.PI) * 2;
+                });
+            }
+        }
+
+        // Update flash sprites
+        for (let i = flashSprites.length - 1; i >= 0; i--) {
+            const fs = flashSprites[i];
+            fs.life -= 0.016;
+            if (fs.life <= 0) {
+                group.remove(fs.sprite);
+                fs.sprite.material.dispose();
+                flashSprites.splice(i, 1);
+            } else {
+                fs.sprite.material.opacity = fs.life / 0.3;
+            }
+        }
+
+        if (t < 1.0) {
+            requestAnimationFrame(animateBattle);
+        } else {
+            // Cleanup
+            battleShips.forEach(bs => {
+                group.remove(bs.mesh);
+            });
+            flashSprites.forEach(fs => {
+                group.remove(fs.sprite);
+                fs.sprite.material.dispose();
+            });
+
+            // If victory, remove pirate visuals entirely
+            if (gameState.pirateBase && gameState.pirateBase.defeated) {
+                removePirateVisuals();
+            }
+        }
+    }
+
+    requestAnimationFrame(animateBattle);
+}
+
+export function removePirateVisuals() {
+    _pirateStations.forEach(ps => {
+        if (ps.pivot.parent) ps.pivot.parent.remove(ps.pivot);
+    });
+    _pirateStations = [];
+    _pirateRaiders.forEach(pr => {
+        if (pr.mesh.parent) pr.mesh.parent.remove(pr.mesh);
+    });
+    _pirateRaiders = [];
+}
+
 // ── Trade ships between colonies ─────────────────────────────────────────────
 
 function _createTradeShipMesh() {
@@ -1226,7 +1623,7 @@ export function buildTradeRoutes(group) {
 
 export function updateSystemAnimations(time, dt, group) {
     // Init trail pool on first animation tick if satellites or trade ships exist
-    if (!_trailInited && (_colonySatellites.length > 0 || _tradeShips.length > 0 || _shipyardStations.length > 0) && group) {
+    if (!_trailInited && (_colonySatellites.length > 0 || _tradeShips.length > 0 || _shipyardStations.length > 0 || _pirateStations.length > 0 || _pirateRaiders.length > 0) && group) {
         _initSatTrailPool(group);
     }
 
@@ -1388,6 +1785,98 @@ export function updateSystemAnimations(time, dt, group) {
                 _spawnSatTrail(
                     _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
                     -dx * 1.5, -dy * 1.5, -dz * 1.5
+                );
+            }
+        }
+    });
+
+    // ── Animate pirate stations ─────────────────────────────────────────────
+    _pirateStations.forEach(entry => {
+        entry.pivot.rotation.y += entry.orbitSpeed * 0.005;
+
+        if (entry.dockGlow) {
+            const glowPulse = 0.4 + 0.3 * Math.sin(time * 2.5) + 0.1 * Math.sin(time * 6.0);
+            entry.dockGlow.material.opacity = glowPulse;
+            const glowScale = 1.4 + 0.2 * Math.sin(time * 1.8);
+            entry.dockGlow.scale.set(glowScale, glowScale, 1);
+        }
+
+        entry.navLights.forEach((nav, i) => {
+            const phase = i < 2 ? 0 : Math.PI;
+            const blinkOn = Math.sin(time * 3.0 + phase) > 0;
+            nav.mesh.material.color.setHex(blinkOn ? 0xff3322 : 0x220500);
+            nav.glow.material.opacity = blinkOn ? 0.7 : 0.05;
+        });
+
+        if (entry.engineGlow) {
+            entry.engineGlow.material.opacity = 0.5 + 0.2 * Math.sin(time * 5.0);
+        }
+
+        entry.station.rotation.x = Math.sin(time * 0.35) * 0.03;
+        entry.station.rotation.z = Math.cos(time * 0.28) * 0.04;
+
+        if (entry.trailAnchor && _trailInited) {
+            entry.trailAnchor.getWorldPosition(_trailWorldPos);
+            const dx = _trailWorldPos.x - entry._prevPos.x;
+            const dy = _trailWorldPos.y - entry._prevPos.y;
+            const dz = _trailWorldPos.z - entry._prevPos.z;
+            const hasValid = entry._prevPos.lengthSq() > 0.001;
+            entry._prevPos.copy(_trailWorldPos);
+            if (hasValid) {
+                _spawnSatTrail(
+                    _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
+                    -dx * 1.5, -dy * 1.5, -dz * 1.5
+                );
+            }
+        }
+    });
+
+    // ── Animate pirate raiders (same logic as trade ships) ────────────────────
+    _pirateRaiders.forEach(ts => {
+        ts.progress += ts.speed * dt;
+        if (ts.progress >= 1) {
+            const tmp = ts.fromMesh;
+            ts.fromMesh = ts.toMesh;
+            ts.toMesh = tmp;
+            ts.progress -= 1;
+        }
+
+        _shipTmpFrom.copy(ts.fromMesh.position);
+        _shipTmpTo.copy(ts.toMesh.position);
+
+        const t2 = ts.progress;
+        const eased = t2 < 0.5 ? 4 * t2 * t2 * t2 : 1 - Math.pow(-2 * t2 + 2, 3) / 2;
+
+        ts.mesh.position.lerpVectors(_shipTmpFrom, _shipTmpTo, eased);
+        const arcT = Math.sin(t2 * Math.PI);
+        ts.mesh.position.y += arcT * ts.arcHeight;
+
+        const midX = (_shipTmpTo.z - _shipTmpFrom.z);
+        const midZ = -(_shipTmpTo.x - _shipTmpFrom.x);
+        const lateralLen = Math.sqrt(midX * midX + midZ * midZ);
+        if (lateralLen > 0.01) {
+            ts.mesh.position.x += (midX / lateralLen) * ts.lateralOffset * arcT;
+            ts.mesh.position.z += (midZ / lateralLen) * ts.lateralOffset * arcT;
+        }
+
+        _shipTmpDir.subVectors(_shipTmpTo, _shipTmpFrom).normalize();
+        ts.mesh.lookAt(ts.mesh.position.clone().add(_shipTmpDir));
+
+        if (ts.engineGlow) {
+            ts.engineGlow.material.opacity = 0.5 + 0.25 * Math.sin(time * 6.0);
+        }
+
+        if (ts.trailAnchor && _trailInited) {
+            ts.trailAnchor.getWorldPosition(_trailWorldPos);
+            const dx = _trailWorldPos.x - ts._prevPos.x;
+            const dy = _trailWorldPos.y - ts._prevPos.y;
+            const dz = _trailWorldPos.z - ts._prevPos.z;
+            const hasValid = ts._prevPos.lengthSq() > 0.001;
+            ts._prevPos.copy(_trailWorldPos);
+            if (hasValid) {
+                _spawnSatTrail(
+                    _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
+                    -dx * 2, -dy * 2, -dz * 2
                 );
             }
         }

@@ -85,6 +85,20 @@ function startGame(playerCiv) {
     colonizePlanet(homePlanet.id);
   }
 
+  // Initialize pirate base from the tagged planet
+  const piratePlanet = homeSystem.planets.find(p => p.pirate);
+  if (piratePlanet) {
+    gameState.pirateBase = {
+      planetId: piratePlanet.id,
+      systemId: 0,
+      power: 5,
+      raidTimer: 0,
+      raidInterval: 15,
+      defeated: false,
+      battleInProgress: false
+    };
+  }
+
   // Set initial state to SYSTEM before React Three Fiber even renders the first frame
   gameState.viewMode = 'SYSTEM';
   focusHome(homeSystem, homePlanet, true);
