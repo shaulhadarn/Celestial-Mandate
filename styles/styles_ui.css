@@ -889,35 +889,29 @@
     font-size: 15px;
 }
 
-/* Empire Hub Specific Icon Colors */
+/* Empire Hub Specific Icon Glows — gradient SVGs provide their own color */
 #hub-colonies .hub-icon {
-    color: #55ff88;
-    filter: drop-shadow(0 0 4px rgba(85, 255, 136, 0.6));
+    filter: drop-shadow(0 0 6px rgba(85, 255, 136, 0.5)) drop-shadow(0 0 12px rgba(85, 255, 136, 0.2));
 }
 
 #hub-fleets .hub-icon {
-    color: #ff8844;
-    filter: drop-shadow(0 0 4px rgba(255, 136, 68, 0.6));
+    filter: drop-shadow(0 0 6px rgba(255, 136, 68, 0.5)) drop-shadow(0 0 12px rgba(255, 136, 68, 0.2));
 }
 
 #hub-research .hub-icon {
-    color: #dd66ff;
-    filter: drop-shadow(0 0 4px rgba(221, 102, 255, 0.6));
+    filter: drop-shadow(0 0 6px rgba(221, 102, 255, 0.5)) drop-shadow(0 0 12px rgba(221, 102, 255, 0.2));
 }
 
 #hub-codex .hub-icon {
-    color: #ffeb3b;
-    filter: drop-shadow(0 0 4px rgba(255, 235, 59, 0.6));
+    filter: drop-shadow(0 0 6px rgba(255, 220, 50, 0.5)) drop-shadow(0 0 12px rgba(255, 220, 50, 0.2));
 }
 
 #hub-diplomacy .hub-icon {
-    color: #44ddff;
-    filter: drop-shadow(0 0 4px rgba(68, 221, 255, 0.6));
+    filter: drop-shadow(0 0 6px rgba(68, 221, 255, 0.5)) drop-shadow(0 0 12px rgba(68, 221, 255, 0.2));
 }
 
 #hub-settings .hub-icon {
-    color: #bbbbbb;
-    filter: drop-shadow(0 0 4px rgba(200, 200, 200, 0.6));
+    filter: drop-shadow(0 0 5px rgba(200, 200, 200, 0.4)) drop-shadow(0 0 10px rgba(200, 200, 200, 0.15));
 }
 
 #sys-details p,
@@ -1194,9 +1188,9 @@
 }
 
 .hub-icon {
-    font-size: 22px;
+    width: 40px;
+    height: 40px;
     margin-bottom: 6px;
-    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
 }
 
 .hub-label {
