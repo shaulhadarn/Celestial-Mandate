@@ -206,6 +206,15 @@ const Game = () => {
     {
       shadows: !isMobileDevice,
       frameloop: "always",
+      keyboard: { enabled: false },
+      onCreated: ({ gl }) => {
+        // Remove tabindex from R3F's wrapper div so it doesn't steal keyboard
+        // focus away from window/document level handlers (fixes WASD in exploration)
+        const wrapper = gl.domElement.parentElement;
+        if (wrapper && wrapper.hasAttribute('tabindex')) {
+          wrapper.removeAttribute('tabindex');
+        }
+      },
       dpr: isMobileDevice ? [1, 2.5] : [1, 4],
       gl: {
         antialias: getGraphicsConfig().antialias,

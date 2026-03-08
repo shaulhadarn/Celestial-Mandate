@@ -891,27 +891,27 @@
 
 /* Empire Hub Specific Icon Glows — gradient SVGs provide their own color */
 #hub-colonies .hub-icon {
-    filter: drop-shadow(0 0 6px rgba(85, 255, 136, 0.5)) drop-shadow(0 0 12px rgba(85, 255, 136, 0.2));
+    filter: brightness(1.5) drop-shadow(0 0 6px rgba(85, 255, 136, 0.7)) drop-shadow(0 0 14px rgba(85, 255, 136, 0.35));
 }
 
 #hub-fleets .hub-icon {
-    filter: drop-shadow(0 0 6px rgba(255, 136, 68, 0.5)) drop-shadow(0 0 12px rgba(255, 136, 68, 0.2));
+    filter: brightness(1.5) drop-shadow(0 0 6px rgba(255, 170, 68, 0.7)) drop-shadow(0 0 14px rgba(255, 170, 68, 0.35));
 }
 
 #hub-research .hub-icon {
-    filter: drop-shadow(0 0 6px rgba(221, 102, 255, 0.5)) drop-shadow(0 0 12px rgba(221, 102, 255, 0.2));
+    filter: brightness(1.5) drop-shadow(0 0 6px rgba(221, 102, 255, 0.7)) drop-shadow(0 0 14px rgba(221, 102, 255, 0.35));
 }
 
 #hub-codex .hub-icon {
-    filter: drop-shadow(0 0 6px rgba(255, 220, 50, 0.5)) drop-shadow(0 0 12px rgba(255, 220, 50, 0.2));
+    filter: brightness(1.5) drop-shadow(0 0 6px rgba(255, 230, 50, 0.7)) drop-shadow(0 0 14px rgba(255, 230, 50, 0.35));
 }
 
 #hub-diplomacy .hub-icon {
-    filter: drop-shadow(0 0 6px rgba(68, 221, 255, 0.5)) drop-shadow(0 0 12px rgba(68, 221, 255, 0.2));
+    filter: brightness(1.5) drop-shadow(0 0 6px rgba(68, 230, 255, 0.7)) drop-shadow(0 0 14px rgba(68, 230, 255, 0.35));
 }
 
 #hub-settings .hub-icon {
-    filter: drop-shadow(0 0 5px rgba(200, 200, 200, 0.4)) drop-shadow(0 0 10px rgba(200, 200, 200, 0.15));
+    filter: brightness(1.4) drop-shadow(0 0 6px rgba(220, 220, 220, 0.6)) drop-shadow(0 0 12px rgba(220, 220, 220, 0.25));
 }
 
 #sys-details p,

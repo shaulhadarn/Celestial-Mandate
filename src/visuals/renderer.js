@@ -76,8 +76,10 @@ export async function init() {
         onPointerUp(synth);
     }, { passive: true });
 
-    window.addEventListener('keydown', (e) => handleInput(e.key, true));
-    window.addEventListener('keyup', (e) => handleInput(e.key, false));
+    // Use capture phase on document so keyboard events fire before R3F's Canvas
+    // can intercept them (R3F creates a focusable div that can swallow key events)
+    document.addEventListener('keydown', (e) => handleInput(e.key, true), true);
+    document.addEventListener('keyup', (e) => handleInput(e.key, false), true);
 
     // Events
     events.addEventListener('colony-founded', (e) => {
