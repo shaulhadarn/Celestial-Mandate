@@ -65,6 +65,18 @@ export function initUI() {
         showNotification('Game autosaved', 'info');
     });
 
+    // Start music on first interaction with the splash screen
+    const splashScreen = document.getElementById('splash-screen');
+    if (splashScreen) {
+        const startMusicOnce = () => {
+            startMenuMusic();
+            splashScreen.removeEventListener('click', startMusicOnce);
+            splashScreen.removeEventListener('touchstart', startMusicOnce);
+        };
+        splashScreen.addEventListener('click', startMusicOnce);
+        splashScreen.addEventListener('touchstart', startMusicOnce);
+    }
+
     // Splash Screen Listeners
     const splashStart = document.getElementById('splash-start');
     const splashLoad = document.getElementById('splash-load');
