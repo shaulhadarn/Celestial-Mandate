@@ -5,7 +5,7 @@ import { loadAssets, playSound } from '../core/assets.js';
 import { disposeGroup } from '../core/dispose.js';
 import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
 import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
-import { createSystemVisuals, updateSystemAnimations, addColonyVisual, buildTradeRoutes, planetMeshes, planetLabels } from './visuals_system.js';
+import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput } from './visuals_planet.js';
 
 const raycaster = new THREE.Raycaster();
@@ -99,6 +99,14 @@ export async function init() {
         }
 
         playSound('select');
+    });
+
+    // When a shipyard finishes building, add the orbital station immediately
+    events.addEventListener('building-complete', (e) => {
+        if (e.detail.buildingKey !== 'shipyard') return;
+        if (gameState.viewMode !== 'SYSTEM') return;
+        const mesh = planetMeshes.find(m => m.userData.id === e.detail.planetId);
+        if (mesh) addShipyardVisual(mesh);
     });
 
 }

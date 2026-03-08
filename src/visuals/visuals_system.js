@@ -77,6 +77,7 @@ let _colonySatellites = [];
 let _moonGroups = [];  // { parentMesh, pivot, moonMesh, data }[]
 let _asteroidBelt = null;  // { group: Group }
 let _tradeShips = [];      // { mesh, engineGlow, trailAnchor, fromId, toId, progress, speed, arcHeight, _prevPos }
+let _shipyardStations = []; // { pivot, station, dockGlow, navLights[], trailAnchor, orbitSpeed, _prevPos }
 
 // ── Satellite engine trail particle pool ────────────────────────────────────
 const SAT_TRAIL_MAX = isMobileDevice ? 120 : 240;
@@ -237,6 +238,7 @@ export function clearSystemVisuals(group) {
     _moonGroups = [];
     _asteroidBelt = null;
     _tradeShips = [];
+    _shipyardStations = [];
 }
 
 export function createSystemVisuals(system, group) {
@@ -657,6 +659,11 @@ export function createSystemVisuals(system, group) {
 
         if (gameState.colonies[p.id]) {
             addColonyVisual(mesh);
+            // Add shipyard station if colony has one built
+            const colony = gameState.colonies[p.id];
+            if (colony.buildings && colony.buildings.includes('shipyard')) {
+                addShipyardVisual(mesh);
+            }
         }
     });
 
@@ -924,6 +931,188 @@ export function addColonyVisual(planetMesh) {
     });
 }
 
+// ── Shipyard orbital stations ────────────────────────────────────────────────
+
+function _createShipyardMesh() {
+    const stationGroup = new THREE.Group();
+
+    // ── Materials ──
+    const hullMat = new THREE.MeshStandardMaterial({
+        color: 0x6a6a7a, metalness: 0.88, roughness: 0.22,
+        emissive: 0x1a1028, emissiveIntensity: 0.15
+    });
+    const frameMat = new THREE.MeshStandardMaterial({
+        color: 0x8888aa, metalness: 0.9, roughness: 0.18,
+        emissive: 0x221133, emissiveIntensity: 0.12
+    });
+    const accentMat = new THREE.MeshStandardMaterial({
+        color: 0xb496ff, metalness: 0.7, roughness: 0.3,
+        emissive: 0xb496ff, emissiveIntensity: 0.4
+    });
+    const panelMat = new THREE.MeshStandardMaterial({
+        color: 0x0a1630, metalness: 0.8, roughness: 0.2,
+        emissive: 0x0a2a4a, emissiveIntensity: 0.2
+    });
+
+    // ── Central spine / dock bay — elongated octagonal frame ──
+    const spineGeo = new THREE.CylinderGeometry(0.35, 0.35, 2.4, 8, 1, true);
+    const spine = new THREE.Mesh(spineGeo, frameMat);
+    spine.rotation.x = Math.PI / 2;
+    stationGroup.add(spine);
+
+    // Dock bay end caps — ring shapes
+    for (let end = -1; end <= 1; end += 2) {
+        const ringGeo = new THREE.TorusGeometry(0.38, 0.06, 6, 8);
+        const ring = new THREE.Mesh(ringGeo, accentMat);
+        ring.position.z = end * 1.2;
+        ring.rotation.x = 0;
+        stationGroup.add(ring);
+    }
+
+    // ── Support arms — two angled struts with docking clamps ──
+    for (let side = -1; side <= 1; side += 2) {
+        const armGeo = new THREE.BoxGeometry(1.6, 0.08, 0.12);
+        const arm = new THREE.Mesh(armGeo, hullMat);
+        arm.position.set(side * 0.9, 0, 0);
+        arm.rotation.z = side * 0.15;
+        stationGroup.add(arm);
+
+        // Docking clamp at end of arm
+        const clampGeo = new THREE.BoxGeometry(0.14, 0.25, 0.3);
+        const clamp = new THREE.Mesh(clampGeo, frameMat);
+        clamp.position.set(side * 1.7, 0, 0);
+        stationGroup.add(clamp);
+
+        // Clamp accent light
+        const clampLight = new THREE.Mesh(
+            new THREE.SphereGeometry(0.04, 6, 6),
+            new THREE.MeshBasicMaterial({ color: 0xb496ff })
+        );
+        clampLight.position.set(side * 1.7, 0.15, 0);
+        stationGroup.add(clampLight);
+    }
+
+    // ── Rotating ring section ──
+    const torusGeo = new THREE.TorusGeometry(0.7, 0.07, 8, 24);
+    const torus = new THREE.Mesh(torusGeo, frameMat);
+    torus.rotation.x = Math.PI / 2;
+    torus.userData._isRing = true; // Tag for animation
+    stationGroup.add(torus);
+
+    // Ring spokes — radial struts connecting spine to ring
+    for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        const spokeGeo = new THREE.BoxGeometry(0.35, 0.03, 0.03);
+        const spoke = new THREE.Mesh(spokeGeo, frameMat);
+        spoke.position.set(Math.cos(angle) * 0.52, 0, Math.sin(angle) * 0.52);
+        spoke.rotation.y = -angle;
+        stationGroup.add(spoke);
+    }
+
+    // ── Solar panel arrays (larger than colony sat) ──
+    for (let side = -1; side <= 1; side += 2) {
+        const panelFrame = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.9, 0.5), hullMat
+        );
+        panelFrame.position.set(side * 0.42, 0, -0.8);
+        const panelSurface = new THREE.Mesh(
+            new THREE.BoxGeometry(0.04, 0.82, 0.42), panelMat
+        );
+        panelSurface.position.x = side * 0.03;
+        panelFrame.add(panelSurface);
+        stationGroup.add(panelFrame);
+    }
+
+    // ── Dock bay interior glow (construction energy) ──
+    const dockGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow,
+        color: 0xb496ff,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    }));
+    dockGlow.scale.set(1.4, 1.4, 1);
+    stationGroup.add(dockGlow);
+
+    // ── Nav lights (4 corners) ──
+    const navLights = [];
+    const navPositions = [
+        [0, 0.4, 0], [0, -0.4, 0],
+        [1.7, 0.15, 0], [-1.7, 0.15, 0]
+    ];
+    navPositions.forEach(pos => {
+        const navMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.035, 6, 6),
+            new THREE.MeshBasicMaterial({ color: 0xb496ff })
+        );
+        navMesh.position.set(pos[0], pos[1], pos[2]);
+        stationGroup.add(navMesh);
+
+        // Glow sprite
+        const navGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow,
+            color: 0xb496ff,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        }));
+        navGlow.scale.set(0.3, 0.3, 1);
+        navMesh.add(navGlow);
+        navLights.push({ mesh: navMesh, glow: navGlow });
+    });
+
+    // ── Engine glow at rear ──
+    const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0x9966ff,
+        transparent: true, opacity: 0.5,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    engineGlow.scale.set(0.5, 0.5, 1);
+    engineGlow.position.set(0, 0, -1.3);
+    stationGroup.add(engineGlow);
+
+    // Trail anchor for particle emission
+    const trailAnchor = new THREE.Object3D();
+    trailAnchor.position.set(0, 0, -1.4);
+    stationGroup.add(trailAnchor);
+
+    return { stationGroup, dockGlow, navLights, engineGlow, trailAnchor };
+}
+
+export function addShipyardVisual(planetMesh) {
+    const planetRadius = planetMesh.geometry.parameters.radius;
+    const orbitRadius = planetRadius * 1.9;
+    const stationScale = Math.max(0.55, planetRadius * 0.32);
+
+    // Orbit pivot — child of the planet so it follows orbital motion
+    const orbitPivot = new THREE.Group();
+    planetMesh.add(orbitPivot);
+
+    const { stationGroup, dockGlow, navLights, engineGlow, trailAnchor } = _createShipyardMesh();
+    stationGroup.scale.setScalar(stationScale);
+
+    // Position at orbit radius
+    stationGroup.position.set(orbitRadius, 0, 0);
+    orbitPivot.add(stationGroup);
+
+    // Random starting angle and different inclination from colony sat
+    orbitPivot.rotation.y = Math.random() * Math.PI * 2;
+    orbitPivot.rotation.x = -(0.15 + Math.random() * 0.25); // Negative to diverge from colony sat
+
+    _shipyardStations.push({
+        pivot: orbitPivot,
+        station: stationGroup,
+        dockGlow,
+        navLights,
+        engineGlow,
+        trailAnchor,
+        orbitSpeed: 0.15 + Math.random() * 0.1, // Slower than colony sat
+        _prevPos: new THREE.Vector3()
+    });
+}
+
 // ── Trade ships between colonies ─────────────────────────────────────────────
 
 function _createTradeShipMesh() {
@@ -1037,7 +1226,7 @@ export function buildTradeRoutes(group) {
 
 export function updateSystemAnimations(time, dt, group) {
     // Init trail pool on first animation tick if satellites or trade ships exist
-    if (!_trailInited && (_colonySatellites.length > 0 || _tradeShips.length > 0) && group) {
+    if (!_trailInited && (_colonySatellites.length > 0 || _tradeShips.length > 0 || _shipyardStations.length > 0) && group) {
         _initSatTrailPool(group);
     }
 
@@ -1145,6 +1334,60 @@ export function updateSystemAnimations(time, dt, group) {
                 _spawnSatTrail(
                     _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
                     -dx * 2, -dy * 2, -dz * 2
+                );
+            }
+        }
+    });
+
+    // ── Animate shipyard stations ─────────────────────────────────────────────
+    _shipyardStations.forEach(entry => {
+        // Slow majestic orbit
+        entry.pivot.rotation.y += entry.orbitSpeed * 0.005;
+
+        // Dock bay glow pulse (purple construction energy)
+        if (entry.dockGlow) {
+            const glowPulse = 0.4 + 0.25 * Math.sin(time * 2.0) + 0.1 * Math.sin(time * 5.3);
+            entry.dockGlow.material.opacity = glowPulse;
+            const glowScale = 1.3 + 0.15 * Math.sin(time * 1.5);
+            entry.dockGlow.scale.set(glowScale, glowScale, 1);
+        }
+
+        // Nav light blink pattern (alternating pairs)
+        entry.navLights.forEach((nav, i) => {
+            const phase = i < 2 ? 0 : Math.PI; // Top/bottom vs left/right alternate
+            const blinkOn = Math.sin(time * 2.5 + phase) > 0;
+            nav.mesh.material.color.setHex(blinkOn ? 0xb496ff : 0x221133);
+            nav.glow.material.opacity = blinkOn ? 0.6 : 0.05;
+        });
+
+        // Engine glow pulse
+        if (entry.engineGlow) {
+            entry.engineGlow.material.opacity = 0.4 + 0.15 * Math.sin(time * 4.0);
+        }
+
+        // Rotate the ring element inside the station
+        entry.station.children.forEach(child => {
+            if (child.userData._isRing) {
+                child.rotation.z += 0.008;
+            }
+        });
+
+        // Gentle pitch/roll wobble
+        entry.station.rotation.x = Math.sin(time * 0.3) * 0.04;
+        entry.station.rotation.z = Math.cos(time * 0.25) * 0.03;
+
+        // Engine trail particles
+        if (entry.trailAnchor && _trailInited) {
+            entry.trailAnchor.getWorldPosition(_trailWorldPos);
+            const dx = _trailWorldPos.x - entry._prevPos.x;
+            const dy = _trailWorldPos.y - entry._prevPos.y;
+            const dz = _trailWorldPos.z - entry._prevPos.z;
+            const hasValid = entry._prevPos.lengthSq() > 0.001;
+            entry._prevPos.copy(_trailWorldPos);
+            if (hasValid) {
+                _spawnSatTrail(
+                    _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
+                    -dx * 1.5, -dy * 1.5, -dz * 1.5
                 );
             }
         }
