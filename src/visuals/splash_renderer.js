@@ -1,4 +1,4 @@
-/* Updated: Cinematic premium splash scene with layered starfields, nebula depth, and upgraded planet presentation */
+/* Updated: Phased splash loading — lightweight scene renders immediately, heavy textures deferred so CSS animations play smoothly */
 import * as THREE from 'three';
 import { isMobile } from '../core/device.js';
 import {
@@ -45,6 +45,11 @@ const lightDirection = new THREE.Vector3();
 const cameraTarget = new THREE.Vector3();
 const trailWorldPosition = new THREE.Vector3();
 
+/** Yield to the browser so CSS animations/rendering can proceed */
+function yieldFrame() {
+    return new Promise(resolve => setTimeout(resolve, 0));
+}
+
 export function initSplashPlanet(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -62,6 +67,7 @@ export function initSplashPlanet(containerId) {
     nebulaLayers = [];
     flareLayers = [];
 
+    // ── Phase 1: Renderer + scene setup (instant) ────────────────────────
     scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x020408, compactScene ? 0.0048 : 0.0038);
 
@@ -81,17 +87,51 @@ export function initSplashPlanet(containerId) {
     renderer.setClearColor(0x000000, 0);
     container.appendChild(renderer.domElement);
 
+    // Lightweight textures (tiny canvases, instant)
     trailTexture = createGlowTexture();
     trailTexture.colorSpace = THREE.SRGBColorSpace;
-    hullTexture = createHullTexture();
-    hullTexture.colorSpace = THREE.SRGBColorSpace;
     const glowTex = createGlowTexture();
     glowTex.colorSpace = THREE.SRGBColorSpace;
+
+    // Lighting (instant)
+    splashLights = setupSplashLighting(scene, compactScene);
+    lightDirection.copy(splashLights.sunLight.position).normalize();
+
+    // Starfield background (fast — just filling typed arrays)
+    const background = buildSpaceBackground(scene, glowTex, compactScene);
+    starLayers = background.starLayers;
+    nebulaLayers = background.nebulaLayers;
+    flareLayers = background.flareLayers;
+
+    // Start the animation loop immediately — renders stars/nebula while planet loads
+    animationId = requestAnimationFrame(animate);
+    window.addEventListener('resize', onResize);
+
+    // ── Phase 2+: Deferred heavy work — yields between each step ─────────
+    deferHeavyInit(compactScene, glowTex);
+}
+
+async function deferHeavyInit(compactScene, glowTex) {
+    // Bail out if user navigated away (stopSplashPlanet called)
+    if (!renderer || !scene) return;
+
+    await yieldFrame();
+    if (!renderer || !scene) return;
+
+    // Soft glow + halo ring textures (moderate — pixel-level generation)
     const softGlowTex = createSoftGlowTexture();
     softGlowTex.colorSpace = THREE.SRGBColorSpace;
+
+    await yieldFrame();
+    if (!renderer || !scene) return;
+
     const haloRingTex = createHaloRingTexture();
     haloRingTex.colorSpace = THREE.SRGBColorSpace;
 
+    await yieldFrame();
+    if (!renderer || !scene) return;
+
+    // Planet group (heaviest — 2048x1024 heightmap + biome rendering)
     const planetGroup = createSplashPlanetGroup(
         scene,
         renderer,
@@ -106,189 +146,204 @@ export function initSplashPlanet(containerId) {
     coronaGlow = planetGroup.coronaGlow;
     outerGlow = planetGroup.outerGlow;
 
-    splashLights = setupSplashLighting(scene, compactScene);
-    lightDirection.copy(splashLights.sunLight.position).normalize();
     atmosphere.material.uniforms.uLightDirection.value.copy(lightDirection);
     atmosphereEdge.material.uniforms.uLightDirection.value.copy(lightDirection);
-    const background = buildSpaceBackground(scene, glowTex, compactScene);
-    starLayers = background.starLayers;
-    nebulaLayers = background.nebulaLayers;
-    flareLayers = background.flareLayers;
 
+    applyPlanetLayout(compactScene);
+
+    await yieldFrame();
+    if (!renderer || !scene) return;
+
+    // Moon
     const moonGroup = createSplashMoon(scene, { softGlowTex, haloRingTex });
     moon = moonGroup.moon;
     moonGlowInner = moonGroup.moonGlowInner;
     moonGlowOuter = moonGroup.moonGlowOuter;
     moonRim = moonGroup.moonRim;
 
+    await yieldFrame();
+    if (!renderer || !scene) return;
+
+    // Satellites
     satellites = createSplashSatellites(scene, trailTexture);
 
+    await yieldFrame();
+    if (!renderer || !scene) return;
+
+    // Ships (hull texture + geometry)
+    hullTexture = createHullTexture();
+    hullTexture.colorSpace = THREE.SRGBColorSpace;
     const texGroup = { hullTexture, trailTexture };
+
     const scout = createSplashScreenShip('scout', texGroup);
     resetShip(scout, ships, true);
     scene.add(scout);
     ships.push(scout);
 
+    await yieldFrame();
+    if (!renderer || !scene) return;
+
     const fleet = createCapitalFleet(texGroup);
     resetShip(fleet, ships, true);
     scene.add(fleet);
     ships.push(fleet);
+}
 
-    applyPlanetLayout(compactScene);
+function animate(currentTime) {
+    animationId = requestAnimationFrame(animate);
+    if (!renderer || !scene || !camera) return;
 
-    function animate(currentTime) {
-        animationId = requestAnimationFrame(animate);
-        if (!renderer || !scene || !camera || !planet) return;
+    const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
+    lastTime = currentTime;
+    const timeSeconds = currentTime * 0.001;
 
-        const dt = Math.min((currentTime - lastTime) / 1000, 0.1);
-        lastTime = currentTime;
-        const timeSeconds = currentTime * 0.001;
+    globalFade = Math.min(1, globalFade + dt / FADE_DURATION);
 
-        globalFade = Math.min(1, globalFade + dt / FADE_DURATION);
-
+    // Planet rotation (safe if planet not yet loaded)
+    if (planet) {
         planet.rotation.y += 0.04 * dt;
         planet.rotation.x = Math.sin(timeSeconds * 0.12) * 0.035;
-        if (clouds) {
-            clouds.rotation.y += 0.065 * dt;
-            clouds.rotation.x = Math.sin(timeSeconds * 0.1) * 0.02;
-        }
-        if (atmosphere) {
-            atmosphere.rotation.y += 0.01 * dt;
-            atmosphere.material.uniforms.uTime.value = timeSeconds;
-            atmosphere.material.uniforms.uOpacity.value = globalFade * (0.94 + Math.sin(timeSeconds * 0.45) * 0.06);
-        }
-        if (atmosphereEdge) {
-            atmosphereEdge.rotation.y += 0.01 * dt;
-            atmosphereEdge.material.uniforms.uTime.value = timeSeconds;
-            atmosphereEdge.material.uniforms.uOpacity.value = globalFade * (0.92 + Math.sin(timeSeconds * 0.55 + 0.5) * 0.08);
-        }
-
-        const isCompactLive = window.innerWidth <= 768;
-        const baseZ = isCompactLive ? 18.4 : 15.6;
-        camera.position.x = Math.sin(currentTime * 0.00017) * (isCompactLive ? 1.05 : 1.7) - (isCompactLive ? 0 : 0.2);
-        camera.position.y = Math.cos(currentTime * 0.00011) * 0.8 + (isCompactLive ? 3.55 : 0.38);
-        camera.position.z = baseZ + Math.sin(currentTime * 0.00008) * (isCompactLive ? 0.65 : 1.05);
-        cameraTarget.set(
-            planet.position.x - (isCompactLive ? 0.0 : 0.35),
-            planet.position.y + 0.18,
-            0
-        );
-        camera.lookAt(cameraTarget);
-
         planet.material.opacity = globalFade;
-        if (clouds) clouds.material.opacity = globalFade * 0.42;
+    }
+    if (clouds) {
+        clouds.rotation.y += 0.065 * dt;
+        clouds.rotation.x = Math.sin(timeSeconds * 0.1) * 0.02;
+        clouds.material.opacity = globalFade * 0.42;
+    }
+    if (atmosphere) {
+        atmosphere.rotation.y += 0.01 * dt;
+        atmosphere.material.uniforms.uTime.value = timeSeconds;
+        atmosphere.material.uniforms.uOpacity.value = globalFade * (0.94 + Math.sin(timeSeconds * 0.45) * 0.06);
+    }
+    if (atmosphereEdge) {
+        atmosphereEdge.rotation.y += 0.01 * dt;
+        atmosphereEdge.material.uniforms.uTime.value = timeSeconds;
+        atmosphereEdge.material.uniforms.uOpacity.value = globalFade * (0.92 + Math.sin(timeSeconds * 0.55 + 0.5) * 0.08);
+    }
 
-        // Dynamic glow pulsing — star-like breathing effect
+    const isCompactLive = window.innerWidth <= 768;
+    const baseZ = isCompactLive ? 18.4 : 15.6;
+    camera.position.x = Math.sin(currentTime * 0.00017) * (isCompactLive ? 1.05 : 1.7) - (isCompactLive ? 0 : 0.2);
+    camera.position.y = Math.cos(currentTime * 0.00011) * 0.8 + (isCompactLive ? 3.55 : 0.38);
+    camera.position.z = baseZ + Math.sin(currentTime * 0.00008) * (isCompactLive ? 0.65 : 1.05);
+
+    // Camera target — use planet position if loaded, else default position
+    const targetX = planet ? planet.position.x - (isCompactLive ? 0.0 : 0.35) : (isCompactLive ? 0 : 4.15);
+    const targetY = planet ? planet.position.y + 0.18 : (isCompactLive ? 3.43 : 0.33);
+    cameraTarget.set(targetX, targetY, 0);
+    camera.lookAt(cameraTarget);
+
+    // Glow pulsing
+    if (innerGlow) {
         const corePulse = 0.88 + Math.sin(timeSeconds * 1.1) * 0.12;
-        const midPulse = 0.90 + Math.sin(timeSeconds * 0.65 + 1.2) * 0.10;
-        const outerPulse = 0.94 + Math.cos(timeSeconds * 0.4) * 0.06;
-
         innerGlow.material.opacity = globalFade * innerGlow.userData.targetOpacity * corePulse;
-        coronaGlow.material.opacity = globalFade * coronaGlow.userData.targetOpacity * midPulse;
-        outerGlow.material.opacity = globalFade * outerGlow.userData.targetOpacity * outerPulse;
-
         if (innerGlow.userData.baseScale) {
             const scalePulse = 0.96 + Math.sin(timeSeconds * 0.9) * 0.04;
             innerGlow.scale.set(innerGlow.userData.baseScale.x * scalePulse, innerGlow.userData.baseScale.y * scalePulse, 1);
         }
+    }
+    if (coronaGlow) {
+        const midPulse = 0.90 + Math.sin(timeSeconds * 0.65 + 1.2) * 0.10;
+        coronaGlow.material.opacity = globalFade * coronaGlow.userData.targetOpacity * midPulse;
         if (coronaGlow.userData.baseScale) {
             const scalePulse = 0.97 + Math.sin(timeSeconds * 0.55 + 1.1) * 0.04;
             coronaGlow.scale.set(coronaGlow.userData.baseScale.x * scalePulse, coronaGlow.userData.baseScale.y * scalePulse, 1);
         }
+    }
+    if (outerGlow) {
+        const outerPulse = 0.94 + Math.cos(timeSeconds * 0.4) * 0.06;
+        outerGlow.material.opacity = globalFade * outerGlow.userData.targetOpacity * outerPulse;
         if (outerGlow.userData.baseScale) {
             const scalePulse = 0.985 + Math.cos(timeSeconds * 0.35) * 0.025;
             outerGlow.scale.set(outerGlow.userData.baseScale.x * scalePulse, outerGlow.userData.baseScale.y * scalePulse, 1);
         }
-
-        if (moon) {
-            moon.material.opacity = globalFade;
-            moonGlowInner.material.opacity = globalFade * moonGlowInner.userData.targetOpacity * (0.92 + Math.sin(timeSeconds * 0.61) * 0.08);
-            moonGlowOuter.material.opacity = globalFade * moonGlowOuter.userData.targetOpacity * (0.9 + Math.cos(timeSeconds * 0.45) * 0.1);
-            moonRim.material.uniforms.uOpacity.value = globalFade * (0.9 + Math.sin(timeSeconds * 0.38) * 0.1);
-            if (moonGlowInner.userData.baseScale) {
-                const pulse = 0.986 + Math.sin(timeSeconds * 0.58) * 0.028;
-                moonGlowInner.scale.set(moonGlowInner.userData.baseScale.x * pulse, moonGlowInner.userData.baseScale.y * pulse, 1);
-            }
-            if (moonGlowOuter.userData.baseScale) {
-                const pulse = 0.99 + Math.cos(timeSeconds * 0.42 + 0.6) * 0.024;
-                moonGlowOuter.scale.set(moonGlowOuter.userData.baseScale.x * pulse, moonGlowOuter.userData.baseScale.y * pulse, 1);
-            }
-        }
-
-        starLayers.forEach((layer) => {
-            layer.mesh.rotation.y += dt * layer.mesh.userData.rotationYSpeed;
-            layer.mesh.rotation.x = Math.sin(timeSeconds * 0.08 + layer.mesh.userData.phase) * layer.mesh.userData.rotationXAmplitude;
-            layer.material.uniforms.time.value = timeSeconds;
-            layer.material.uniforms.uFade.value = globalFade * layer.mesh.userData.baseOpacity;
-        });
-
-        nebulaLayers.forEach((layer, index) => {
-            const pulse = 0.92 + Math.sin(timeSeconds * layer.userData.pulseSpeed + layer.userData.phase) * 0.08;
-            layer.position.x = layer.userData.baseX + Math.sin(timeSeconds * layer.userData.driftX + layer.userData.phase) * layer.userData.rangeX;
-            layer.position.y = layer.userData.baseY + Math.cos(timeSeconds * layer.userData.driftY + layer.userData.phase) * layer.userData.rangeY;
-            layer.material.opacity = globalFade * layer.userData.baseOpacity * pulse;
-            layer.material.rotation = Math.sin(timeSeconds * 0.03 + index) * 0.08;
-        });
-
-        flareLayers.forEach((layer) => {
-            const pulse = 0.94 + Math.sin(timeSeconds * layer.userData.pulseSpeed + layer.userData.phase) * 0.06;
-            layer.material.opacity = globalFade * layer.userData.baseOpacity * pulse;
-            layer.scale.set(
-                layer.userData.baseScale.x * pulse,
-                layer.userData.baseScale.y * pulse,
-                1
-            );
-        });
-
-        updateSatellites(satellites, currentTime, scene, trailTexture);
-        updateMoon(moon, currentTime, dt);
-
-        ships.forEach((shipOrFleet) => {
-            shipOrFleet.position.x += shipOrFleet.userData.speed * dt;
-            shipOrFleet.position.y = shipOrFleet.userData.baseY + Math.sin(timeSeconds * 1.05 + shipOrFleet.userData.offset) * 0.22;
-            shipOrFleet.position.z = shipOrFleet.userData.baseZ + Math.cos(timeSeconds * 0.78 + shipOrFleet.userData.offset * 0.6) * 0.18;
-            shipOrFleet.rotation.x = shipOrFleet.userData.baseRotX + Math.sin(timeSeconds * 0.68 + shipOrFleet.userData.offset) * 0.035;
-            shipOrFleet.rotation.z = Math.sin(timeSeconds * 0.48 + shipOrFleet.userData.offset) * 0.03;
-
-            shipOrFleet.updateMatrixWorld(true);
-
-            const subShips = shipOrFleet.userData.isFleet ? shipOrFleet.userData.ships : [shipOrFleet];
-            subShips.forEach((ship) => {
-                if (!ship.userData.engineGlows) return;
-
-                const flicker = 0.92 + Math.random() * 0.08;
-                const pulse = 0.94 + Math.sin(timeSeconds * 8 + shipOrFleet.userData.offset) * 0.08;
-                ship.userData.engineGlows.forEach((glow) => {
-                    const baseScale = glow.material.color.r > 0.5 ? 1.55 : 0.78;
-                    glow.scale.setScalar(baseScale * pulse * flicker);
-                    glow.material.opacity = 0.66 * flicker;
-                });
-            });
-
-            const spawnRate = isCompactLive ? 60 : 40;
-            if (currentTime - shipOrFleet.userData.lastTrailSpawn > spawnRate) {
-                subShips.forEach((ship) => {
-                    if (!ship.userData.trailAnchors) return;
-
-                    ship.userData.trailAnchors.forEach((anchor) => {
-                        anchor.getWorldPosition(trailWorldPosition);
-                        spawnTrailParticle(scene, trailWorldPosition, trailTexture);
-                    });
-                });
-                shipOrFleet.userData.lastTrailSpawn = currentTime;
-            }
-
-            if (shipOrFleet.position.x > 32) {
-                resetShip(shipOrFleet, ships);
-            }
-        });
-
-        updateTrailParticles(scene, dt);
-        renderer.render(scene, camera);
     }
 
-    animationId = requestAnimationFrame(animate);
-    window.addEventListener('resize', onResize);
+    if (moon) {
+        moon.material.opacity = globalFade;
+        moonGlowInner.material.opacity = globalFade * moonGlowInner.userData.targetOpacity * (0.92 + Math.sin(timeSeconds * 0.61) * 0.08);
+        moonGlowOuter.material.opacity = globalFade * moonGlowOuter.userData.targetOpacity * (0.9 + Math.cos(timeSeconds * 0.45) * 0.1);
+        moonRim.material.uniforms.uOpacity.value = globalFade * (0.9 + Math.sin(timeSeconds * 0.38) * 0.1);
+        if (moonGlowInner.userData.baseScale) {
+            const pulse = 0.986 + Math.sin(timeSeconds * 0.58) * 0.028;
+            moonGlowInner.scale.set(moonGlowInner.userData.baseScale.x * pulse, moonGlowInner.userData.baseScale.y * pulse, 1);
+        }
+        if (moonGlowOuter.userData.baseScale) {
+            const pulse = 0.99 + Math.cos(timeSeconds * 0.42 + 0.6) * 0.024;
+            moonGlowOuter.scale.set(moonGlowOuter.userData.baseScale.x * pulse, moonGlowOuter.userData.baseScale.y * pulse, 1);
+        }
+    }
+
+    starLayers.forEach((layer) => {
+        layer.mesh.rotation.y += dt * layer.mesh.userData.rotationYSpeed;
+        layer.mesh.rotation.x = Math.sin(timeSeconds * 0.08 + layer.mesh.userData.phase) * layer.mesh.userData.rotationXAmplitude;
+        layer.material.uniforms.time.value = timeSeconds;
+        layer.material.uniforms.uFade.value = globalFade * layer.mesh.userData.baseOpacity;
+    });
+
+    nebulaLayers.forEach((layer, index) => {
+        const pulse = 0.92 + Math.sin(timeSeconds * layer.userData.pulseSpeed + layer.userData.phase) * 0.08;
+        layer.position.x = layer.userData.baseX + Math.sin(timeSeconds * layer.userData.driftX + layer.userData.phase) * layer.userData.rangeX;
+        layer.position.y = layer.userData.baseY + Math.cos(timeSeconds * layer.userData.driftY + layer.userData.phase) * layer.userData.rangeY;
+        layer.material.opacity = globalFade * layer.userData.baseOpacity * pulse;
+        layer.material.rotation = Math.sin(timeSeconds * 0.03 + index) * 0.08;
+    });
+
+    flareLayers.forEach((layer) => {
+        const pulse = 0.94 + Math.sin(timeSeconds * layer.userData.pulseSpeed + layer.userData.phase) * 0.06;
+        layer.material.opacity = globalFade * layer.userData.baseOpacity * pulse;
+        layer.scale.set(
+            layer.userData.baseScale.x * pulse,
+            layer.userData.baseScale.y * pulse,
+            1
+        );
+    });
+
+    updateSatellites(satellites, currentTime, scene, trailTexture);
+    if (moon) updateMoon(moon, currentTime, dt);
+
+    ships.forEach((shipOrFleet) => {
+        shipOrFleet.position.x += shipOrFleet.userData.speed * dt;
+        shipOrFleet.position.y = shipOrFleet.userData.baseY + Math.sin(timeSeconds * 1.05 + shipOrFleet.userData.offset) * 0.22;
+        shipOrFleet.position.z = shipOrFleet.userData.baseZ + Math.cos(timeSeconds * 0.78 + shipOrFleet.userData.offset * 0.6) * 0.18;
+        shipOrFleet.rotation.x = shipOrFleet.userData.baseRotX + Math.sin(timeSeconds * 0.68 + shipOrFleet.userData.offset) * 0.035;
+        shipOrFleet.rotation.z = Math.sin(timeSeconds * 0.48 + shipOrFleet.userData.offset) * 0.03;
+
+        shipOrFleet.updateMatrixWorld(true);
+
+        const subShips = shipOrFleet.userData.isFleet ? shipOrFleet.userData.ships : [shipOrFleet];
+        subShips.forEach((ship) => {
+            if (!ship.userData.engineGlows) return;
+
+            const flicker = 0.92 + Math.random() * 0.08;
+            const pulse = 0.94 + Math.sin(timeSeconds * 8 + shipOrFleet.userData.offset) * 0.08;
+            ship.userData.engineGlows.forEach((glow) => {
+                const baseScale = glow.material.color.r > 0.5 ? 1.55 : 0.78;
+                glow.scale.setScalar(baseScale * pulse * flicker);
+                glow.material.opacity = 0.66 * flicker;
+            });
+        });
+
+        const spawnRate = isCompactLive ? 60 : 40;
+        if (currentTime - shipOrFleet.userData.lastTrailSpawn > spawnRate) {
+            subShips.forEach((ship) => {
+                if (!ship.userData.trailAnchors) return;
+
+                ship.userData.trailAnchors.forEach((anchor) => {
+                    anchor.getWorldPosition(trailWorldPosition);
+                    spawnTrailParticle(scene, trailWorldPosition, trailTexture);
+                });
+            });
+            shipOrFleet.userData.lastTrailSpawn = currentTime;
+        }
+
+        if (shipOrFleet.position.x > 32) {
+            resetShip(shipOrFleet, ships);
+        }
+    });
+
+    updateTrailParticles(scene, dt);
+    renderer.render(scene, camera);
 }
 
 function buildSpaceBackground(currentScene, glowTex, compactScene) {

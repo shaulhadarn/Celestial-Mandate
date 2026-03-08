@@ -209,7 +209,7 @@ body, html {
     text-shadow: 0 0 30px rgba(0, 242, 255, 0.4);
     line-height: 1;
     opacity: 0;
-    animation: splashTitleIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1.4s both;
+    animation: splashTitleIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;
 }
 
 .logo-accent {
@@ -224,7 +224,7 @@ body, html {
     letter-spacing: 4px;
     margin-top: 10px;
     opacity: 0;
-    animation: splashTaglineIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 2.2s both;
+    animation: splashTaglineIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 1.8s both;
 }
 
 .splash-menu {
@@ -247,7 +247,7 @@ body, html {
         inset 0 -1px 0 rgba(0, 242, 255, 0.06);
     clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
     opacity: 0;
-    animation: splashMenuIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 2.8s both;
+    animation: splashMenuIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 2.4s both;
 }
 
 /* Top accent line */
@@ -373,12 +373,12 @@ body, html {
 
 /* Staggered entrance animation for buttons — sequenced after menu container */
 /* nth-child(2/3/4) because .splash-menu-bg is child 1 */
-.menu-btn:nth-child(2) { animation: menuBtnIn 0.6s 3.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.menu-btn:nth-child(3) { animation: menuBtnIn 0.6s 3.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.menu-btn:nth-child(4) { animation: menuBtnIn 0.6s 3.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.menu-btn:nth-child(2) { animation: menuBtnIn 0.6s 2.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.menu-btn:nth-child(3) { animation: menuBtnIn 0.6s 2.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.menu-btn:nth-child(4) { animation: menuBtnIn 0.6s 3.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 /* Primary gets its pulse AFTER entrance */
-.menu-btn.primary:nth-child(2) { animation: menuBtnIn 0.6s 3.1s cubic-bezier(0.16, 1, 0.3, 1) both, menuPrimaryPulse 3s 3.7s ease-in-out infinite; }
+.menu-btn.primary:nth-child(2) { animation: menuBtnIn 0.6s 2.7s cubic-bezier(0.16, 1, 0.3, 1) both, menuPrimaryPulse 3s 3.3s ease-in-out infinite; }
 
 @keyframes menuBtnIn {
     from { opacity: 0; transform: translateY(16px) scale(0.97); }
@@ -410,7 +410,7 @@ body, html {
     letter-spacing: 2px;
     text-transform: uppercase;
     opacity: 0;
-    animation: splashFooterIn 1s ease 3.8s both;
+    animation: splashFooterIn 1s ease 3.4s both;
 }
 
 @keyframes splashFooterIn {
