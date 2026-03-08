@@ -556,13 +556,29 @@ export function createSystemVisuals(system, group) {
                 const moonRadius = p.size * moonData.size * 2 * scale;
                 const moonGeo = new THREE.SphereGeometry(moonRadius, isMobileDevice ? 16 : 24, isMobileDevice ? 16 : 24);
                 const moonMat = new THREE.MeshStandardMaterial({
+                    map: textures.barren,
                     color: moonData.color,
                     roughness: 0.85,
                     metalness: 0.05,
-                    emissive: new THREE.Color(0x111111),
-                    emissiveIntensity: 0.1
+                    emissive: new THREE.Color(0x222222),
+                    emissiveIntensity: 0.15
                 });
                 const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+
+                // Faint moon glow sprite
+                const moonGlowColor = moonData.color;
+                const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+                    map: textures.glow,
+                    color: moonGlowColor,
+                    transparent: true,
+                    opacity: isMobileDevice ? 0.25 : 0.3,
+                    blending: THREE.AdditiveBlending,
+                    depthTest: false,
+                    depthWrite: false,
+                }));
+                const moonGlowScale = moonRadius * 4;
+                moonGlow.scale.set(moonGlowScale, moonGlowScale, 1);
+                moonMesh.add(moonGlow);
 
                 // Moon orbit pivot — positioned at planet, tilted
                 const moonPivot = new THREE.Group();
