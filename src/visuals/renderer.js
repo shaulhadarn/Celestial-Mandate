@@ -246,20 +246,22 @@ export async function enterSystemView(systemId, instant = false) {
         // Build new system visuals
         createSystemVisuals(sys, groups.system);
 
-        const targetPos = new THREE.Vector3(0, 0, 0);
+        // Flush residual pan/rotate momentum BEFORE setting camera:
+        // OrbitControls accumulates panOffset and sphericalDelta internally.
+        // update() with damping off applies + zeros all accumulators in one shot.
+        const wasDamping = controls.enableDamping;
+        controls.enableDamping = false;
+        controls.update();
 
-        // Snap camera to system view position (fade overlay hides the jump)
+        // Now snap camera to system view position (accumulators are drained)
+        const targetPos = new THREE.Vector3(0, 0, 0);
         camera.position.set(0, 40, 50);
         camera.zoom = 1;
         camera.updateProjectionMatrix();
         controls.target.copy(targetPos);
 
-        // Flush residual pan/rotate momentum: OrbitControls accumulates panOffset
-        // and sphericalDelta internally. With damping enabled, reset()'s internal
-        // update() only partially drains them, shifting our freshly-set target.
-        // Disabling damping makes update() flush + zero all accumulators cleanly.
-        const wasDamping = controls.enableDamping;
-        controls.enableDamping = false;
+        // Save clean state and reset — update() inside reset() will find
+        // zero deltas so the position stays exactly where we set it.
         controls.saveState();
         controls.reset();
         controls.enableDamping = wasDamping;
@@ -394,12 +396,6 @@ export function enterPlanetView(planetData) {
 export function restoreControlsAfterPlanet() {
     if (!controls || !camera) return;
 
-    // Set camera and target to default system view (same as enterSystemView)
-    controls.target.set(0, 0, 0);
-    camera.position.set(0, 40, 50);
-    camera.zoom = 1;
-    camera.updateProjectionMatrix();
-
     // Restore system-view control parameters (same as enterSystemView)
     controls.minDistance = 10;
     controls.maxDistance = 300;
@@ -413,9 +409,17 @@ export function restoreControlsAfterPlanet() {
     controls.zoomSpeed = 1.2;
     controls.enabled = true;
 
-    // Flush residual pan/rotate momentum before snapping (see enterSystemView)
+    // Flush residual momentum before snapping (see enterSystemView)
     const wasDamping = controls.enableDamping;
     controls.enableDamping = false;
+    controls.update();
+
+    // Set camera and target to default system view
+    controls.target.set(0, 0, 0);
+    camera.position.set(0, 40, 50);
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+
     controls.saveState();
     controls.reset();
     controls.enableDamping = wasDamping;
@@ -450,13 +454,16 @@ function animateCamera(target, distance, height, duration = 800) {
 
 export function focusCamera(target, distance = 50) {
     if (!controls || !camera) return;
+    // Flush residual momentum before snapping (see enterSystemView)
+    const wasDamping = controls.enableDamping;
+    controls.enableDamping = false;
+    controls.update();
+
     controls.target.copy(target);
     camera.position.copy(target).add(new THREE.Vector3(0, distance, distance * 0.6));
     camera.zoom = 1;
     camera.updateProjectionMatrix();
-    // Flush residual pan/rotate momentum before snapping (see enterSystemView)
-    const wasDamping = controls.enableDamping;
-    controls.enableDamping = false;
+
     controls.saveState();
     controls.reset();
     controls.enableDamping = wasDamping;
