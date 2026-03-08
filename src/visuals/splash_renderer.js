@@ -240,7 +240,7 @@ export function initSplashPlanet(containerId) {
             );
         });
 
-        updateSatellites(satellites, currentTime);
+        updateSatellites(satellites, currentTime, scene, trailTexture);
         updateMoon(moon, currentTime, dt);
 
         ships.forEach((shipOrFleet) => {

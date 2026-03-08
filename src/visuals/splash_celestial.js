@@ -1,6 +1,7 @@
 /* Updated: Premium moon shading and orbital dressing for the splash scene */
 import * as THREE from 'three';
 import { createProceduralMoonTexture } from '../core/splash_assets.js';
+import { spawnTrailParticle } from './splash_particles.js';
 
 function getPlanetAnchor() {
     return window.innerWidth > 768
@@ -171,6 +172,20 @@ export function createSplashSatellites(scene, trailTexture) {
         lightGlow.scale.set(0.26, 0.26, 1);
         navLight.add(lightGlow);
 
+        // ── Engine glow + trail anchor at the rear ──
+        const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: trailTexture, color: 0x00ccff,
+            transparent: true, opacity: 0.5,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        engineGlow.scale.set(0.15, 0.15, 1);
+        engineGlow.position.set(0, 0, -0.14);
+        satGroup.add(engineGlow);
+
+        const trailAnchor = new THREE.Object3D();
+        trailAnchor.position.set(0, 0, -0.18);
+        satGroup.add(trailAnchor);
+
         satGroup.userData = {
             orbitRadius: 6.8 + i * 1.3,
             orbitSpeed: 0.25 + i * 0.15,
@@ -178,7 +193,9 @@ export function createSplashSatellites(scene, trailTexture) {
             inclination: i === 0 ? 0.25 : -0.35,
             light: navLight,
             lightGlow,
-            lightColor: satColors[i]
+            lightColor: satColors[i],
+            engineGlow,
+            trailAnchor
         };
 
         scene.add(satGroup);
@@ -206,15 +223,17 @@ export function updateMoon(moon, currentTime, dt) {
 }
 
 /**
- * Updates the satellite orbital positions and nav light blinking.
+ * Updates the satellite orbital positions, nav light blinking, and engine trails.
  */
-export function updateSatellites(satellites, currentTime) {
+const _satTrailWorldPos = new THREE.Vector3();
+
+export function updateSatellites(satellites, currentTime, scene, trailTexture) {
     const anchor = getPlanetAnchor();
+    const timeSeconds = currentTime * 0.001;
 
     satellites.forEach((sat) => {
         const ud = sat.userData;
-        const timeVal = currentTime * 0.001;
-        const angle = timeVal * ud.orbitSpeed + ud.orbitOffset;
+        const angle = timeSeconds * ud.orbitSpeed + ud.orbitOffset;
 
         sat.position.x = anchor.x + Math.cos(angle) * ud.orbitRadius;
         sat.position.y = anchor.y + Math.sin(angle) * ud.orbitRadius * Math.sin(ud.inclination);
@@ -225,6 +244,17 @@ export function updateSatellites(satellites, currentTime) {
             const lightOn = Math.floor(currentTime / 500) % 2 === 0;
             ud.light.material.color.setHex(lightOn ? ud.lightColor : 0x000000);
             ud.lightGlow.material.opacity = lightOn ? 0.72 : 0.08;
+        }
+
+        // Engine glow pulse
+        if (ud.engineGlow) {
+            ud.engineGlow.material.opacity = 0.4 + 0.2 * Math.sin(timeSeconds * 6.0);
+        }
+
+        // Spawn engine trail particles
+        if (ud.trailAnchor && scene && trailTexture) {
+            ud.trailAnchor.getWorldPosition(_satTrailWorldPos);
+            spawnTrailParticle(scene, _satTrailWorldPos, trailTexture);
         }
     });
 }

@@ -462,7 +462,7 @@ export function updateFrame(state, delta) {
     }
 
     if(gameState.viewMode === 'SYSTEM') {
-        updateSystemAnimations(time);
+        updateSystemAnimations(time, dt, groups.system);
     }
 
     if(gameState.viewMode === 'EXPLORATION') {

@@ -75,7 +75,149 @@ let _sunFlares = [];
 let _sunPointLight = null;
 let _colonySatellites = [];
 
+// ── Satellite engine trail particle pool ────────────────────────────────────
+const SAT_TRAIL_MAX = isMobileDevice ? 80 : 160;
+let _trailGeo = null;
+let _trailMesh = null;
+let _trailPositions = null;
+let _trailOpacities = null;
+let _trailSizes = null;
+const _trailSlots = new Array(SAT_TRAIL_MAX);
+for (let i = 0; i < SAT_TRAIL_MAX; i++) {
+    _trailSlots[i] = { active: false, life: 0, maxLife: 0, baseSize: 0, vx: 0, vy: 0, vz: 0 };
+}
+let _trailActive = 0;
+let _trailInited = false;
+const _trailWorldPos = new THREE.Vector3();
+
+function _initSatTrailPool(group) {
+    _trailPositions = new Float32Array(SAT_TRAIL_MAX * 3);
+    _trailOpacities = new Float32Array(SAT_TRAIL_MAX);
+    _trailSizes = new Float32Array(SAT_TRAIL_MAX);
+
+    _trailGeo = new THREE.BufferGeometry();
+    _trailGeo.setAttribute('position', new THREE.BufferAttribute(_trailPositions, 3));
+    _trailGeo.setAttribute('aOpacity', new THREE.BufferAttribute(_trailOpacities, 1));
+    _trailGeo.setAttribute('aSize', new THREE.BufferAttribute(_trailSizes, 1));
+
+    const mat = new THREE.ShaderMaterial({
+        uniforms: {
+            map: { value: textures.glow },
+            color: { value: new THREE.Color(0x00ccff) }
+        },
+        vertexShader: /* glsl */ `
+            attribute float aOpacity;
+            attribute float aSize;
+            varying float vOpacity;
+            void main() {
+                vOpacity = aOpacity;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = aSize * (200.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `,
+        fragmentShader: /* glsl */ `
+            uniform sampler2D map;
+            uniform vec3 color;
+            varying float vOpacity;
+            void main() {
+                vec2 coord = gl_PointCoord - vec2(0.5);
+                float d = length(coord);
+                if (d > 0.5) discard;
+                vec4 texColor = texture2D(map, gl_PointCoord);
+                gl_FragColor = vec4(color, texColor.a * vOpacity);
+            }
+        `,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    _trailMesh = new THREE.Points(_trailGeo, mat);
+    _trailMesh.frustumCulled = false;
+    group.add(_trailMesh);
+    _trailInited = true;
+}
+
+function _spawnSatTrail(x, y, z, vx, vy, vz) {
+    if (!_trailInited) return;
+    if (isMobileDevice && _trailActive >= 60) return;
+
+    let slot = null;
+    for (let i = 0; i < SAT_TRAIL_MAX; i++) {
+        if (!_trailSlots[i].active) { slot = _trailSlots[i]; slot._idx = i; break; }
+    }
+    if (!slot) return;
+
+    const idx = slot._idx;
+    const baseSize = (isMobileDevice ? 1.2 : 1.6) + Math.random() * 0.6;
+    const life = 0.5 + Math.random() * 0.4;
+
+    slot.active = true;
+    slot.life = life;
+    slot.maxLife = life;
+    slot.baseSize = baseSize;
+    slot.vx = vx;
+    slot.vy = vy;
+    slot.vz = vz;
+
+    _trailPositions[idx * 3]     = x;
+    _trailPositions[idx * 3 + 1] = y;
+    _trailPositions[idx * 3 + 2] = z;
+    _trailOpacities[idx] = 0.5;
+    _trailSizes[idx] = baseSize;
+    _trailActive++;
+}
+
+function _updateSatTrails(dt) {
+    if (!_trailInited) return;
+    let dirty = false;
+
+    for (let i = 0; i < SAT_TRAIL_MAX; i++) {
+        const slot = _trailSlots[i];
+        if (!slot.active) continue;
+
+        slot.life -= dt;
+
+        // Drift particle along initial velocity
+        _trailPositions[i * 3]     += slot.vx * dt;
+        _trailPositions[i * 3 + 1] += slot.vy * dt;
+        _trailPositions[i * 3 + 2] += slot.vz * dt;
+
+        if (slot.life <= 0) {
+            slot.active = false;
+            _trailSizes[i] = 0;
+            _trailOpacities[i] = 0;
+            _trailActive--;
+        } else {
+            const r = slot.life / slot.maxLife;
+            _trailOpacities[i] = r * 0.5;
+            _trailSizes[i] = slot.baseSize * (0.3 + r * 0.7);
+        }
+        dirty = true;
+    }
+
+    if (dirty) {
+        _trailGeo.attributes.position.needsUpdate = true;
+        _trailGeo.attributes.aOpacity.needsUpdate = true;
+        _trailGeo.attributes.aSize.needsUpdate = true;
+    }
+}
+
+function _disposeSatTrailPool() {
+    if (_trailMesh) {
+        _trailMesh.material.dispose();
+        _trailGeo.dispose();
+        _trailMesh = null;
+        _trailGeo = null;
+    }
+    for (let i = 0; i < SAT_TRAIL_MAX; i++) _trailSlots[i].active = false;
+    _trailActive = 0;
+    _trailInited = false;
+}
+
 export function clearSystemVisuals(group) {
+    _disposeSatTrailPool();
     disposeGroup(group);
     planetMeshes.length = 0;
     planetLabels.length = 0;
@@ -546,6 +688,21 @@ export function addColonyVisual(planetMesh) {
     navGlow.scale.set(1.0, 1.0, 1);
     navLight.add(navGlow);
 
+    // ── Engine glow + trail anchor at the rear ──
+    const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0x00ccff,
+        transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    engineGlow.scale.set(0.6, 0.6, 1);
+    engineGlow.position.set(0, 0, -0.55);
+    satGroup.add(engineGlow);
+
+    // Trail anchor — world position sampled each frame to emit particles
+    const trailAnchor = new THREE.Object3D();
+    trailAnchor.position.set(0, 0, -0.7);
+    satGroup.add(trailAnchor);
+
     // Position satellite at orbit radius
     satGroup.position.set(orbitRadius, 0, 0);
     orbitPivot.add(satGroup);
@@ -561,12 +718,20 @@ export function addColonyVisual(planetMesh) {
         sat: satGroup,
         navLight,
         navGlow,
+        engineGlow,
+        trailAnchor,
         orbitSpeed: 0.3 + Math.random() * 0.2,
-        navColor: navLightColor
+        navColor: navLightColor,
+        _prevPos: new THREE.Vector3()
     });
 }
 
-export function updateSystemAnimations(time) {
+export function updateSystemAnimations(time, dt, group) {
+    // Init trail pool on first animation tick if satellites exist and not yet inited
+    if (!_trailInited && _colonySatellites.length > 0 && group) {
+        _initSatTrailPool(group);
+    }
+
     // ── Animate sun ──────────────────────────────────────────────────────────
     if (_sunShaderMat) {
         _sunShaderMat.uniforms.time.value = time;
@@ -619,7 +784,7 @@ export function updateSystemAnimations(time) {
         }
     });
 
-    // ── Animate colony satellites ─────────────────────────────────────────────
+    // ── Animate colony satellites + engine trails ─────────────────────────────
     _colonySatellites.forEach(entry => {
         entry.pivot.rotation.y += entry.orbitSpeed * 0.008;
 
@@ -628,9 +793,41 @@ export function updateSystemAnimations(time) {
         entry.navLight.material.color.setHex(blinkOn ? entry.navColor : 0x112233);
         entry.navGlow.material.opacity = blinkOn ? 0.7 : 0.08;
 
+        // Engine glow pulse
+        if (entry.engineGlow) {
+            const pulse = 0.5 + 0.15 * Math.sin(time * 6.0);
+            entry.engineGlow.material.opacity = pulse;
+        }
+
         // Gentle panel wobble
         entry.sat.rotation.z = Math.sin(time * 0.4) * 0.06;
+
+        // Spawn engine trail particles
+        if (entry.trailAnchor && _trailInited) {
+            entry.trailAnchor.getWorldPosition(_trailWorldPos);
+
+            // Compute velocity from position delta for natural trail drift
+            const dx = _trailWorldPos.x - entry._prevPos.x;
+            const dy = _trailWorldPos.y - entry._prevPos.y;
+            const dz = _trailWorldPos.z - entry._prevPos.z;
+
+            // Skip first frame (prevPos is origin → huge delta)
+            const hasValid = entry._prevPos.lengthSq() > 0.001;
+            entry._prevPos.copy(_trailWorldPos);
+
+            if (hasValid) {
+                _spawnSatTrail(
+                    _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
+                    -dx * 2, -dy * 2, -dz * 2
+                );
+            }
+        }
     });
+
+    // Update trail particles
+    if (_trailInited && dt > 0) {
+        _updateSatTrails(dt);
+    }
 }
 
 function createSystemBackground(group) {
