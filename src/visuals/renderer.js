@@ -246,8 +246,15 @@ export async function enterSystemView(systemId, instant = false) {
 
         // Snap camera to system view position (fade overlay hides the jump)
         camera.position.set(0, 40, 50);
+        camera.zoom = 1;
+        camera.updateProjectionMatrix();
         controls.target.copy(targetPos);
-        controls.update();
+
+        // saveState + reset syncs OrbitControls' internal spherical coordinates
+        // with the new camera position — without this, stale rotation/pan state
+        // from a previous system view causes the camera to look at the wrong area
+        controls.saveState();
+        controls.reset();
 
         // Force R3F to render frames so the scene is ready before revealing
         _forceFrames(10);
