@@ -778,6 +778,11 @@ export function addColonyRingForSystem(systemId, group) {
   const sys = gameState.systems.find((s) => s.id === systemId);
   if (!sys) return;
 
+  // Skip if this system already has colony rings (avoid duplicates)
+  const hasRing = colonyRings.some(r => r.position && r.position.distanceTo(sys.position) < 0.1);
+  const hasCapital = capitalRings.some(r => r.position && r.position.distanceTo(sys.position) < 0.1);
+  if (hasRing || hasCapital) return;
+
   // Capital system uses the enhanced multi-layer rings
   if (sys.id === 0) {
     _createCapitalRings(sys, group);

@@ -83,20 +83,21 @@ export async function init() {
 
     // Events
     events.addEventListener('colony-founded', (e) => {
+        const planetId = e.detail.planetId;
+
         if (gameState.viewMode === 'SYSTEM') {
-            const planetId = e.detail.planetId;
             const mesh = planetMeshes.find(m => m.userData.id === planetId);
-            if (mesh) {
-                addColonyVisual(mesh);
-                playSound('select'); 
-            }
-        } else if (gameState.viewMode === 'GALAXY') {
-            // Add colony ring for just the affected system instead of rebuilding entire galaxy
-            const planetId = e.detail.planetId;
+            if (mesh) addColonyVisual(mesh);
+        }
+
+        // Always add colony ring to galaxy group so it's visible when
+        // returning to galaxy view (galaxy visuals are reused, not rebuilt)
+        if (groups.galaxy && isGalaxyBuilt()) {
             const sys = gameState.systems.find(s => s.planets.some(p => p.id === planetId));
             if (sys) addColonyRingForSystem(sys.id, groups.galaxy);
-            playSound('select');
         }
+
+        playSound('select');
     });
 
 }
