@@ -77,123 +77,185 @@ export function createProceduralPlanetTexture() {
     const W = canvas.width;
     const H = canvas.height;
 
-    // Deep ocean base
-    ctx.fillStyle = '#0a1628';
-    ctx.fillRect(0, 0, W, H);
-
-    // Helper: draw blob with horizontal wrapping
-    const drawBlob = (bx, by, br, style) => {
-        ctx.fillStyle = style;
-        for (const ox of [0, -W, W]) {
-            ctx.beginPath();
-            ctx.arc(bx + ox, by, br, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    };
-
-    // 1. Ocean depth variation — dark blues and teals
-    const oceanColors = ['#0c1e38', '#0e2440', '#0a2035', '#102a48', '#08283a'];
-    for (let i = 0; i < 40; i++) {
-        const x = Math.random() * W;
-        const y = Math.random() * H;
-        const r = 60 + Math.random() * 140;
-        drawBlob(x, y, r, oceanColors[Math.floor(Math.random() * oceanColors.length)]);
+    // ── Simple seeded hash-based noise ──
+    // Generates a deterministic-looking but random noise field
+    const seed = Math.random() * 10000;
+    function hash(x, y) {
+        let h = seed + x * 374761393 + y * 668265263;
+        h = (h ^ (h >> 13)) * 1274126177;
+        h = h ^ (h >> 16);
+        return (h & 0x7fffffff) / 0x7fffffff;
     }
 
-    // 2. Continental landmasses — earth tones (browns, tans, greens)
-    const continentPalettes = [
-        ['#3d5a2e', '#4a6b35', '#2d4a22', '#5a7845'],  // temperate green
-        ['#6b5a3e', '#7a684a', '#8c7856', '#5a4a32'],   // desert/arid brown
-        ['#4a5a4a', '#3a4e3a', '#556b55', '#2e3e2e'],   // dark forest
-        ['#7a6850', '#8a7860', '#6a5840', '#9a8868'],    // sandy/savanna
-    ];
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
 
-    const continentCount = 7;
-    for (let c = 0; c < continentCount; c++) {
-        const centerX = Math.random() * W;
-        const centerY = H * 0.15 + Math.random() * H * 0.7;
-        const palette = continentPalettes[Math.floor(Math.random() * continentPalettes.length)];
-        const blobCount = 12 + Math.random() * 18;
-        const spreadX = 100 + Math.random() * 120;
-        const spreadY = 60 + Math.random() * 80;
+    // Value noise with bilinear interpolation and horizontal wrapping
+    function valueNoise(px, py, gridSize) {
+        const gx = px / gridSize;
+        const gy = py / gridSize;
+        const x0 = Math.floor(gx);
+        const y0 = Math.floor(gy);
+        const fx = fade(gx - x0);
+        const fy = fade(gy - y0);
 
-        for (let i = 0; i < blobCount; i++) {
-            const x = centerX + (Math.random() - 0.5) * spreadX;
-            const y = centerY + (Math.random() - 0.5) * spreadY;
-            const r = 15 + Math.random() * 55;
-            drawBlob(x, y, r, palette[Math.floor(Math.random() * palette.length)]);
+        const v00 = hash(x0, y0);
+        const v10 = hash(x0 + 1, y0);
+        const v01 = hash(x0, y0 + 1);
+        const v11 = hash(x0 + 1, y0 + 1);
+
+        return lerp(
+            lerp(v00, v10, fx),
+            lerp(v01, v11, fx),
+            fy
+        );
+    }
+
+    // Multi-octave fractal noise
+    function fractalNoise(px, py) {
+        let val = 0;
+        val += valueNoise(px, py, 280) * 0.45;
+        val += valueNoise(px, py, 140) * 0.25;
+        val += valueNoise(px, py, 70) * 0.15;
+        val += valueNoise(px, py, 35) * 0.10;
+        val += valueNoise(px, py, 18) * 0.05;
+        return val;
+    }
+
+    // ── Generate the height map ──
+    const heightMap = new Float32Array(W * H);
+    for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+            // Wrap-friendly: use x modulo for horizontal tiling
+            const nx = fractalNoise(x, y);
+            // Also sample shifted for seamless horizontal wrap blending
+            const nxWrap = fractalNoise(x + W, y);
+            const blendX = x / W;
+            // Smoothly blend near edges for seamless horizontal wrapping
+            const wrapBlend = blendX < 0.05 ? blendX / 0.05 :
+                              blendX > 0.95 ? (1 - blendX) / 0.05 : 1.0;
+            const n = lerp(nxWrap, nx, wrapBlend * 0.5 + 0.5);
+
+            // Reduce land at poles (latitude falloff)
+            const lat = Math.abs(y / H - 0.5) * 2; // 0 at equator, 1 at poles
+            const poleFalloff = lat > 0.82 ? (1 - (lat - 0.82) / 0.18) * 0.3 : 0;
+
+            heightMap[y * W + x] = n - poleFalloff;
         }
+    }
 
-        // Add terrain detail within continents
-        for (let i = 0; i < blobCount * 2; i++) {
-            const x = centerX + (Math.random() - 0.5) * spreadX * 0.9;
-            const y = centerY + (Math.random() - 0.5) * spreadY * 0.9;
-            const r = 5 + Math.random() * 20;
-            const shade = palette[Math.floor(Math.random() * palette.length)];
-            const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-            grad.addColorStop(0, shade);
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-            for (const ox of [0, -W, W]) {
-                ctx.fillStyle = grad;
-                ctx.beginPath();
-                ctx.arc(x + ox, y, r, 0, Math.PI * 2);
-                ctx.fill();
+    // ── Render pixels ──
+    const imageData = ctx.createImageData(W, H);
+    const data = imageData.data;
+    const seaLevel = 0.42;
+
+    for (let y = 0; y < H; y++) {
+        const lat = Math.abs(y / H - 0.5) * 2; // 0=equator, 1=pole
+        for (let x = 0; x < W; x++) {
+            const idx = (y * W + x) * 4;
+            const h = heightMap[y * W + x];
+
+            let r, g, b;
+
+            if (h < seaLevel) {
+                // Ocean — depth-based coloring
+                const depth = (seaLevel - h) / seaLevel;
+                r = Math.round(lerp(18, 8, depth));
+                g = Math.round(lerp(42, 18, depth));
+                b = Math.round(lerp(72, 38, depth));
+                // Shallow coastal tint
+                if (h > seaLevel - 0.04) {
+                    const coastal = 1 - (seaLevel - h) / 0.04;
+                    r = Math.round(lerp(r, 25, coastal * 0.5));
+                    g = Math.round(lerp(g, 60, coastal * 0.6));
+                    b = Math.round(lerp(b, 82, coastal * 0.4));
+                }
+            } else {
+                // Land — biome based on latitude + height
+                const landH = (h - seaLevel) / (1 - seaLevel); // 0-1 above sea level
+
+                if (lat > 0.85) {
+                    // Ice/snow
+                    const ice = (lat - 0.85) / 0.15;
+                    r = Math.round(lerp(140, 210, ice));
+                    g = Math.round(lerp(155, 225, ice));
+                    b = Math.round(lerp(165, 240, ice));
+                } else if (lat > 0.65) {
+                    // Tundra / boreal
+                    const t = (lat - 0.65) / 0.2;
+                    r = Math.round(lerp(55, 110, t));
+                    g = Math.round(lerp(72, 120, t));
+                    b = Math.round(lerp(55, 105, t));
+                } else if (lat < 0.2) {
+                    // Tropical — lush green or dense jungle
+                    if (landH > 0.5) {
+                        // Highland tropical
+                        r = Math.round(lerp(42, 65, landH));
+                        g = Math.round(lerp(75, 90, landH));
+                        b = Math.round(lerp(35, 50, landH));
+                    } else {
+                        // Lowland tropical
+                        r = Math.round(35 + landH * 25);
+                        g = Math.round(70 + landH * 30);
+                        b = Math.round(28 + landH * 15);
+                    }
+                } else if (lat < 0.45) {
+                    // Temperate — green/brown mix
+                    const moisture = valueNoise(x * 1.3, y * 1.3, 200);
+                    if (moisture > 0.5) {
+                        // Forested
+                        r = Math.round(lerp(40, 60, landH));
+                        g = Math.round(lerp(68, 85, landH));
+                        b = Math.round(lerp(32, 48, landH));
+                    } else {
+                        // Grassland/farmland
+                        r = Math.round(lerp(72, 95, landH));
+                        g = Math.round(lerp(82, 100, landH));
+                        b = Math.round(lerp(45, 58, landH));
+                    }
+                } else {
+                    // Arid / desert belt
+                    const moisture = valueNoise(x * 1.1, y * 1.1, 180);
+                    if (moisture > 0.55) {
+                        // Savanna
+                        r = Math.round(lerp(85, 110, landH));
+                        g = Math.round(lerp(78, 95, landH));
+                        b = Math.round(lerp(42, 55, landH));
+                    } else {
+                        // Desert
+                        r = Math.round(lerp(105, 140, landH));
+                        g = Math.round(lerp(88, 115, landH));
+                        b = Math.round(lerp(55, 72, landH));
+                    }
+                }
+
+                // Mountain highlights at high elevation
+                if (landH > 0.65) {
+                    const mt = (landH - 0.65) / 0.35;
+                    r = Math.round(lerp(r, 160, mt * 0.5));
+                    g = Math.round(lerp(g, 155, mt * 0.5));
+                    b = Math.round(lerp(b, 148, mt * 0.5));
+                }
+
+                // Coastal darkening right at shoreline
+                if (h < seaLevel + 0.015) {
+                    const shore = (h - seaLevel) / 0.015;
+                    r = Math.round(lerp(r * 0.6, r, shore));
+                    g = Math.round(lerp(g * 0.6, g, shore));
+                    b = Math.round(lerp(b * 0.65, b, shore));
+                }
             }
+
+            // Subtle per-pixel noise for texture
+            const noise = (hash(x * 7, y * 13) - 0.5) * 8;
+            data[idx] = clamp01((r + noise) / 255) * 255;
+            data[idx + 1] = clamp01((g + noise) / 255) * 255;
+            data[idx + 2] = clamp01((b + noise) / 255) * 255;
+            data[idx + 3] = 255;
         }
     }
 
-    // 3. Ice caps at poles
-    for (let pole = 0; pole < 2; pole++) {
-        const py = pole === 0 ? 0 : H;
-        for (let i = 0; i < 20; i++) {
-            const x = Math.random() * W;
-            const y = py + (pole === 0 ? 1 : -1) * Math.random() * 50;
-            const r = 20 + Math.random() * 50;
-            const alpha = 0.15 + Math.random() * 0.2;
-            drawBlob(x, y, r, `rgba(200, 220, 240, ${alpha})`);
-        }
-    }
-
-    // 4. Coastal shallows — lighter blue-green near land edges
-    for (let i = 0; i < 100; i++) {
-        const x = Math.random() * W;
-        const y = Math.random() * H;
-        const r = Math.random() * 25 + 5;
-        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-        grad.addColorStop(0, 'rgba(30, 80, 100, 0.25)');
-        grad.addColorStop(1, 'rgba(20, 60, 80, 0)');
-        for (const ox of [0, -W, W]) {
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(x + ox, y, r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-
-    // 5. Mountain highlights — lighter streaks on landmasses
-    for (let i = 0; i < 80; i++) {
-        const x = Math.random() * W;
-        const y = Math.random() * H;
-        const r = Math.random() * 12 + 3;
-        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-        grad.addColorStop(0, 'rgba(180, 170, 150, 0.3)');
-        grad.addColorStop(1, 'rgba(160, 150, 130, 0)');
-        for (const ox of [0, -W, W]) {
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(x + ox, y, r, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-
-    // 6. Fine detail noise
-    for (let i = 0; i < 1200; i++) {
-        const x = Math.random() * W;
-        const y = Math.random() * H;
-        const bright = Math.random() > 0.5;
-        ctx.fillStyle = bright ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.08)';
-        ctx.fillRect(x, y, 2, 2);
-    }
+    ctx.putImageData(imageData, 0, 0);
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping;
