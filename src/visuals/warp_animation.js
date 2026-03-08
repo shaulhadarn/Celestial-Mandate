@@ -6,30 +6,34 @@
  *
  * The canvas is injected immediately (solid black) so nothing behind it
  * is ever visible until the dissolve phase begins.
+ *
+ * Two callbacks let the caller pipeline scene loading:
+ *   onPrepare — fires mid-warp while overlay is fully opaque (load the scene)
+ *   onFlash   — fires at peak white right before dissolve starts
  */
 
 const STAR_COUNT = 800;
-const DURATION_MS = 3600;
+const WARP_MS    = 3200;   // starfield + flash portion
+const DISSOLVE_MS = 1400;  // long gentle dissolve (separate timer)
+const TOTAL_MS = WARP_MS + DISSOLVE_MS;
 
-// Phase boundaries (normalised 0–1)
-const P_IDLE    = 0.07;   // stars visible, barely moving
-const P_ENGAGE  = 0.16;   // engines spool — acceleration begins
-const P_WARP    = 0.56;   // full hyperspace streaks
-const P_FLASH   = 0.72;   // blinding white flash builds
-const P_HOLD    = 0.80;   // peak white — scene is set up behind overlay
-const P_DISSOLVE = 1.0;   // gentle dissolve revealing the system
+// Phase boundaries within the warp portion (normalised to WARP_MS)
+const P_IDLE    = 0.07;
+const P_ENGAGE  = 0.16;
+const P_PREPARE = 0.45;   // scene load fires here (still fully opaque)
+const P_WARP    = 0.60;
+const P_FLASH   = 0.78;
+const P_PEAK    = 1.0;    // full white — dissolve takes over from here
 
-// Smooth ease-out: fast at start, very gentle tail
-function easeOutQuart(x) { return 1 - Math.pow(1 - x, 4); }
+function easeOutQuint(x) { return 1 - Math.pow(1 - x, 5); }
 
 /**
  * @param {Object}   opts
- * @param {Function} opts.onFlash  Called once at peak flash so the caller
- *                                 can set up the 3D scene behind the overlay.
- * @returns {Promise} Resolves when the overlay is fully gone.
+ * @param {Function} opts.onPrepare  Called mid-warp to load scene behind overlay.
+ * @param {Function} opts.onFlash    Called at peak flash (dissolve about to start).
+ * @returns {Promise} Resolves when overlay is fully gone.
  */
-export function playWarpAnimation({ onFlash } = {}) {
-    // Create overlay immediately so it covers everything from frame 0
+export function playWarpAnimation({ onPrepare, onFlash } = {}) {
     const canvas = document.createElement('canvas');
     canvas.id = 'warp-canvas';
     canvas.style.cssText =
@@ -49,15 +53,11 @@ export function playWarpAnimation({ onFlash } = {}) {
         diag = Math.sqrt(cx * cx + cy * cy);
     }
     resize();
-
-    // Paint solid black immediately — hides everything behind
     ctx.fillStyle = '#010308';
     ctx.fillRect(0, 0, w, h);
-
     window.addEventListener('resize', resize);
 
     return new Promise(resolve => {
-        // ── Star pool ───────────────────────────────────────────────────
         const stars = [];
         for (let i = 0; i < STAR_COUNT; i++) stars.push(makeStar({}));
 
@@ -80,32 +80,31 @@ export function playWarpAnimation({ onFlash } = {}) {
             return s;
         }
 
+        let prepareFired = false;
         let flashFired = false;
         const t0 = performance.now();
 
-        // ── Frame loop ──────────────────────────────────────────────────
         function frame(now) {
-            const t = Math.min((now - t0) / DURATION_MS, 1.0);
+            const elapsed = now - t0;
 
-            // ── Dissolve phase: gentle white fade-out ────────────────────
-            if (t >= P_HOLD) {
-                const u = (t - P_HOLD) / (P_DISSOLVE - P_HOLD);  // 0→1
-                const alpha = 1 - easeOutQuart(u);
+            // ── DISSOLVE PHASE (separate timer after warp ends) ─────────
+            if (elapsed >= WARP_MS) {
+                const u = Math.min((elapsed - WARP_MS) / DISSOLVE_MS, 1.0);
+                const alpha = 1 - easeOutQuint(u);
 
-                // Fire onFlash once at the very start of dissolve
                 if (!flashFired) {
                     flashFired = true;
                     if (onFlash) onFlash();
                 }
 
                 ctx.clearRect(0, 0, w, h);
-                if (alpha > 0.003) {
+                if (alpha > 0.002) {
                     ctx.globalCompositeOperation = 'source-over';
                     ctx.fillStyle = `rgba(230, 242, 255, ${alpha})`;
                     ctx.fillRect(0, 0, w, h);
                 }
 
-                if (t < 1.0) {
+                if (u < 1.0) {
                     requestAnimationFrame(frame);
                 } else {
                     window.removeEventListener('resize', resize);
@@ -115,7 +114,14 @@ export function playWarpAnimation({ onFlash } = {}) {
                 return;
             }
 
-            // ── Pre-dissolve: starfield + effects ────────────────────────
+            // ── WARP PHASE ──────────────────────────────────────────────
+            const t = elapsed / WARP_MS;  // 0→1 within warp portion
+
+            // Fire onPrepare mid-warp so scene loads behind the opaque overlay
+            if (!prepareFired && t >= P_PREPARE) {
+                prepareFired = true;
+                if (onPrepare) onPrepare();
+            }
 
             // Background trail
             ctx.globalCompositeOperation = 'source-over';
@@ -147,7 +153,7 @@ export function playWarpAnimation({ onFlash } = {}) {
 
             const streakMul = speed < 0.008 ? 1.0 : 1.0 + speed * 50;
 
-            // ── Draw stars ──────────────────────────────────────────────
+            // ── Stars ───────────────────────────────────────────────────
             ctx.globalCompositeOperation = 'lighter';
 
             for (let i = 0; i < stars.length; i++) {
@@ -255,7 +261,7 @@ export function playWarpAnimation({ onFlash } = {}) {
 
             // ── Flash build-up ──────────────────────────────────────────
             if (t >= P_FLASH) {
-                const u = (t - P_FLASH) / (P_HOLD - P_FLASH);
+                const u = (t - P_FLASH) / (P_PEAK - P_FLASH);
                 const a = Math.pow(Math.min(u, 1), 2);
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.fillStyle = `rgba(230, 242, 255, ${a})`;

@@ -139,18 +139,20 @@ function focusHome(homeSystem, homePlanet, useWarp = false) {
           // Warp canvas is created immediately as solid black — covers
           // everything so no UI or 3D content is ever visible during warp.
           playWarpAnimation({
-            onFlash: () => {
-              // Scene is set up behind the white overlay at peak flash
+            onPrepare: () => {
+              // Build system visuals mid-warp while overlay is still opaque —
+              // gives the GPU time to compile shaders and render frames
+              // before the dissolve reveals the scene
               enterSystemView(homeSystem.id, true);
               selectSystem(homeSystem.id);
               if (homePlanet) selectPlanet(homePlanet.id);
             }
           }).then(() => {
-            // Overlay is gone — smoothly reveal UI
+            // Overlay fully gone — smoothly reveal UI
             if (uiLayer) {
-              uiLayer.style.transition = 'opacity 0.8s ease';
+              uiLayer.style.transition = 'opacity 1s ease';
               uiLayer.style.opacity = '1';
-              setTimeout(() => { uiLayer.style.transition = ''; }, 900);
+              setTimeout(() => { uiLayer.style.transition = ''; }, 1100);
             }
           });
         } else {
