@@ -2,8 +2,7 @@
 import * as THREE from 'three';
 import {
     createProceduralPlanetTexture,
-    createProceduralCloudTexture,
-    createProceduralCityLightsTexture
+    createProceduralCloudTexture
 } from '../core/splash_assets.js';
 
 /**
@@ -24,14 +23,6 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     cloudTex.minFilter = THREE.LinearFilter;
     cloudTex.magFilter = THREE.LinearFilter;
     cloudTex.colorSpace = THREE.SRGBColorSpace;
-
-    // Pass planet heightmap so city lights only appear on land
-    const cityLightsTex = createProceduralCityLightsTexture(planetResult);
-    cityLightsTex.wrapS = THREE.RepeatWrapping;
-    cityLightsTex.wrapT = THREE.ClampToEdgeWrapping;
-    cityLightsTex.minFilter = THREE.LinearFilter;
-    cityLightsTex.magFilter = THREE.LinearFilter;
-    cityLightsTex.colorSpace = THREE.SRGBColorSpace;
 
     // ── Planet surface ──
     const geometry = new THREE.SphereGeometry(5, segments, segments);
@@ -62,66 +53,6 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     });
     const clouds = new THREE.Mesh(cloudGeo, cloudMat);
     planet.add(clouds);
-
-    // ── City lights shader — bright on dark side ──
-    const cityLights = new THREE.Mesh(
-        new THREE.SphereGeometry(5.02, segments, segments),
-        new THREE.ShaderMaterial({
-            uniforms: {
-                uOpacity: { value: 0.0 },
-                uTime: { value: 0.0 },
-                uLightDirection: { value: new THREE.Vector3(0.8, 0.3, 0.55).normalize() },
-                uLightsMap: { value: cityLightsTex },
-                uWarmColor: { value: new THREE.Color(0xffcc88) },
-                uCoolColor: { value: new THREE.Color(0x88d8ff) }
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                varying vec3 vWorldNormal;
-                varying vec3 vViewDir;
-                void main() {
-                    vUv = uv;
-                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-                    vWorldNormal = normalize(mat3(modelMatrix) * normal);
-                    vViewDir = normalize(cameraPosition - worldPosition.xyz);
-                    gl_Position = projectionMatrix * viewMatrix * worldPosition;
-                }
-            `,
-            fragmentShader: `
-                uniform float uOpacity;
-                uniform float uTime;
-                uniform vec3 uLightDirection;
-                uniform vec3 uWarmColor;
-                uniform vec3 uCoolColor;
-                uniform sampler2D uLightsMap;
-                varying vec2 vUv;
-                varying vec3 vWorldNormal;
-                varying vec3 vViewDir;
-                void main() {
-                    vec3 normal = normalize(vWorldNormal);
-                    vec4 lightSample = texture2D(uLightsMap, vUv);
-                    float luminance = dot(lightSample.rgb, vec3(0.299, 0.587, 0.114));
-
-                    // Shimmer effect
-                    float shimmer = 0.9 + 0.1 * sin(uTime * 2.0 + vUv.x * 50.0 + vUv.y * 35.0);
-
-                    // Color mapping
-                    vec3 mappedColor = mix(uWarmColor, uCoolColor, clamp(lightSample.b * 1.3, 0.0, 1.0));
-                    vec3 finalColor = mix(mappedColor, lightSample.rgb * 1.5, 0.4);
-
-                    // Lights visible everywhere — no night mask
-                    float intensity = max(lightSample.a, luminance);
-                    float alpha = intensity * shimmer * uOpacity * 0.85;
-                    if (alpha < 0.01) discard;
-                    gl_FragColor = vec4(finalColor, clamp(alpha, 0.0, 1.0));
-                }
-            `,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        })
-    );
-    planet.add(cityLights);
 
     // ── Atmosphere shader — tight, bright Fresnel rim with day/twilight/night coloring ──
     const atmoGeo = new THREE.SphereGeometry(5.28, segments, segments);
@@ -298,5 +229,5 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     outerGlow.userData.positionOffset = null;
     scene.add(outerGlow);
 
-    return { planet, clouds, cityLights, atmosphere, atmosphereEdge, innerGlow, coronaGlow, outerGlow };
+    return { planet, clouds, atmosphere, atmosphereEdge, innerGlow, coronaGlow, outerGlow };
 }

@@ -19,7 +19,6 @@ let camera;
 let renderer;
 let planet;
 let clouds;
-let cityLights;
 let moon;
 let atmosphere;
 let atmosphereEdge;
@@ -101,7 +100,6 @@ export function initSplashPlanet(containerId) {
     );
     planet = planetGroup.planet;
     clouds = planetGroup.clouds;
-    cityLights = planetGroup.cityLights;
     atmosphere = planetGroup.atmosphere;
     atmosphereEdge = planetGroup.atmosphereEdge;
     innerGlow = planetGroup.innerGlow;
@@ -112,8 +110,6 @@ export function initSplashPlanet(containerId) {
     lightDirection.copy(splashLights.sunLight.position).normalize();
     atmosphere.material.uniforms.uLightDirection.value.copy(lightDirection);
     atmosphereEdge.material.uniforms.uLightDirection.value.copy(lightDirection);
-    cityLights.material.uniforms.uLightDirection.value.copy(lightDirection);
-
     const background = buildSpaceBackground(scene, glowTex, compactScene);
     starLayers = background.starLayers;
     nebulaLayers = background.nebulaLayers;
@@ -165,10 +161,6 @@ export function initSplashPlanet(containerId) {
             atmosphereEdge.rotation.y += 0.01 * dt;
             atmosphereEdge.material.uniforms.uTime.value = timeSeconds;
             atmosphereEdge.material.uniforms.uOpacity.value = globalFade * (0.92 + Math.sin(timeSeconds * 0.55 + 0.5) * 0.08);
-        }
-        if (cityLights) {
-            cityLights.material.uniforms.uTime.value = timeSeconds;
-            cityLights.material.uniforms.uOpacity.value = globalFade * 0.95;
         }
 
         const isCompactLive = window.innerWidth <= 768;
@@ -664,7 +656,6 @@ export function stopSplashPlanet() {
     renderer = null;
     planet = null;
     clouds = null;
-    cityLights = null;
     moon = null;
     atmosphere = null;
     atmosphereEdge = null;
