@@ -39,8 +39,8 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
         metalness: 0.05,
         clearcoat: 0.2,
         clearcoatRoughness: 0.7,
-        emissive: new THREE.Color(0x050a12),
-        emissiveIntensity: 0.15,
+        emissive: new THREE.Color(0x0c1520),
+        emissiveIntensity: 0.45,
         transparent: true,
         opacity: 0
     });
@@ -96,28 +96,20 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
                 varying vec3 vWorldNormal;
                 varying vec3 vViewDir;
                 void main() {
-                    vec3 lightDir = normalize(uLightDirection);
                     vec3 normal = normalize(vWorldNormal);
                     vec4 lightSample = texture2D(uLightsMap, vUv);
                     float luminance = dot(lightSample.rgb, vec3(0.299, 0.587, 0.114));
 
-                    // Strong night mask — lights visible deep into dark side
-                    float sunDot = dot(normal, -lightDir);
-                    float nightMask = smoothstep(-0.1, 0.45, sunDot);
-
-                    // Subtle rim glow on city lights
-                    float rim = pow(1.0 - max(dot(normal, normalize(vViewDir)), 0.0), 2.0);
-
                     // Shimmer effect
-                    float shimmer = 0.88 + 0.12 * sin(uTime * 2.0 + vUv.x * 50.0 + vUv.y * 35.0);
+                    float shimmer = 0.9 + 0.1 * sin(uTime * 2.0 + vUv.x * 50.0 + vUv.y * 35.0);
 
                     // Color mapping
                     vec3 mappedColor = mix(uWarmColor, uCoolColor, clamp(lightSample.b * 1.3, 0.0, 1.0));
                     vec3 finalColor = mix(mappedColor, lightSample.rgb * 1.5, 0.4);
 
-                    // Boost brightness
+                    // Lights visible everywhere — no night mask
                     float intensity = max(lightSample.a, luminance);
-                    float alpha = intensity * nightMask * shimmer * (0.7 + rim * 0.5) * uOpacity * 1.4;
+                    float alpha = intensity * shimmer * uOpacity * 0.85;
                     if (alpha < 0.01) discard;
                     gl_FragColor = vec4(finalColor, clamp(alpha, 0.0, 1.0));
                 }

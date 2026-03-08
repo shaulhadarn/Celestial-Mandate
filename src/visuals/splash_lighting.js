@@ -16,6 +16,11 @@ export function setupSplashLighting(scene, compactScene = false) {
     rimLight.position.set(-16, -5, -18);
     scene.add(rimLight);
 
+    // Back-fill light so the dark side still shows terrain clearly
+    const backFill = new THREE.DirectionalLight(0x3388aa, compactScene ? 1.2 : 1.6);
+    backFill.position.set(-18, 4, -12);
+    scene.add(backFill);
+
     const fillLight = new THREE.PointLight(0x00e5ff, compactScene ? 0.75 : 1.05, 55);
     fillLight.position.set(4, -6, 8);
     scene.add(fillLight);
