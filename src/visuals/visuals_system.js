@@ -659,14 +659,25 @@ export function createSystemVisuals(system, group) {
         const belt = system.asteroidBelt;
         const beltGroup = new THREE.Group();
 
-        // InstancedMesh for rocks
-        const rockGeo = new THREE.IcosahedronGeometry(0.3, 0);
+        // Procedural rock geometry — deform icosahedron vertices for natural shape
+        const rockGeo = new THREE.IcosahedronGeometry(0.25, 1);
+        const posAttr = rockGeo.getAttribute('position');
+        for (let v = 0; v < posAttr.count; v++) {
+            const nx = posAttr.getX(v), ny = posAttr.getY(v), nz = posAttr.getZ(v);
+            const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+            // Deform each vertex by 15-40% for irregular rocky surface
+            const deform = 0.6 + Math.random() * 0.4;
+            posAttr.setXYZ(v, nx / len * 0.25 * deform, ny / len * 0.25 * deform, nz / len * 0.25 * deform);
+        }
+        posAttr.needsUpdate = true;
+        rockGeo.computeVertexNormals();
+
         const rockMat = new THREE.MeshStandardMaterial({
-            color: 0x887766,
-            roughness: 0.9,
-            metalness: 0.1,
-            emissive: new THREE.Color(0x111111),
-            emissiveIntensity: 0.05
+            color: 0x99887a,
+            roughness: 0.95,
+            metalness: 0.05,
+            emissive: new THREE.Color(0x1a1510),
+            emissiveIntensity: 0.12
         });
         const count = belt.count;
         const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, count);
@@ -675,12 +686,14 @@ export function createSystemVisuals(system, group) {
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;
             const r = belt.distance + (Math.random() - 0.5) * belt.width;
-            const y = (Math.random() - 0.5) * 1.5;
+            const y = (Math.random() - 0.5) * 1.2;
 
             dummy.position.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
-            dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-            const s = 0.5 + Math.random() * 1.0;
-            dummy.scale.set(s, s * (0.6 + Math.random() * 0.4), s);
+            dummy.rotation.set(Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2);
+            // Varied sizes: mostly small with occasional larger chunks
+            const sRand = Math.random();
+            const s = sRand > 0.9 ? 1.5 + Math.random() * 1.0 : 0.4 + Math.random() * 0.8;
+            dummy.scale.set(s, s * (0.7 + Math.random() * 0.6), s * (0.7 + Math.random() * 0.6));
             dummy.updateMatrix();
             rockMesh.setMatrixAt(i, dummy.matrix);
         }
