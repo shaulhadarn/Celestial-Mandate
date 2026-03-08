@@ -74,6 +74,8 @@ let _sunCorona3 = null;
 let _sunFlares = [];
 let _sunPointLight = null;
 let _colonySatellites = [];
+let _moonGroups = [];  // { parentMesh, pivot, moonMesh, data }[]
+let _asteroidBelt = null;  // { group: Group }
 
 // ── Satellite engine trail particle pool ────────────────────────────────────
 const SAT_TRAIL_MAX = isMobileDevice ? 80 : 160;
@@ -228,6 +230,8 @@ export function clearSystemVisuals(group) {
     _sunFlares = [];
     _sunPointLight = null;
     _colonySatellites = [];
+    _moonGroups = [];
+    _asteroidBelt = null;
 }
 
 export function createSystemVisuals(system, group) {
@@ -546,6 +550,61 @@ export function createSystemVisuals(system, group) {
         group.add(mesh);
         planetMeshes.push(mesh);
 
+        // ── Moons ──
+        if (p.moons && p.moons.length > 0) {
+            p.moons.forEach(moonData => {
+                const moonRadius = p.size * moonData.size * 2 * scale;
+                const moonGeo = new THREE.SphereGeometry(moonRadius, isMobileDevice ? 16 : 24, isMobileDevice ? 16 : 24);
+                const moonMat = new THREE.MeshStandardMaterial({
+                    color: moonData.color,
+                    roughness: 0.85,
+                    metalness: 0.05,
+                    emissive: new THREE.Color(0x111111),
+                    emissiveIntensity: 0.1
+                });
+                const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+
+                // Moon orbit pivot — positioned at planet, tilted
+                const moonPivot = new THREE.Group();
+                moonPivot.rotation.x = moonData.inclination;
+                moonPivot.rotation.z = Math.random() * 0.2;
+
+                // Position moon at its orbit radius from parent center
+                const moonOrbitR = moonData.orbitRadius;
+                moonMesh.position.set(
+                    Math.cos(moonData.angle) * moonOrbitR,
+                    0,
+                    Math.sin(moonData.angle) * moonOrbitR
+                );
+                moonPivot.add(moonMesh);
+
+                // Faint moon orbit ring
+                const moonOrbitPts = [];
+                for (let mo = 0; mo <= 64; mo++) {
+                    const theta = (mo / 64) * Math.PI * 2;
+                    moonOrbitPts.push(new THREE.Vector3(
+                        Math.cos(theta) * moonOrbitR, 0, Math.sin(theta) * moonOrbitR
+                    ));
+                }
+                const moonOrbitGeo = new THREE.BufferGeometry().setFromPoints(moonOrbitPts);
+                const moonOrbitMat = new THREE.LineBasicMaterial({
+                    color: 0x66aadd, opacity: 0.15, transparent: true,
+                    blending: THREE.AdditiveBlending, depthWrite: false
+                });
+                moonPivot.add(new THREE.LineLoop(moonOrbitGeo, moonOrbitMat));
+
+                // The pivot tracks planet position each frame
+                group.add(moonPivot);
+
+                _moonGroups.push({
+                    parentMesh: mesh,
+                    pivot: moonPivot,
+                    moonMesh: moonMesh,
+                    data: moonData
+                });
+            });
+        }
+
         // Orbit — use LineLoop so the ring is always visible regardless of camera angle
         const orbitSegments = 128;
         const orbitPoints = [];
@@ -578,6 +637,58 @@ export function createSystemVisuals(system, group) {
             addColonyVisual(mesh);
         }
     });
+
+    // ── Asteroid Belt ─────────────────────────────────────────────────────
+    if (system.asteroidBelt) {
+        const belt = system.asteroidBelt;
+        const beltGroup = new THREE.Group();
+
+        // InstancedMesh for rocks
+        const rockGeo = new THREE.IcosahedronGeometry(0.3, 0);
+        const rockMat = new THREE.MeshStandardMaterial({
+            color: 0x887766,
+            roughness: 0.9,
+            metalness: 0.1,
+            emissive: new THREE.Color(0x111111),
+            emissiveIntensity: 0.05
+        });
+        const count = belt.count;
+        const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, count);
+        const dummy = new THREE.Object3D();
+
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = belt.distance + (Math.random() - 0.5) * belt.width;
+            const y = (Math.random() - 0.5) * 1.5;
+
+            dummy.position.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+            dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            const s = 0.5 + Math.random() * 1.0;
+            dummy.scale.set(s, s * (0.6 + Math.random() * 0.4), s);
+            dummy.updateMatrix();
+            rockMesh.setMatrixAt(i, dummy.matrix);
+        }
+        rockMesh.instanceMatrix.needsUpdate = true;
+        beltGroup.add(rockMesh);
+
+        // Faint guide ring at belt center distance
+        const beltRingPts = [];
+        for (let j = 0; j <= 128; j++) {
+            const theta = (j / 128) * Math.PI * 2;
+            beltRingPts.push(new THREE.Vector3(
+                Math.cos(theta) * belt.distance, 0, Math.sin(theta) * belt.distance
+            ));
+        }
+        const beltRingGeo = new THREE.BufferGeometry().setFromPoints(beltRingPts);
+        const beltRingMat = new THREE.LineBasicMaterial({
+            color: 0x998877, opacity: 0.2, transparent: true,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        beltGroup.add(new THREE.LineLoop(beltRingGeo, beltRingMat));
+
+        group.add(beltGroup);
+        _asteroidBelt = { group: beltGroup };
+    }
 }
 
 export function addColonyVisual(planetMesh) {
@@ -783,6 +894,23 @@ export function updateSystemAnimations(time, dt, group) {
             item.sprite.position.y += item.offsetY;
         }
     });
+
+    // ── Animate moons ─────────────────────────────────────────────────────
+    _moonGroups.forEach(entry => {
+        // Track parent planet position
+        entry.pivot.position.copy(entry.parentMesh.position);
+
+        // Orbit the moon around the pivot
+        const a = entry.data.angle + time * entry.data.speed * 10;
+        entry.moonMesh.position.x = Math.cos(a) * entry.data.orbitRadius;
+        entry.moonMesh.position.z = Math.sin(a) * entry.data.orbitRadius;
+        entry.moonMesh.rotation.y += 0.008;
+    });
+
+    // ── Animate asteroid belt ─────────────────────────────────────────────
+    if (_asteroidBelt) {
+        _asteroidBelt.group.rotation.y += 0.0002;
+    }
 
     // ── Animate colony satellites + engine trails ─────────────────────────────
     _colonySatellites.forEach(entry => {
