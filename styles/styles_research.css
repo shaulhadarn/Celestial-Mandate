@@ -463,16 +463,16 @@
 }
 
 /* Colony stat icon colors */
-.col-stat-colonies { color: #00f2ff; }
-.col-stat-pop { color: #c0c0c0; }
-.col-stat-growth { color: #64ff96; }
-.col-stat-building { color: #aab4be; }
-.col-stat-energy .col-svg-icon { color: #ffd700; filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.5)); }
-.col-stat-minerals .col-svg-icon { color: #00e5ff; filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.5)); }
-.col-stat-food .col-svg-icon { color: #00ff66; filter: drop-shadow(0 0 4px rgba(0, 255, 102, 0.5)); }
-.col-stat-colonies .col-svg-icon { color: #00f2ff; filter: drop-shadow(0 0 4px rgba(0, 242, 255, 0.5)); }
-.col-stat-pop .col-svg-icon { color: #c0c0c0; }
-.col-stat-growth .col-svg-icon { color: #64ff96; }
+.col-stat-colonies { color: #33f5ff; }
+.col-stat-pop { color: #d0d0d0; }
+.col-stat-growth { color: #77ffaa; }
+.col-stat-building { color: #c0cad4; }
+.col-stat-energy .col-svg-icon { color: #ffdd33; filter: drop-shadow(0 0 5px rgba(255, 221, 51, 0.6)) brightness(1.15); }
+.col-stat-minerals .col-svg-icon { color: #33eeff; filter: drop-shadow(0 0 5px rgba(51, 238, 255, 0.6)) brightness(1.15); }
+.col-stat-food .col-svg-icon { color: #33ff77; filter: drop-shadow(0 0 5px rgba(51, 255, 119, 0.6)) brightness(1.15); }
+.col-stat-colonies .col-svg-icon { color: #33f5ff; filter: drop-shadow(0 0 5px rgba(51, 245, 255, 0.6)) brightness(1.15); }
+.col-stat-pop .col-svg-icon { color: #d0d0d0; filter: brightness(1.15); }
+.col-stat-growth .col-svg-icon { color: #77ffaa; filter: brightness(1.15); }
 
 .colonies-empty {
     text-align: center;
