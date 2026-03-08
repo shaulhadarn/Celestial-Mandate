@@ -307,16 +307,17 @@ export async function returnToGalaxyView() {
         disposeGroup(groups.system);
         planetMeshes.length = 0;
 
+        // Set galaxy-scale distance limits before focusing so saveState captures them
+        controls.minDistance = 20;
+        controls.maxDistance = 400;
+
         // Restore Camera — center on the system we just left, zoomed out to show neighbors
-        // Must compute world position since the galaxy group may be rotated
         if (gameState.selectedSystemId !== null) {
             const sys = getSystem(gameState.selectedSystemId);
             if (sys) {
                 focusCamera(sys.position, 120);
             }
         }
-        controls.minDistance = 20;
-        controls.maxDistance = 400;
 
         // Force R3F to render several frames so the scene is fully composited before fade-out
         _forceFrames(10);
@@ -441,9 +442,12 @@ function animateCamera(target, distance, height, duration = 800) {
 export function focusCamera(target, distance = 50) {
     if (!controls || !camera) return;
     controls.target.copy(target);
-    // Offset camera
     camera.position.copy(target).add(new THREE.Vector3(0, distance, distance * 0.6));
-    controls.update();
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    // Sync OrbitControls' internal spherical state to the new position
+    controls.saveState();
+    controls.reset();
 }
 
 // Removed: helper functions like createTextSprite, addColonyVisual (moved to visuals_system.js)
