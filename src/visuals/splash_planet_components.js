@@ -13,7 +13,8 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     const segments = isMobile ? 48 : 80;
     const { softGlowTex, glowTex } = haloTextures;
 
-    const planetTex = createProceduralPlanetTexture();
+    const planetResult = createProceduralPlanetTexture();
+    const planetTex = planetResult.texture;
     planetTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     planetTex.colorSpace = THREE.SRGBColorSpace;
 
@@ -24,7 +25,8 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     cloudTex.magFilter = THREE.LinearFilter;
     cloudTex.colorSpace = THREE.SRGBColorSpace;
 
-    const cityLightsTex = createProceduralCityLightsTexture();
+    // Pass planet heightmap so city lights only appear on land
+    const cityLightsTex = createProceduralCityLightsTexture(planetResult);
     cityLightsTex.wrapS = THREE.RepeatWrapping;
     cityLightsTex.wrapT = THREE.ClampToEdgeWrapping;
     cityLightsTex.minFilter = THREE.LinearFilter;

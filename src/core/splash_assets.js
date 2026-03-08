@@ -263,7 +263,8 @@ export function createProceduralPlanetTexture() {
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = true;
-    return tex;
+    // Expose heightmap so city lights can avoid oceans
+    return { texture: tex, heightMap, seaLevel, mapW: W, mapH: H };
 }
 
 export function createProceduralCloudTexture() {
@@ -341,7 +342,7 @@ export function createProceduralCloudTexture() {
     return tex;
 }
 
-export function createProceduralCityLightsTexture() {
+export function createProceduralCityLightsTexture(planetData) {
     const canvas = document.createElement('canvas');
     canvas.width = 2048;
     canvas.height = 1024;
@@ -349,61 +350,85 @@ export function createProceduralCityLightsTexture() {
     const W = canvas.width;
     const H = canvas.height;
 
+    // Land mask from planet heightmap — lights only on land
+    const { heightMap, seaLevel, mapW, mapH } = planetData;
+    const isLand = (px, py) => {
+        const ix = Math.round(((px % W) + W) % W);
+        const iy = Math.round(Math.max(0, Math.min(mapH - 1, py)));
+        return heightMap[iy * mapW + ix] >= seaLevel + 0.01; // small margin above shore
+    };
+
     ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'lighter';
 
-    // Helper: draw a single small dot at (x, y) with wrapping
+    // Helper: draw a single small dot at (x, y) with wrapping, only on land
     const drawDot = (x, y, size, fill) => {
+        if (!isLand(x, y)) return;
         ctx.fillStyle = fill;
         for (const ox of [0, -W, W]) {
             ctx.fillRect(x + ox, y, size, size);
         }
     };
 
-    // Helper: draw a scattered cluster of tiny dots (organic, no radial gradient circles)
+    // Helper: draw a scattered cluster of tiny dots, land-only
     const drawScatteredCluster = (cx, cy, spread, dotCount, color) => {
         for (let d = 0; d < dotCount; d++) {
-            // Gaussian-ish distribution: sum of randoms
             const dx = (Math.random() + Math.random() + Math.random() - 1.5) * spread;
             const dy = (Math.random() + Math.random() + Math.random() - 1.5) * spread * 0.6;
             const px = cx + dx;
             const py = cy + dy;
+            if (!isLand(px, py)) continue;
             const dist = Math.sqrt(dx * dx + dy * dy) / spread;
             const falloff = Math.max(0, 1 - dist * 0.8);
-            const dotAlpha = falloff * (0.3 + Math.random() * 0.5);
-            const size = Math.random() > 0.8 ? 2 : 1;
-            drawDot(px, py, size, color.replace(/[\d.]+\)$/, () => dotAlpha.toFixed(2) + ')'));
+            const dotAlpha = falloff * (0.35 + Math.random() * 0.55);
+            const size = Math.random() > 0.82 ? 2 : 1;
+            ctx.fillStyle = color.replace(/[\d.]+\)$/, () => dotAlpha.toFixed(2) + ')');
+            for (const ox of [0, -W, W]) {
+                ctx.fillRect(px + ox, py, size, size);
+            }
         }
     };
 
-    // Large metropolitan regions — scattered dot clusters instead of radial gradients
-    for (let i = 0; i < 35; i++) {
-        const x = Math.random() * W;
-        const y = (Math.random() * 0.5 + 0.25) * H;
-        const spread = 18 + Math.random() * 35;
-        const dotCount = Math.round(40 + Math.random() * 60);
+    // Large metropolitan regions (fewer: 18 instead of 35) — land only
+    for (let i = 0; i < 18; i++) {
+        let x, y, attempts = 0;
+        do {
+            x = Math.random() * W;
+            y = (Math.random() * 0.5 + 0.25) * H;
+            attempts++;
+        } while (!isLand(x, y) && attempts < 30);
+        if (!isLand(x, y)) continue;
+
+        const spread = 14 + Math.random() * 28;
+        const dotCount = Math.round(30 + Math.random() * 40);
         const isCool = Math.random() > 0.75;
         const color = isCool
             ? `rgba(140, 220, 255, 1.0)`
             : `rgba(255, ${Math.round(200 + Math.random() * 40)}, ${Math.round(130 + Math.random() * 40)}, 1.0)`;
         drawScatteredCluster(x, y, spread, dotCount, color);
 
-        // Bright core — a few brighter pixels at center
-        for (let c = 0; c < 5 + Math.random() * 8; c++) {
+        // Bright core pixels at center
+        for (let c = 0; c < 4 + Math.random() * 6; c++) {
             const coreX = x + (Math.random() - 0.5) * spread * 0.3;
             const coreY = y + (Math.random() - 0.5) * spread * 0.2;
-            const coreAlpha = 0.5 + Math.random() * 0.4;
-            drawDot(coreX, coreY, Math.random() > 0.5 ? 2 : 1, color.replace(/[\d.]+\)$/, () => coreAlpha.toFixed(2) + ')'));
+            drawDot(coreX, coreY, Math.random() > 0.5 ? 2 : 1,
+                color.replace(/[\d.]+\)$/, () => (0.6 + Math.random() * 0.35).toFixed(2) + ')'));
         }
     }
 
-    // Medium city clusters — scattered dots
-    for (let i = 0; i < 380; i++) {
-        const x = Math.random() * W;
-        const latitudeBias = (Math.random() * 0.56 + 0.22) * H;
-        const y = latitudeBias + (Math.random() - 0.5) * 110;
-        const spread = 4 + Math.random() * 14;
-        const dotCount = Math.round(6 + Math.random() * 18);
+    // Medium city clusters (fewer: 160 instead of 380) — land only
+    for (let i = 0; i < 160; i++) {
+        let x, y, attempts = 0;
+        do {
+            x = Math.random() * W;
+            const latitudeBias = (Math.random() * 0.56 + 0.22) * H;
+            y = latitudeBias + (Math.random() - 0.5) * 110;
+            attempts++;
+        } while (!isLand(x, y) && attempts < 20);
+        if (!isLand(x, y)) continue;
+
+        const spread = 3 + Math.random() * 10;
+        const dotCount = Math.round(4 + Math.random() * 12);
         const isCool = Math.random() > 0.65;
         const color = isCool
             ? `rgba(120, ${Math.round(210 + Math.random() * 40)}, 255, 1.0)`
@@ -411,41 +436,44 @@ export function createProceduralCityLightsTexture() {
         drawScatteredCluster(x, y, spread, dotCount, color);
     }
 
-    // Connected highway/transport lines between clusters
-    for (let i = 0; i < 80; i++) {
-        const x1 = Math.random() * W;
-        const y1 = (Math.random() * 0.5 + 0.25) * H;
-        const x2 = x1 + (Math.random() - 0.5) * 200;
-        const y2 = y1 + (Math.random() - 0.5) * 80;
-        const alpha = 0.04 + Math.random() * 0.06;
-        ctx.strokeStyle = `rgba(255, 210, 140, ${alpha})`;
-        ctx.lineWidth = 0.5 + Math.random();
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        // Scatter a few dots along the road
-        const steps = 3 + Math.floor(Math.random() * 6);
-        for (let s = 0; s < steps; s++) {
-            const t = Math.random();
-            const rx = x1 + (x2 - x1) * t + (Math.random() - 0.5) * 4;
-            const ry = y1 + (y2 - y1) * t + (Math.random() - 0.5) * 4;
-            drawDot(rx, ry, 1, `rgba(255, 210, 140, ${0.1 + Math.random() * 0.2})`);
-        }
-    }
-
-    // Individual bright dots — towns and villages
-    for (let i = 0; i < 4000; i++) {
+    // Individual bright dots — towns (fewer: 1500 instead of 4000) — land only
+    for (let i = 0; i < 1500; i++) {
         const x = Math.random() * W;
         const y = (Math.random() * 0.64 + 0.18) * H;
-        const alpha = 0.12 + Math.random() * 0.45;
+        if (!isLand(x, y)) continue;
+        const alpha = 0.15 + Math.random() * 0.5;
         const size = Math.random() > 0.88 ? 2 : 1;
         const fill = Math.random() > 0.7
             ? `rgba(160, 230, 255, ${(alpha * 0.85).toFixed(2)})`
             : `rgba(255, ${Math.round(200 + Math.random() * 40)}, ${Math.round(130 + Math.random() * 40)}, ${alpha.toFixed(2)})`;
         drawDot(x, y, size, fill);
     }
+
+    // ── Glow pass: downscale → upscale to create soft bloom around lights ──
+    const glowCanvas = document.createElement('canvas');
+    const glowSize = 256;
+    glowCanvas.width = glowSize;
+    glowCanvas.height = glowSize / 2;
+    const glowCtx = glowCanvas.getContext('2d');
+    // Downscale (acts as box blur)
+    glowCtx.drawImage(canvas, 0, 0, glowSize, glowSize / 2);
+
+    // Second pass at medium resolution
+    const midCanvas = document.createElement('canvas');
+    midCanvas.width = 512;
+    midCanvas.height = 256;
+    const midCtx = midCanvas.getContext('2d');
+    midCtx.drawImage(canvas, 0, 0, 512, 256);
+
+    // Composite glow layers back onto original
+    ctx.globalCompositeOperation = 'lighter';
+    // Large soft glow
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(glowCanvas, 0, 0, W, H);
+    // Medium glow for tighter halos
+    ctx.globalAlpha = 0.35;
+    ctx.drawImage(midCanvas, 0, 0, W, H);
+    ctx.globalAlpha = 1.0;
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping;
