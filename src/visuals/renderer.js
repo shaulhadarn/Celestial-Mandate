@@ -252,11 +252,15 @@ export async function enterSystemView(systemId, instant = false) {
         camera.updateProjectionMatrix();
         controls.target.copy(targetPos);
 
-        // saveState + reset syncs OrbitControls' internal spherical coordinates
-        // with the new camera position — without this, stale rotation/pan state
-        // from a previous system view causes the camera to look at the wrong area
+        // Flush residual pan/rotate momentum: OrbitControls accumulates panOffset
+        // and sphericalDelta internally. With damping enabled, reset()'s internal
+        // update() only partially drains them, shifting our freshly-set target.
+        // Disabling damping makes update() flush + zero all accumulators cleanly.
+        const wasDamping = controls.enableDamping;
+        controls.enableDamping = false;
         controls.saveState();
         controls.reset();
+        controls.enableDamping = wasDamping;
 
         // Force R3F to render frames so the scene is ready before revealing
         _forceFrames(10);
@@ -407,11 +411,12 @@ export function restoreControlsAfterPlanet() {
     controls.zoomSpeed = 1.2;
     controls.enabled = true;
 
-    // saveState() captures our desired position/target, then reset() restores
-    // from that snapshot — this properly syncs OrbitControls' internal spherical
-    // state so dragging/rotation behaves correctly from the new camera position
+    // Flush residual pan/rotate momentum before snapping (see enterSystemView)
+    const wasDamping = controls.enableDamping;
+    controls.enableDamping = false;
     controls.saveState();
     controls.reset();
+    controls.enableDamping = wasDamping;
 
     savedControlsState = null;
 }
@@ -447,9 +452,12 @@ export function focusCamera(target, distance = 50) {
     camera.position.copy(target).add(new THREE.Vector3(0, distance, distance * 0.6));
     camera.zoom = 1;
     camera.updateProjectionMatrix();
-    // Sync OrbitControls' internal spherical state to the new position
+    // Flush residual pan/rotate momentum before snapping (see enterSystemView)
+    const wasDamping = controls.enableDamping;
+    controls.enableDamping = false;
     controls.saveState();
     controls.reset();
+    controls.enableDamping = wasDamping;
 }
 
 // Removed: helper functions like createTextSprite, addColonyVisual (moved to visuals_system.js)
