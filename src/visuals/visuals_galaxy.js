@@ -493,9 +493,9 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     }
 
     // System Name Label
-    const label = createTextSprite(sys.name);
+    const label = createTextSprite(sys.name, { fontSize: 1.8 });
     label.position.copy(sys.position);
-    label.position.y -= 5;
+    label.position.y -= 6;
     group.add(label);
 
     // ── Star soft glow sprites (per-system, always visible up close) ─────

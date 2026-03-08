@@ -229,7 +229,7 @@ export function createSystemVisuals(system, group) {
     }
 
     // ── Star name label ────────────────────────────────────────────────────
-    const starLabel = createTextSprite(system.name, { fontSize: 1.4 });
+    const starLabel = createTextSprite(system.name, { fontSize: 2.4 });
     starLabel.position.set(0, -9, 0);
     group.add(starLabel);
 
@@ -427,10 +427,10 @@ export function createSystemVisuals(system, group) {
         group.add(orbit);
 
         // Label
-        const label = createTextSprite(p.name, { fontSize: 1.1 });
+        const label = createTextSprite(p.name, { fontSize: 1.8 });
         label.userData = { id: p.id, data: p };
         group.add(label);
-        planetLabels.push({ sprite: label, target: mesh, offsetY: - (p.size * 2.5) - 2 });
+        planetLabels.push({ sprite: label, target: mesh, offsetY: - (p.size * 2.5) - 3 });
 
         if (gameState.colonies[p.id]) {
             addColonyVisual(mesh);
