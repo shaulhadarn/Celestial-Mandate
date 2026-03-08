@@ -5,7 +5,7 @@ import { loadAssets, playSound } from '../core/assets.js';
 import { disposeGroup } from '../core/dispose.js';
 import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
 import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
-import { createSystemVisuals, updateSystemAnimations, addColonyVisual, planetMeshes, planetLabels } from './visuals_system.js';
+import { createSystemVisuals, updateSystemAnimations, addColonyVisual, buildTradeRoutes, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput } from './visuals_planet.js';
 
 const raycaster = new THREE.Raycaster();
@@ -88,6 +88,7 @@ export async function init() {
         if (gameState.viewMode === 'SYSTEM') {
             const mesh = planetMeshes.find(m => m.userData.id === planetId);
             if (mesh) addColonyVisual(mesh);
+            buildTradeRoutes(groups.system);
         }
 
         // Always add colony ring to galaxy group so it's visible when

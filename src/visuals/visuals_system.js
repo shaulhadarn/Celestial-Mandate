@@ -76,9 +76,10 @@ let _sunPointLight = null;
 let _colonySatellites = [];
 let _moonGroups = [];  // { parentMesh, pivot, moonMesh, data }[]
 let _asteroidBelt = null;  // { group: Group }
+let _tradeShips = [];      // { mesh, engineGlow, trailAnchor, fromId, toId, progress, speed, arcHeight, _prevPos }
 
 // ── Satellite engine trail particle pool ────────────────────────────────────
-const SAT_TRAIL_MAX = isMobileDevice ? 80 : 160;
+const SAT_TRAIL_MAX = isMobileDevice ? 120 : 240;
 let _trailGeo = null;
 let _trailMesh = null;
 let _trailPositions = null;
@@ -91,6 +92,9 @@ for (let i = 0; i < SAT_TRAIL_MAX; i++) {
 let _trailActive = 0;
 let _trailInited = false;
 const _trailWorldPos = new THREE.Vector3();
+const _shipTmpFrom = new THREE.Vector3();
+const _shipTmpTo = new THREE.Vector3();
+const _shipTmpDir = new THREE.Vector3();
 
 function _initSatTrailPool(group) {
     _trailPositions = new Float32Array(SAT_TRAIL_MAX * 3);
@@ -232,6 +236,7 @@ export function clearSystemVisuals(group) {
     _colonySatellites = [];
     _moonGroups = [];
     _asteroidBelt = null;
+    _tradeShips = [];
 }
 
 export function createSystemVisuals(system, group) {
@@ -767,6 +772,9 @@ export function createSystemVisuals(system, group) {
         group.add(beltGroup);
         _asteroidBelt = { group: beltGroup };
     }
+
+    // ── Trade ships between colonies ──
+    buildTradeRoutes(group);
 }
 
 export function addColonyVisual(planetMesh) {
@@ -915,9 +923,120 @@ export function addColonyVisual(planetMesh) {
     });
 }
 
+// ── Trade ships between colonies ─────────────────────────────────────────────
+
+function _createTradeShipMesh() {
+    const shipGroup = new THREE.Group();
+
+    // Sleek wedge hull
+    const hullShape = new THREE.Shape();
+    hullShape.moveTo(0, 0.12);
+    hullShape.lineTo(-0.08, -0.1);
+    hullShape.lineTo(0, -0.06);
+    hullShape.lineTo(0.08, -0.1);
+    hullShape.closePath();
+    const hullGeo = new THREE.ExtrudeGeometry(hullShape, {
+        depth: 0.04, bevelEnabled: false
+    });
+    hullGeo.center();
+    const hullMat = new THREE.MeshStandardMaterial({
+        color: 0x8899aa, metalness: 0.7, roughness: 0.3,
+        emissive: 0x112233, emissiveIntensity: 0.3
+    });
+    const hull = new THREE.Mesh(hullGeo, hullMat);
+    hull.rotation.x = Math.PI / 2;
+    shipGroup.add(hull);
+
+    // Engine glow at rear
+    const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0x00ccff,
+        transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    engineGlow.scale.set(0.35, 0.35, 1);
+    engineGlow.position.set(0, 0, -0.12);
+    shipGroup.add(engineGlow);
+
+    // Trail anchor for particle emission
+    const trailAnchor = new THREE.Object3D();
+    trailAnchor.position.set(0, 0, -0.18);
+    shipGroup.add(trailAnchor);
+
+    // Nav running lights
+    const navL = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff3333,
+        transparent: true, opacity: 0.4,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    navL.scale.set(0.08, 0.08, 1);
+    navL.position.set(-0.09, 0, 0);
+    shipGroup.add(navL);
+
+    const navR = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0x33ff33,
+        transparent: true, opacity: 0.4,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    navR.scale.set(0.08, 0.08, 1);
+    navR.position.set(0.09, 0, 0);
+    shipGroup.add(navR);
+
+    return { shipGroup, engineGlow, trailAnchor };
+}
+
+export function buildTradeRoutes(group) {
+    // Remove existing trade ships
+    _tradeShips.forEach(ts => {
+        if (ts.mesh.parent) ts.mesh.parent.remove(ts.mesh);
+    });
+    _tradeShips = [];
+
+    // Find colonized planet meshes in this system
+    const colonyMeshes = planetMeshes.filter(m => gameState.colonies[m.userData.id]);
+    if (colonyMeshes.length < 2) return;
+
+    // Build routes between colony pairs (limit to avoid clutter)
+    const pairs = [];
+    for (let i = 0; i < colonyMeshes.length; i++) {
+        for (let j = i + 1; j < colonyMeshes.length; j++) {
+            pairs.push([colonyMeshes[i], colonyMeshes[j]]);
+        }
+    }
+
+    // Cap at 6 routes max
+    const routes = pairs.slice(0, 6);
+
+    routes.forEach(([meshA, meshB]) => {
+        // 2-3 ships per route, staggered
+        const shipsPerRoute = 2 + (Math.random() > 0.5 ? 1 : 0);
+        for (let s = 0; s < shipsPerRoute; s++) {
+            const { shipGroup, engineGlow, trailAnchor } = _createTradeShipMesh();
+            const scale = 0.8 + Math.random() * 0.5;
+            shipGroup.scale.setScalar(scale);
+            group.add(shipGroup);
+
+            // Alternate direction: even ships go A→B, odd go B→A
+            const goingForward = s % 2 === 0;
+
+            _tradeShips.push({
+                mesh: shipGroup,
+                engineGlow,
+                trailAnchor,
+                fromMesh: goingForward ? meshA : meshB,
+                toMesh: goingForward ? meshB : meshA,
+                progress: s / shipsPerRoute,  // stagger start
+                speed: 0.06 + Math.random() * 0.03,  // full trip in ~15-20s
+                arcHeight: 3 + Math.random() * 4,
+                lateralOffset: (Math.random() - 0.5) * 2,
+                _prevPos: new THREE.Vector3()
+            });
+        }
+    });
+}
+
 export function updateSystemAnimations(time, dt, group) {
-    // Init trail pool on first animation tick if satellites exist and not yet inited
-    if (!_trailInited && _colonySatellites.length > 0 && group) {
+    // Init trail pool on first animation tick if satellites or trade ships exist
+    if (!_trailInited && (_colonySatellites.length > 0 || _tradeShips.length > 0) && group) {
         _initSatTrailPool(group);
     }
 
@@ -1025,6 +1144,74 @@ export function updateSystemAnimations(time, dt, group) {
                 _spawnSatTrail(
                     _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
                     -dx * 2, -dy * 2, -dz * 2
+                );
+            }
+        }
+    });
+
+    // ── Animate trade ships ─────────────────────────────────────────────────
+    _tradeShips.forEach(ts => {
+        ts.progress += ts.speed * dt;
+        if (ts.progress >= 1) {
+            // Swap direction — ship loops back
+            const tmp = ts.fromMesh;
+            ts.fromMesh = ts.toMesh;
+            ts.toMesh = tmp;
+            ts.progress -= 1;
+        }
+
+        // Get current planet world positions
+        _shipTmpFrom.copy(ts.fromMesh.position);
+        _shipTmpTo.copy(ts.toMesh.position);
+
+        // Cubic ease for smooth acceleration/deceleration
+        const t = ts.progress;
+        const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+        // Lerp along the route with an arc
+        ts.mesh.position.lerpVectors(_shipTmpFrom, _shipTmpTo, eased);
+
+        // Arc height peaks at midpoint
+        const arcT = Math.sin(t * Math.PI);
+        ts.mesh.position.y += arcT * ts.arcHeight;
+
+        // Lateral offset for visual separation between ships on same route
+        const midX = (_shipTmpTo.z - _shipTmpFrom.z);
+        const midZ = -(_shipTmpTo.x - _shipTmpFrom.x);
+        const lateralLen = Math.sqrt(midX * midX + midZ * midZ);
+        if (lateralLen > 0.01) {
+            ts.mesh.position.x += (midX / lateralLen) * ts.lateralOffset * arcT;
+            ts.mesh.position.z += (midZ / lateralLen) * ts.lateralOffset * arcT;
+        }
+
+        // Face direction of travel
+        _shipTmpDir.copy(_shipTmpTo).sub(_shipTmpFrom).normalize();
+        if (_shipTmpDir.lengthSq() > 0.001) {
+            ts.mesh.lookAt(
+                ts.mesh.position.x + _shipTmpDir.x,
+                ts.mesh.position.y + _shipTmpDir.y * 0.3,
+                ts.mesh.position.z + _shipTmpDir.z
+            );
+        }
+
+        // Engine glow pulse
+        if (ts.engineGlow) {
+            ts.engineGlow.material.opacity = 0.5 + 0.25 * Math.sin(time * 8 + ts.progress * 20);
+        }
+
+        // Spawn trail particles
+        if (ts.trailAnchor && _trailInited) {
+            ts.trailAnchor.getWorldPosition(_trailWorldPos);
+            const dx = _trailWorldPos.x - ts._prevPos.x;
+            const dy = _trailWorldPos.y - ts._prevPos.y;
+            const dz = _trailWorldPos.z - ts._prevPos.z;
+            const hasValid = ts._prevPos.lengthSq() > 0.001;
+            ts._prevPos.copy(_trailWorldPos);
+
+            if (hasValid && Math.random() < 0.6) {
+                _spawnSatTrail(
+                    _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
+                    -dx * 1.5, -dy * 1.5, -dz * 1.5
                 );
             }
         }
