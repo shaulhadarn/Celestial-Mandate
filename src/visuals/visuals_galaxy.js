@@ -589,8 +589,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
           break;
         default:
           tex = textures.barren;
-          emissiveColor = 0x111111;
-          emissiveIntensity = 0.15;
+          emissiveColor = 0x221a0e;
+          emissiveIntensity = 0.3;
       }
 
       const pSegs = isMobileDevice ? 16 : 24;
@@ -613,7 +613,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
           'Desert': 0xddaa44, 'Arid': 0xddaa44,
           'Ice': 0x88ccff, 'Arctic': 0x88ccff, 'Frozen': 0x88ccff,
           'Tomb': 0x44ff88, 'Toxic': 0x44ff44,
-          'Barren': 0x887766, 'Rocky': 0x887766,
+          'Barren': 0xccaa77, 'Rocky': 0xccaa77,
         };
         const atmoColor = atmoColors[p.type] || 0x887766;
         const hasThickAtmo = ['Terran','Continental','Ocean','Gas Giant'].includes(p.type);

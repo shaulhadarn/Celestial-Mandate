@@ -458,8 +458,9 @@ export function createSystemVisuals(system, group) {
                 break;
             default: // Barren
                 tex = textures.barren;
-                emissiveColor = 0x111111;
-                emissiveIntensity = 0.1;
+                atmosphereColor = 0xccaa77;
+                emissiveColor = 0x221a0e;
+                emissiveIntensity = 0.25;
         }
 
         // Higher resolution geometry — 48 on mobile for smooth edges, 96 on desktop
