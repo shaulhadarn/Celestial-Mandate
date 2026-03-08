@@ -135,12 +135,16 @@ function focusHome(homeSystem, homePlanet, useWarp = false) {
           const uiLayer = document.getElementById('ui-layer');
           if (uiLayer) uiLayer.style.opacity = '0';
 
-          // Play warp animation, set up system view behind it, then reveal
-          playWarpAnimation().then(() => {
-            enterSystemView(homeSystem.id, true);
-            selectSystem(homeSystem.id);
-            if (homePlanet) selectPlanet(homePlanet.id);
-            // Fade UI back in
+          // Play warp animation — onFlash fires at peak white so we
+          // set up the 3D scene behind the overlay before it dissolves
+          playWarpAnimation({
+            onFlash: () => {
+              enterSystemView(homeSystem.id, true);
+              selectSystem(homeSystem.id);
+              if (homePlanet) selectPlanet(homePlanet.id);
+            }
+          }).then(() => {
+            // Warp overlay is gone — fade UI in
             if (uiLayer) {
               uiLayer.style.transition = 'opacity 0.6s ease';
               uiLayer.style.opacity = '1';

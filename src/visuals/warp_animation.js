@@ -1,93 +1,117 @@
 /**
  * Warp Drive Animation
- * Full-screen canvas overlay that renders a starfield warp tunnel effect.
- * Stars accelerate from center outward into radial streaks, ending in a bright flash.
+ * Cinematic full-screen canvas overlay: stars stretch into chromatic streaks,
+ * tunnel walls close in, a blinding flash whites out, then dissolves to reveal
+ * the destination system beneath.
+ *
+ * Emits a 'warp-flash' callback at peak brightness so the caller can prepare
+ * the scene behind the overlay before the dissolve begins.
  */
 
-const STAR_COUNT = 600;
-const DURATION_MS = 2800;
+const STAR_COUNT = 800;
+const DURATION_MS = 3400;
 
-// Phases (normalized 0–1)
-const PHASE_DRIFT = 0.15;    // gentle drift
-const PHASE_ACCEL = 0.55;    // warp acceleration
-const PHASE_PEAK  = 0.80;    // full warp speed
-// 0.80–1.0 = flash & fade out
+// Phase boundaries (normalised 0–1)
+const P_IDLE   = 0.08;   // stars visible, barely moving
+const P_ENGAGE = 0.18;   // engines spool — rumble + acceleration
+const P_WARP   = 0.62;   // full hyperspace streaks
+const P_FLASH  = 0.78;   // blinding white flash begins
+const P_HOLD   = 0.88;   // hold white — caller sets up scene here
+// 0.88–1.0 = dissolve white → transparent, revealing scene beneath
 
-export function playWarpAnimation() {
+/**
+ * @param {Object}   opts
+ * @param {Function} opts.onFlash  Called once at peak flash so the caller
+ *                                 can set up the 3D scene behind the overlay.
+ * @returns {Promise} Resolves when the overlay is fully transparent and removed.
+ */
+export function playWarpAnimation({ onFlash } = {}) {
     return new Promise(resolve => {
         const canvas = document.createElement('canvas');
         canvas.id = 'warp-canvas';
-        canvas.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            z-index: 99999; pointer-events: none;
-        `;
+        canvas.style.cssText =
+            'position:fixed;top:0;left:0;width:100vw;height:100vh;' +
+            'z-index:99999;pointer-events:none;';
         document.body.appendChild(canvas);
 
         const ctx = canvas.getContext('2d');
-        let w, h, cx, cy;
+        let w, h, cx, cy, diag;
 
         function resize() {
-            w = canvas.width = window.innerWidth * window.devicePixelRatio;
-            h = canvas.height = window.innerHeight * window.devicePixelRatio;
+            const dpr = Math.min(window.devicePixelRatio, 2);
+            w = canvas.width  = Math.round(window.innerWidth  * dpr);
+            h = canvas.height = Math.round(window.innerHeight * dpr);
             cx = w / 2;
             cy = h / 2;
+            diag = Math.sqrt(cx * cx + cy * cy);
         }
         resize();
         window.addEventListener('resize', resize);
 
-        // Initialize stars with random positions in a circular field
+        // ── Star pool ───────────────────────────────────────────────────────
         const stars = [];
-        for (let i = 0; i < STAR_COUNT; i++) {
-            stars.push(resetStar({}));
-        }
+        for (let i = 0; i < STAR_COUNT; i++) stars.push(makeStar({}));
 
-        function resetStar(s) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * 0.3 + 0.01; // normalized distance from center
-            s.x = Math.cos(angle) * dist;
-            s.y = Math.sin(angle) * dist;
-            s.z = Math.random() * 1.0 + 0.5;
-            s.brightness = 0.4 + Math.random() * 0.6;
-            // Slight color variation: white to blue-white
-            const blue = 0.7 + Math.random() * 0.3;
-            s.r = 0.7 + Math.random() * 0.3;
-            s.g = 0.75 + Math.random() * 0.25;
-            s.b = blue;
+        function makeStar(s) {
+            const a = Math.random() * Math.PI * 2;
+            const d = Math.pow(Math.random(), 0.6) * 0.35 + 0.005;
+            s.x = Math.cos(a) * d;
+            s.y = Math.sin(a) * d;
+            s.z = 0.4 + Math.random() * 0.8;           // depth / speed factor
+            s.bri = 0.35 + Math.random() * 0.65;
             s.prevX = s.x;
             s.prevY = s.y;
+            // colour — mostly blue-white, occasional warm accent
+            if (Math.random() < 0.12) {
+                // warm star
+                s.r = 1.0; s.g = 0.78 + Math.random() * 0.15; s.b = 0.55 + Math.random() * 0.2;
+            } else {
+                s.r = 0.72 + Math.random() * 0.28;
+                s.g = 0.78 + Math.random() * 0.22;
+                s.b = 0.88 + Math.random() * 0.12;
+            }
             return s;
         }
 
-        const startTime = performance.now();
-        let animId;
+        let flashFired = false;
+        const t0 = performance.now();
 
+        // ── Frame loop ──────────────────────────────────────────────────────
         function frame(now) {
-            const elapsed = now - startTime;
-            const t = Math.min(elapsed / DURATION_MS, 1.0);
+            const t = Math.min((now - t0) / DURATION_MS, 1.0);
 
+            // -- background fade / trail ---
             ctx.globalCompositeOperation = 'source-over';
-            // Slight trail: darken previous frame instead of full clear
-            const trailAlpha = t < PHASE_DRIFT ? 0.4 : 0.12 + (1 - t) * 0.15;
-            ctx.fillStyle = `rgba(0, 2, 8, ${trailAlpha})`;
+            if (t < P_ENGAGE) {
+                ctx.fillStyle = 'rgba(1, 3, 8, 0.45)';
+            } else if (t < P_FLASH) {
+                // streaks persist longer the faster we go
+                const trailKeep = 0.06 + (1 - (t - P_ENGAGE) / (P_FLASH - P_ENGAGE)) * 0.18;
+                ctx.fillStyle = `rgba(1, 3, 8, ${trailKeep})`;
+            } else {
+                ctx.fillStyle = 'rgba(1, 3, 8, 0.55)';
+            }
             ctx.fillRect(0, 0, w, h);
 
-            // Speed curve: slow drift → exponential acceleration → peak
+            // -- speed curve ---
             let speed;
-            if (t < PHASE_DRIFT) {
-                speed = 0.002 + t / PHASE_DRIFT * 0.008;
-            } else if (t < PHASE_ACCEL) {
-                const at = (t - PHASE_DRIFT) / (PHASE_ACCEL - PHASE_DRIFT);
-                speed = 0.01 + at * at * at * 0.15;
-            } else if (t < PHASE_PEAK) {
-                const pt = (t - PHASE_ACCEL) / (PHASE_PEAK - PHASE_ACCEL);
-                speed = 0.16 + pt * 0.25;
+            if (t < P_IDLE) {
+                speed = 0.0015;
+            } else if (t < P_ENGAGE) {
+                const u = (t - P_IDLE) / (P_ENGAGE - P_IDLE);
+                speed = 0.0015 + u * u * 0.012;
+            } else if (t < P_WARP) {
+                const u = (t - P_ENGAGE) / (P_WARP - P_ENGAGE);
+                speed = 0.014 + u * u * u * 0.26;
+            } else if (t < P_FLASH) {
+                speed = 0.28 + ((t - P_WARP) / (P_FLASH - P_WARP)) * 0.18;
             } else {
-                speed = 0.41;
+                speed = 0.46;
             }
 
-            // Streak length scales with speed
-            const streakMul = t < PHASE_DRIFT ? 1.0 : 1.0 + speed * 40;
+            const streakMul = speed < 0.008 ? 1.0 : 1.0 + speed * 50;
 
+            // -- draw stars ---
             ctx.globalCompositeOperation = 'lighter';
 
             for (let i = 0; i < stars.length; i++) {
@@ -95,119 +119,147 @@ export function playWarpAnimation() {
                 s.prevX = s.x;
                 s.prevY = s.y;
 
-                // Move radially outward
                 const dist = Math.sqrt(s.x * s.x + s.y * s.y) || 0.001;
                 const nx = s.x / dist;
                 const ny = s.y / dist;
-                const moveSpeed = speed * (0.5 + dist * 2.0) * s.z;
-                s.x += nx * moveSpeed;
-                s.y += ny * moveSpeed;
+                s.x += nx * speed * (0.4 + dist * 2.5) * s.z;
+                s.y += ny * speed * (0.4 + dist * 2.5) * s.z;
 
-                // Screen coordinates
-                const sx = cx + s.x * w;
-                const sy = cy + s.y * h;
+                const sx  = cx + s.x * w;
+                const sy  = cy + s.y * h;
                 const spx = cx + s.prevX * w;
                 const spy = cy + s.prevY * h;
 
-                // Off screen? Reset
-                if (sx < -50 || sx > w + 50 || sy < -50 || sy > h + 50) {
-                    resetStar(s);
+                if (sx < -80 || sx > w + 80 || sy < -80 || sy > h + 80) {
+                    makeStar(s);
                     continue;
                 }
 
-                // Brightness increases during warp
-                const bri = Math.min(s.brightness * (0.6 + speed * 4), 1.0);
+                const bri = Math.min(s.bri * (0.5 + speed * 5), 1.0);
                 const r = Math.round(s.r * bri * 255);
                 const g = Math.round(s.g * bri * 255);
                 const b = Math.round(s.b * bri * 255);
 
                 if (streakMul > 1.5) {
-                    // Draw streak line
                     const dx = sx - spx;
                     const dy = sy - spy;
-                    const len = Math.sqrt(dx * dx + dy * dy);
-                    const streakLen = Math.min(len * streakMul, dist * w * 0.8);
-                    const endX = sx - (dx / (len || 1)) * streakLen;
-                    const endY = sy - (dy / (len || 1)) * streakLen;
+                    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const tail = Math.min(len * streakMul, dist * w * 0.9);
+                    const ux = dx / len;
+                    const uy = dy / len;
 
-                    const lineWidth = (0.5 + speed * 4) * s.z;
+                    const lw = Math.min((0.4 + speed * 5) * s.z, 6);
+
+                    // Chromatic fringe — slight red/blue offset at high speed
+                    if (speed > 0.1) {
+                        const fringe = lw * 0.6;
+                        // red fringe (outer)
+                        ctx.beginPath();
+                        ctx.moveTo(sx - ux * tail + uy * fringe, sy - uy * tail - ux * fringe);
+                        ctx.lineTo(sx + uy * fringe, sy - ux * fringe);
+                        ctx.strokeStyle = `rgba(255, ${Math.round(g * 0.5)}, ${Math.round(b * 0.3)}, ${bri * 0.25})`;
+                        ctx.lineWidth = lw * 0.5;
+                        ctx.stroke();
+                        // blue fringe (inner)
+                        ctx.beginPath();
+                        ctx.moveTo(sx - ux * tail - uy * fringe, sy - uy * tail + ux * fringe);
+                        ctx.lineTo(sx - uy * fringe, sy + ux * fringe);
+                        ctx.strokeStyle = `rgba(${Math.round(r * 0.3)}, ${Math.round(g * 0.5)}, 255, ${bri * 0.25})`;
+                        ctx.lineWidth = lw * 0.5;
+                        ctx.stroke();
+                    }
+
+                    // Main streak
                     ctx.beginPath();
-                    ctx.moveTo(endX, endY);
+                    ctx.moveTo(sx - ux * tail, sy - uy * tail);
                     ctx.lineTo(sx, sy);
-                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${bri * 0.9})`;
-                    ctx.lineWidth = lineWidth;
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${bri * 0.85})`;
+                    ctx.lineWidth = lw;
                     ctx.stroke();
 
-                    // Bright head
-                    if (speed > 0.05) {
+                    // Bright head dot
+                    if (speed > 0.03) {
                         ctx.beginPath();
-                        ctx.arc(sx, sy, lineWidth * 0.8, 0, Math.PI * 2);
-                        ctx.fillStyle = `rgba(${Math.min(r + 60, 255)}, ${Math.min(g + 60, 255)}, 255, ${bri})`;
+                        ctx.arc(sx, sy, lw * 0.7, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(${Math.min(r + 80, 255)}, ${Math.min(g + 80, 255)}, 255, ${bri})`;
                         ctx.fill();
                     }
                 } else {
-                    // Draw dot
-                    const radius = 1.0 + s.z * 1.5;
+                    const rad = 0.8 + s.z * 1.8;
                     ctx.beginPath();
-                    ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${bri})`;
+                    ctx.arc(sx, sy, rad, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${bri * 0.8})`;
                     ctx.fill();
                 }
             }
 
-            // Center glow during warp (engine core)
-            if (t > PHASE_DRIFT) {
-                const glowT = (t - PHASE_DRIFT) / (1 - PHASE_DRIFT);
-                const glowRadius = 30 + glowT * glowT * Math.min(w, h) * 0.15;
-                const glowAlpha = glowT * glowT * 0.3;
-                const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
-                gradient.addColorStop(0, `rgba(180, 220, 255, ${glowAlpha})`);
-                gradient.addColorStop(0.4, `rgba(80, 160, 255, ${glowAlpha * 0.5})`);
-                gradient.addColorStop(1, 'rgba(0, 40, 80, 0)');
+            // -- tunnel walls (edge darkening) ---
+            if (t > P_ENGAGE) {
+                const u = Math.min((t - P_ENGAGE) / (P_FLASH - P_ENGAGE), 1);
+                ctx.globalCompositeOperation = 'source-over';
+                const innerR = diag * (0.55 - u * 0.25);
+                const outerR = diag * 0.85;
+                const vig = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+                vig.addColorStop(0, 'rgba(0,0,0,0)');
+                vig.addColorStop(1, `rgba(0, 2, 12, ${0.3 + u * 0.5})`);
+                ctx.fillStyle = vig;
+                ctx.fillRect(0, 0, w, h);
+            }
+
+            // -- central engine glow ---
+            if (t > P_IDLE) {
+                const u = Math.min((t - P_IDLE) / (P_FLASH - P_IDLE), 1);
+                const radius = 20 + u * u * diag * 0.22;
+                const alpha = u * u * 0.35;
                 ctx.globalCompositeOperation = 'lighter';
-                ctx.fillStyle = gradient;
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                grad.addColorStop(0, `rgba(200, 230, 255, ${alpha})`);
+                grad.addColorStop(0.3, `rgba(80, 180, 255, ${alpha * 0.5})`);
+                grad.addColorStop(1, 'rgba(0, 40, 100, 0)');
+                ctx.fillStyle = grad;
                 ctx.fillRect(0, 0, w, h);
             }
 
-            // Vignette tunnel effect
-            if (t > PHASE_ACCEL) {
-                const vigT = (t - PHASE_ACCEL) / (1 - PHASE_ACCEL);
-                ctx.globalCompositeOperation = 'source-over';
-                const vigGrad = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.15, cx, cy, Math.min(w, h) * 0.7);
-                vigGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-                vigGrad.addColorStop(1, `rgba(0, 2, 10, ${vigT * 0.6})`);
-                ctx.fillStyle = vigGrad;
-                ctx.fillRect(0, 0, w, h);
-            }
+            // -- flash & dissolve ---
+            if (t >= P_FLASH) {
+                const flashU = (t - P_FLASH) / (P_HOLD - P_FLASH);
+                const holdU  = (t - P_HOLD)  / (1.0 - P_HOLD);
 
-            // Final flash
-            if (t > PHASE_PEAK) {
-                const flashT = (t - PHASE_PEAK) / (1 - PHASE_PEAK);
-                const flashAlpha = Math.pow(flashT, 2.5);
+                // Fire callback once at peak so caller prepares the scene
+                if (!flashFired && t >= P_HOLD) {
+                    flashFired = true;
+                    if (onFlash) onFlash();
+                }
+
                 ctx.globalCompositeOperation = 'source-over';
-                ctx.fillStyle = `rgba(220, 240, 255, ${flashAlpha})`;
-                ctx.fillRect(0, 0, w, h);
+
+                if (t < P_HOLD) {
+                    // Flash builds to full white
+                    const a = Math.pow(Math.min(flashU, 1), 2);
+                    ctx.fillStyle = `rgba(230, 242, 255, ${a})`;
+                    ctx.fillRect(0, 0, w, h);
+                } else {
+                    // Dissolve: white fades to transparent revealing the 3D scene
+                    const fadeOut = 1 - Math.pow(Math.min(holdU, 1), 0.45);
+                    ctx.clearRect(0, 0, w, h);
+                    ctx.fillStyle = `rgba(230, 242, 255, ${fadeOut})`;
+                    ctx.fillRect(0, 0, w, h);
+                }
             }
 
             if (t < 1.0) {
-                animId = requestAnimationFrame(frame);
+                requestAnimationFrame(frame);
             } else {
-                // Hold white briefly then clean up
+                // Clean up
                 window.removeEventListener('resize', resize);
-                // Fade out the canvas
-                canvas.style.transition = 'opacity 0.5s ease';
-                canvas.style.opacity = '0';
-                setTimeout(() => {
-                    canvas.remove();
-                    resolve();
-                }, 500);
+                canvas.remove();
+                resolve();
             }
         }
 
-        // Start with black canvas
-        ctx.fillStyle = '#000208';
+        // Initialise to black
+        ctx.fillStyle = '#010308';
         ctx.fillRect(0, 0, w, h);
-
-        animId = requestAnimationFrame(frame);
+        requestAnimationFrame(frame);
     });
 }
