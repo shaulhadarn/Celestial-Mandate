@@ -761,7 +761,7 @@ function tickPirateRaids() {
 
     // Reset with randomness
     pb.raidTimer = 0;
-    pb.raidInterval = 12 + Math.floor(Math.random() * 7);
+    pb.raidInterval = 25 + Math.floor(Math.random() * 15);
 }
 
 // ── Pirate Battle Resolution ─────────────────────────────────────────────────

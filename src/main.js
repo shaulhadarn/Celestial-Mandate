@@ -93,7 +93,7 @@ function startGame(playerCiv) {
       systemId: 0,
       power: 5,
       raidTimer: 0,
-      raidInterval: 15,
+      raidInterval: 30,
       defeated: false,
       battleInProgress: false
     };
