@@ -71,185 +71,292 @@ export function createHullTexture() {
 
 export function createProceduralPlanetTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 512;
+    canvas.width = 2048;
+    canvas.height = 1024;
     const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
 
-    // Base Deep Blue "Ocean"
-    ctx.fillStyle = '#001a33';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Deep ocean base
+    ctx.fillStyle = '#0a1628';
+    ctx.fillRect(0, 0, W, H);
 
-    // Continent colors: various shades of darker and medium blue
-    const landColors = ['#002244', '#003366', '#004080', '#0059b3'];
-    
-    // 1. Generate irregular continents using clusters of blobs
-    const continentCount = 6;
+    // Helper: draw blob with horizontal wrapping
+    const drawBlob = (bx, by, br, style) => {
+        ctx.fillStyle = style;
+        for (const ox of [0, -W, W]) {
+            ctx.beginPath();
+            ctx.arc(bx + ox, by, br, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    };
+
+    // 1. Ocean depth variation — dark blues and teals
+    const oceanColors = ['#0c1e38', '#0e2440', '#0a2035', '#102a48', '#08283a'];
+    for (let i = 0; i < 40; i++) {
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        const r = 60 + Math.random() * 140;
+        drawBlob(x, y, r, oceanColors[Math.floor(Math.random() * oceanColors.length)]);
+    }
+
+    // 2. Continental landmasses — earth tones (browns, tans, greens)
+    const continentPalettes = [
+        ['#3d5a2e', '#4a6b35', '#2d4a22', '#5a7845'],  // temperate green
+        ['#6b5a3e', '#7a684a', '#8c7856', '#5a4a32'],   // desert/arid brown
+        ['#4a5a4a', '#3a4e3a', '#556b55', '#2e3e2e'],   // dark forest
+        ['#7a6850', '#8a7860', '#6a5840', '#9a8868'],    // sandy/savanna
+    ];
+
+    const continentCount = 7;
     for (let c = 0; c < continentCount; c++) {
-        const centerX = Math.random() * canvas.width;
-        const centerY = Math.random() * canvas.height;
-        const landSize = 10 + Math.random() * 15; // Number of blobs per continent
-        const baseHue = landColors[Math.floor(Math.random() * landColors.length)];
+        const centerX = Math.random() * W;
+        const centerY = H * 0.15 + Math.random() * H * 0.7;
+        const palette = continentPalettes[Math.floor(Math.random() * continentPalettes.length)];
+        const blobCount = 12 + Math.random() * 18;
+        const spreadX = 100 + Math.random() * 120;
+        const spreadY = 60 + Math.random() * 80;
 
-        for (let i = 0; i < landSize; i++) {
-            const x = centerX + (Math.random() - 0.5) * 150;
-            const y = centerY + (Math.random() - 0.5) * 100;
-            const r = 20 + Math.random() * 60;
-            
-            ctx.fillStyle = baseHue;
-            
-            // Draw blob with horizontal wrapping
-            const drawBlob = (bx, by, br) => {
-                ctx.beginPath();
-                ctx.arc(bx, by, br, 0, Math.PI * 2);
-                ctx.fill();
-                // Wrap left
-                ctx.beginPath();
-                ctx.arc(bx - canvas.width, by, br, 0, Math.PI * 2);
-                ctx.fill();
-                // Wrap right
-                ctx.beginPath();
-                ctx.arc(bx + canvas.width, by, br, 0, Math.PI * 2);
-                ctx.fill();
-            };
+        for (let i = 0; i < blobCount; i++) {
+            const x = centerX + (Math.random() - 0.5) * spreadX;
+            const y = centerY + (Math.random() - 0.5) * spreadY;
+            const r = 15 + Math.random() * 55;
+            drawBlob(x, y, r, palette[Math.floor(Math.random() * palette.length)]);
+        }
 
-            drawBlob(x, y, r);
+        // Add terrain detail within continents
+        for (let i = 0; i < blobCount * 2; i++) {
+            const x = centerX + (Math.random() - 0.5) * spreadX * 0.9;
+            const y = centerY + (Math.random() - 0.5) * spreadY * 0.9;
+            const r = 5 + Math.random() * 20;
+            const shade = palette[Math.floor(Math.random() * palette.length)];
+            const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+            grad.addColorStop(0, shade);
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            for (const ox of [0, -W, W]) {
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(x + ox, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
     }
 
-    // 2. Add "Special Areas" (Lighter blue plateaus or energy cracks)
-    for (let i = 0; i < 150; i++) {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-        const r = Math.random() * 15 + 2;
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        
-        // Brighter electric blue for highlights
-        g.addColorStop(0, 'rgba(0, 242, 255, 0.4)');
-        g.addColorStop(1, 'rgba(0, 242, 255, 0)');
-        
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Wrap highlights
-        if (x + r > canvas.width) {
+    // 3. Ice caps at poles
+    for (let pole = 0; pole < 2; pole++) {
+        const py = pole === 0 ? 0 : H;
+        for (let i = 0; i < 20; i++) {
+            const x = Math.random() * W;
+            const y = py + (pole === 0 ? 1 : -1) * Math.random() * 50;
+            const r = 20 + Math.random() * 50;
+            const alpha = 0.15 + Math.random() * 0.2;
+            drawBlob(x, y, r, `rgba(200, 220, 240, ${alpha})`);
+        }
+    }
+
+    // 4. Coastal shallows — lighter blue-green near land edges
+    for (let i = 0; i < 100; i++) {
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        const r = Math.random() * 25 + 5;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, 'rgba(30, 80, 100, 0.25)');
+        grad.addColorStop(1, 'rgba(20, 60, 80, 0)');
+        for (const ox of [0, -W, W]) {
+            ctx.fillStyle = grad;
             ctx.beginPath();
-            ctx.arc(x - canvas.width, y, r, 0, Math.PI * 2);
-            ctx.fill();
-        } else if (x - r < 0) {
-            ctx.beginPath();
-            ctx.arc(x + canvas.width, y, r, 0, Math.PI * 2);
+            ctx.arc(x + ox, y, r, 0, Math.PI * 2);
             ctx.fill();
         }
     }
 
-    // 3. Add fine detail / noise for texture depth
-    for (let i = 0; i < 500; i++) {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)';
+    // 5. Mountain highlights — lighter streaks on landmasses
+    for (let i = 0; i < 80; i++) {
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        const r = Math.random() * 12 + 3;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, 'rgba(180, 170, 150, 0.3)');
+        grad.addColorStop(1, 'rgba(160, 150, 130, 0)');
+        for (const ox of [0, -W, W]) {
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x + ox, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // 6. Fine detail noise
+    for (let i = 0; i < 1200; i++) {
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        const bright = Math.random() > 0.5;
+        ctx.fillStyle = bright ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.08)';
         ctx.fillRect(x, y, 2, 2);
     }
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.minFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
     return tex;
 }
 
 export function createProceduralCloudTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 512;
+    canvas.width = 2048;
+    canvas.height = 1024;
     const ctx = canvas.getContext('2d');
-    
-    // Transparent base
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width;
+    const H = canvas.height;
 
-    // Reduced cloud density and opacity to ensure surface visibility
-    for (let i = 0; i < 60; i++) {
-        const x = Math.random() * canvas.width;
-        const y = (Math.random() * 0.7 + 0.15) * canvas.height;
-        const r = Math.random() * 60 + 20;
-        const opacity = Math.random() * 0.25; // Lower opacity
-        
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    // Transparent base
+    ctx.clearRect(0, 0, W, H);
+
+    // Large weather systems — wispy, stretched cloud bands
+    for (let i = 0; i < 25; i++) {
+        const x = Math.random() * W;
+        const y = (Math.random() * 0.6 + 0.2) * H;
+        const rx = 60 + Math.random() * 120;
+        const ry = 20 + Math.random() * 40;
+        const opacity = 0.08 + Math.random() * 0.15;
+        const rotation = (Math.random() - 0.5) * 0.4;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rotation);
+
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
         g.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
-        g.addColorStop(0.4, `rgba(200, 240, 255, ${opacity * 0.6})`); // Light blue tint
-        g.addColorStop(1, 'rgba(230, 250, 255, 0)');
-        
+        g.addColorStop(0.3, `rgba(230, 245, 255, ${opacity * 0.7})`);
+        g.addColorStop(1, 'rgba(240, 250, 255, 0)');
+
         ctx.fillStyle = g;
         ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
 
-        // Pixel-perfect horizontal wrapping for seamless rotation
-        if (x + r > canvas.width) {
+        // Wrap
+        for (const ox of [-W, W]) {
+            ctx.save();
+            ctx.translate(x + ox, y);
+            ctx.rotate(rotation);
+            ctx.fillStyle = g;
             ctx.beginPath();
-            ctx.arc(x - canvas.width, y, r, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
             ctx.fill();
-        } else if (x - r < 0) {
+            ctx.restore();
+        }
+    }
+
+    // Smaller cloud puffs for detail
+    for (let i = 0; i < 50; i++) {
+        const x = Math.random() * W;
+        const y = (Math.random() * 0.7 + 0.15) * H;
+        const r = Math.random() * 40 + 12;
+        const opacity = Math.random() * 0.18;
+
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
+        g.addColorStop(0.5, `rgba(220, 242, 255, ${opacity * 0.5})`);
+        g.addColorStop(1, 'rgba(240, 250, 255, 0)');
+
+        ctx.fillStyle = g;
+        for (const ox of [0, -W, W]) {
             ctx.beginPath();
-            ctx.arc(x + canvas.width, y, r, 0, Math.PI * 2);
+            ctx.arc(x + ox, y, r, 0, Math.PI * 2);
             ctx.fill();
         }
     }
-    
+
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.minFilter = THREE.LinearFilter; // Ensure smooth interpolation across the seam
+    tex.minFilter = THREE.LinearFilter;
     return tex;
 }
 
 export function createProceduralCityLightsTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 512;
+    canvas.width = 2048;
+    canvas.height = 1024;
     const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'lighter';
 
     const drawCluster = (x, y, radius, color) => {
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
         gradient.addColorStop(0, color);
-        gradient.addColorStop(0.35, color);
+        gradient.addColorStop(0.3, color);
+        gradient.addColorStop(0.7, color.replace(/[\d.]+\)$/, m => (parseFloat(m) * 0.4).toFixed(2) + ')'));
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
+        for (const ox of [0, -W, W]) {
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x + ox, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
     };
 
-    const clusterCount = 260;
-    for (let i = 0; i < clusterCount; i++) {
-        const x = Math.random() * canvas.width;
-        const latitudeBias = (Math.random() * 0.56 + 0.22) * canvas.height;
-        const y = latitudeBias + (Math.random() - 0.5) * 90;
-        const radius = 4 + Math.random() * 20;
-        const isCool = Math.random() > 0.7;
+    // Large metropolitan regions — bright cores
+    for (let i = 0; i < 35; i++) {
+        const x = Math.random() * W;
+        const y = (Math.random() * 0.5 + 0.25) * H;
+        const radius = 18 + Math.random() * 35;
+        const alpha = 0.4 + Math.random() * 0.35;
+        const isCool = Math.random() > 0.75;
         const color = isCool
-            ? `rgba(110, ${200 + Math.random() * 30}, 255, ${0.18 + Math.random() * 0.18})`
-            : `rgba(255, ${170 + Math.random() * 55}, ${95 + Math.random() * 40}, ${0.22 + Math.random() * 0.22})`;
-
+            ? `rgba(140, 220, 255, ${alpha})`
+            : `rgba(255, ${200 + Math.random() * 40}, ${130 + Math.random() * 40}, ${alpha})`;
         drawCluster(x, y, radius, color);
-        drawCluster(x - canvas.width, y, radius, color);
-        drawCluster(x + canvas.width, y, radius, color);
     }
 
-    for (let i = 0; i < 1800; i++) {
-        const x = Math.random() * canvas.width;
-        const y = (Math.random() * 0.64 + 0.18) * canvas.height;
-        const alpha = 0.12 + Math.random() * 0.35;
-        const size = Math.random() > 0.82 ? 2 : 1;
-        const fill = Math.random() > 0.76
-            ? `rgba(140, 220, 255, ${alpha * 0.9})`
-            : `rgba(255, ${190 + Math.random() * 40}, ${120 + Math.random() * 40}, ${alpha})`;
+    // Medium city clusters
+    const clusterCount = 380;
+    for (let i = 0; i < clusterCount; i++) {
+        const x = Math.random() * W;
+        const latitudeBias = (Math.random() * 0.56 + 0.22) * H;
+        const y = latitudeBias + (Math.random() - 0.5) * 110;
+        const radius = 4 + Math.random() * 18;
+        const isCool = Math.random() > 0.65;
+        const color = isCool
+            ? `rgba(120, ${210 + Math.random() * 40}, 255, ${0.22 + Math.random() * 0.25})`
+            : `rgba(255, ${180 + Math.random() * 55}, ${100 + Math.random() * 50}, ${0.28 + Math.random() * 0.3})`;
+        drawCluster(x, y, radius, color);
+    }
+
+    // Connected highway/transport lines between clusters
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 60; i++) {
+        const x1 = Math.random() * W;
+        const y1 = (Math.random() * 0.5 + 0.25) * H;
+        const x2 = x1 + (Math.random() - 0.5) * 200;
+        const y2 = y1 + (Math.random() - 0.5) * 80;
+        const alpha = 0.06 + Math.random() * 0.08;
+        ctx.strokeStyle = `rgba(255, 210, 140, ${alpha})`;
+        ctx.lineWidth = 0.5 + Math.random() * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    }
+
+    // Individual bright dots — towns and villages
+    for (let i = 0; i < 3500; i++) {
+        const x = Math.random() * W;
+        const y = (Math.random() * 0.64 + 0.18) * H;
+        const alpha = 0.15 + Math.random() * 0.5;
+        const size = Math.random() > 0.85 ? 2 : 1;
+        const fill = Math.random() > 0.7
+            ? `rgba(160, 230, 255, ${alpha * 0.85})`
+            : `rgba(255, ${200 + Math.random() * 40}, ${130 + Math.random() * 40}, ${alpha})`;
 
         ctx.fillStyle = fill;
         ctx.fillRect(x, y, size, size);
@@ -258,8 +365,9 @@ export function createProceduralCityLightsTexture() {
     const tex = new THREE.CanvasTexture(canvas);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.minFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = true;
     return tex;
 }
 

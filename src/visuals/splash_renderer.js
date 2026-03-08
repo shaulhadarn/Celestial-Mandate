@@ -22,6 +22,7 @@ let clouds;
 let cityLights;
 let moon;
 let atmosphere;
+let atmosphereEdge;
 let innerGlow;
 let coronaGlow;
 let outerGlow;
@@ -102,6 +103,7 @@ export function initSplashPlanet(containerId) {
     clouds = planetGroup.clouds;
     cityLights = planetGroup.cityLights;
     atmosphere = planetGroup.atmosphere;
+    atmosphereEdge = planetGroup.atmosphereEdge;
     innerGlow = planetGroup.innerGlow;
     coronaGlow = planetGroup.coronaGlow;
     outerGlow = planetGroup.outerGlow;
@@ -109,6 +111,7 @@ export function initSplashPlanet(containerId) {
     splashLights = setupSplashLighting(scene, compactScene);
     lightDirection.copy(splashLights.sunLight.position).normalize();
     atmosphere.material.uniforms.uLightDirection.value.copy(lightDirection);
+    atmosphereEdge.material.uniforms.uLightDirection.value.copy(lightDirection);
     cityLights.material.uniforms.uLightDirection.value.copy(lightDirection);
 
     const background = buildSpaceBackground(scene, glowTex, compactScene);
@@ -157,6 +160,11 @@ export function initSplashPlanet(containerId) {
             atmosphere.rotation.y += 0.01 * dt;
             atmosphere.material.uniforms.uTime.value = timeSeconds;
             atmosphere.material.uniforms.uOpacity.value = globalFade * (0.94 + Math.sin(timeSeconds * 0.45) * 0.06);
+        }
+        if (atmosphereEdge) {
+            atmosphereEdge.rotation.y += 0.01 * dt;
+            atmosphereEdge.material.uniforms.uTime.value = timeSeconds;
+            atmosphereEdge.material.uniforms.uOpacity.value = globalFade * (0.92 + Math.sin(timeSeconds * 0.55 + 0.5) * 0.08);
         }
         if (cityLights) {
             cityLights.material.uniforms.uTime.value = timeSeconds;
@@ -563,6 +571,7 @@ function applyPlanetLayout(compactScene) {
 
     planet.position.set(px, py, 0);
     if (atmosphere) atmosphere.position.copy(planet.position);
+    if (atmosphereEdge) atmosphereEdge.position.copy(planet.position);
 
     [innerGlow, coronaGlow, outerGlow].forEach((glow) => {
         if (!glow) return;
@@ -658,6 +667,7 @@ export function stopSplashPlanet() {
     cityLights = null;
     moon = null;
     atmosphere = null;
+    atmosphereEdge = null;
     innerGlow = null;
     coronaGlow = null;
     outerGlow = null;

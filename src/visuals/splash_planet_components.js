@@ -1,4 +1,4 @@
-/* Updated: Premium splash planet shading with city lights, richer clouds, and cinematic atmosphere */
+/* Updated: Stellaris-quality planet with rich atmosphere, bright city lights, and tight atmospheric glow */
 import * as THREE from 'three';
 import {
     createProceduralPlanetTexture,
@@ -10,7 +10,7 @@ import {
  * Constructs the core planetary body, cloud layer, atmosphere shader, and glow sprites.
  */
 export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile) {
-    const segments = isMobile ? 40 : 72;
+    const segments = isMobile ? 48 : 80;
     const { softGlowTex, glowTex } = haloTextures;
 
     const planetTex = createProceduralPlanetTexture();
@@ -31,22 +31,24 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     cityLightsTex.magFilter = THREE.LinearFilter;
     cityLightsTex.colorSpace = THREE.SRGBColorSpace;
 
+    // ── Planet surface ──
     const geometry = new THREE.SphereGeometry(5, segments, segments);
     const material = new THREE.MeshPhysicalMaterial({
         map: planetTex,
-        roughness: 0.72,
-        metalness: 0.04,
-        clearcoat: 0.28,
-        clearcoatRoughness: 0.78,
-        emissive: new THREE.Color(0x03121e),
-        emissiveIntensity: 0.3,
+        roughness: 0.68,
+        metalness: 0.05,
+        clearcoat: 0.2,
+        clearcoatRoughness: 0.7,
+        emissive: new THREE.Color(0x050a12),
+        emissiveIntensity: 0.15,
         transparent: true,
         opacity: 0
     });
     const planet = new THREE.Mesh(geometry, material);
     scene.add(planet);
 
-    const cloudGeo = new THREE.SphereGeometry(5.08, segments, segments);
+    // ── Cloud layer ──
+    const cloudGeo = new THREE.SphereGeometry(5.06, segments, segments);
     const cloudMat = new THREE.MeshStandardMaterial({
         map: cloudTex,
         transparent: true,
@@ -54,21 +56,22 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
         depthWrite: false,
         roughness: 0.98,
         metalness: 0.0,
-        color: 0xe4f5ff
+        color: 0xdceeff
     });
     const clouds = new THREE.Mesh(cloudGeo, cloudMat);
     planet.add(clouds);
 
+    // ── City lights shader — bright on dark side ──
     const cityLights = new THREE.Mesh(
-        new THREE.SphereGeometry(5.025, segments, segments),
+        new THREE.SphereGeometry(5.02, segments, segments),
         new THREE.ShaderMaterial({
             uniforms: {
                 uOpacity: { value: 0.0 },
                 uTime: { value: 0.0 },
                 uLightDirection: { value: new THREE.Vector3(0.8, 0.3, 0.55).normalize() },
                 uLightsMap: { value: cityLightsTex },
-                uWarmColor: { value: new THREE.Color(0xffc87a) },
-                uCoolColor: { value: new THREE.Color(0x74d7ff) }
+                uWarmColor: { value: new THREE.Color(0xffcc88) },
+                uCoolColor: { value: new THREE.Color(0x88d8ff) }
             },
             vertexShader: `
                 varying vec2 vUv;
@@ -94,16 +97,29 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
                 varying vec3 vViewDir;
                 void main() {
                     vec3 lightDir = normalize(uLightDirection);
+                    vec3 normal = normalize(vWorldNormal);
                     vec4 lightSample = texture2D(uLightsMap, vUv);
                     float luminance = dot(lightSample.rgb, vec3(0.299, 0.587, 0.114));
-                    float nightMask = pow(max(dot(normalize(vWorldNormal), -lightDir), 0.0), 1.85);
-                    float rim = pow(1.0 - max(dot(normalize(vWorldNormal), normalize(vViewDir)), 0.0), 2.5);
-                    float shimmer = 0.84 + 0.16 * sin(uTime * 1.7 + vUv.x * 45.0 + vUv.y * 30.0);
-                    vec3 mappedColor = mix(uWarmColor, uCoolColor, clamp(lightSample.b * 1.2, 0.0, 1.0));
-                    vec3 finalColor = mix(mappedColor, lightSample.rgb, 0.55);
-                    float alpha = max(lightSample.a, luminance) * nightMask * shimmer * (0.58 + rim * 0.65) * uOpacity;
+
+                    // Strong night mask — lights visible deep into dark side
+                    float sunDot = dot(normal, -lightDir);
+                    float nightMask = smoothstep(-0.1, 0.45, sunDot);
+
+                    // Subtle rim glow on city lights
+                    float rim = pow(1.0 - max(dot(normal, normalize(vViewDir)), 0.0), 2.0);
+
+                    // Shimmer effect
+                    float shimmer = 0.88 + 0.12 * sin(uTime * 2.0 + vUv.x * 50.0 + vUv.y * 35.0);
+
+                    // Color mapping
+                    vec3 mappedColor = mix(uWarmColor, uCoolColor, clamp(lightSample.b * 1.3, 0.0, 1.0));
+                    vec3 finalColor = mix(mappedColor, lightSample.rgb * 1.5, 0.4);
+
+                    // Boost brightness
+                    float intensity = max(lightSample.a, luminance);
+                    float alpha = intensity * nightMask * shimmer * (0.7 + rim * 0.5) * uOpacity * 1.4;
                     if (alpha < 0.01) discard;
-                    gl_FragColor = vec4(finalColor, alpha);
+                    gl_FragColor = vec4(finalColor, clamp(alpha, 0.0, 1.0));
                 }
             `,
             transparent: true,
@@ -113,15 +129,16 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     );
     planet.add(cityLights);
 
-    const atmoGeo = new THREE.SphereGeometry(5.42, segments, segments);
+    // ── Atmosphere shader — tight, bright Fresnel rim with day/twilight/night coloring ──
+    const atmoGeo = new THREE.SphereGeometry(5.28, segments, segments);
     const atmoMat = new THREE.ShaderMaterial({
         uniforms: {
             uOpacity: { value: 0.0 },
             uTime: { value: 0.0 },
             uLightDirection: { value: new THREE.Vector3(0.8, 0.3, 0.55).normalize() },
-            colorDay: { value: new THREE.Color(0x2aa8ff) },
-            colorTwilight: { value: new THREE.Color(0xff8d59) },
-            colorNight: { value: new THREE.Color(0x00e1ff) }
+            colorDay: { value: new THREE.Color(0x4db8ff) },
+            colorTwilight: { value: new THREE.Color(0xff7744) },
+            colorNight: { value: new THREE.Color(0x1a88cc) }
         },
         vertexShader: `
             varying vec3 vWorldNormal;
@@ -142,21 +159,40 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
             uniform vec3 colorNight;
             varying vec3 vWorldNormal;
             varying vec3 vViewDir;
-                void main() {
-                    vec3 normal = normalize(vWorldNormal);
-                    vec3 viewDir = normalize(vViewDir);
-                    vec3 lightDir = normalize(uLightDirection);
-                    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 3.05);
-                    float sunFacing = max(dot(normal, lightDir), 0.0);
-                    float twilight = smoothstep(0.0, 0.22, sunFacing) * (1.0 - smoothstep(0.22, 0.6, sunFacing));
-                    float nightRim = pow(max(dot(normal, -lightDir), 0.0), 1.6) * fresnel;
-                    float pulse = 0.94 + 0.06 * sin(uTime * 0.45);
-                    vec3 finalColor = mix(colorNight, colorTwilight, twilight);
-                    finalColor = mix(finalColor, colorDay, pow(sunFacing, 0.45));
-                    float alpha = (fresnel * (0.14 + sunFacing * 0.56 + twilight * 0.74) + nightRim * 0.05) * uOpacity * pulse;
-                    gl_FragColor = vec4(finalColor, alpha);
-                }
-            `,
+            void main() {
+                vec3 normal = normalize(vWorldNormal);
+                vec3 viewDir = normalize(vViewDir);
+                vec3 lightDir = normalize(uLightDirection);
+
+                // Tight Fresnel — strong at the rim, drops off fast
+                float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 4.0);
+
+                // Sun-facing calculations
+                float sunFacing = max(dot(normal, lightDir), 0.0);
+                float twilight = smoothstep(0.0, 0.18, sunFacing) * (1.0 - smoothstep(0.18, 0.55, sunFacing));
+
+                // Night side rim — subtle blue glow
+                float nightFacing = max(dot(normal, -lightDir), 0.0);
+                float nightRim = pow(nightFacing, 1.4) * fresnel * 0.3;
+
+                // Subtle breathing
+                float pulse = 0.96 + 0.04 * sin(uTime * 0.5);
+
+                // Color blending
+                vec3 finalColor = mix(colorNight, colorTwilight, twilight);
+                finalColor = mix(finalColor, colorDay, pow(sunFacing, 0.5));
+
+                // Bright rim on the lit side, subtle on dark side
+                float litRim = fresnel * (0.25 + sunFacing * 0.75);
+                float alpha = (litRim + twilight * fresnel * 0.8 + nightRim) * uOpacity * pulse;
+
+                // Extra bright edge — the "atmosphere line" visible in Stellaris
+                float edgeLine = pow(fresnel, 6.0) * sunFacing * 0.6;
+                alpha += edgeLine * uOpacity;
+
+                gl_FragColor = vec4(finalColor, clamp(alpha, 0.0, 1.0));
+            }
+        `,
         side: THREE.BackSide,
         blending: THREE.AdditiveBlending,
         transparent: true,
@@ -165,58 +201,108 @@ export function createSplashPlanetGroup(scene, renderer, haloTextures, isMobile)
     const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
     scene.add(atmosphere);
 
-    // ── Layered glow system — soft uniform halo matching in-game planet glows ──
-    // All layers centered on the planet (no z-offset) so glow wraps evenly.
-    // Uses softGlowTex for smooth radial falloff without angular artifacts.
+    // ── Second atmosphere layer — thin bright edge line ──
+    const atmoEdgeGeo = new THREE.SphereGeometry(5.14, segments, segments);
+    const atmoEdgeMat = new THREE.ShaderMaterial({
+        uniforms: {
+            uOpacity: { value: 0.0 },
+            uTime: { value: 0.0 },
+            uLightDirection: { value: new THREE.Vector3(0.8, 0.3, 0.55).normalize() },
+            uColor: { value: new THREE.Color(0x66ccff) }
+        },
+        vertexShader: `
+            varying vec3 vWorldNormal;
+            varying vec3 vViewDir;
+            void main() {
+                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                vWorldNormal = normalize(mat3(modelMatrix) * normal);
+                vViewDir = normalize(cameraPosition - worldPosition.xyz);
+                gl_Position = projectionMatrix * viewMatrix * worldPosition;
+            }
+        `,
+        fragmentShader: `
+            uniform float uOpacity;
+            uniform float uTime;
+            uniform vec3 uLightDirection;
+            uniform vec3 uColor;
+            varying vec3 vWorldNormal;
+            varying vec3 vViewDir;
+            void main() {
+                vec3 normal = normalize(vWorldNormal);
+                vec3 viewDir = normalize(vViewDir);
+                vec3 lightDir = normalize(uLightDirection);
+
+                // Very tight Fresnel — only visible at the extreme edge
+                float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 8.0);
+
+                // Only on lit side + terminator
+                float sunFacing = dot(normal, lightDir);
+                float litMask = smoothstep(-0.15, 0.3, sunFacing);
+
+                float pulse = 0.95 + 0.05 * sin(uTime * 0.6 + 1.0);
+                float alpha = fresnel * litMask * uOpacity * pulse * 0.9;
+
+                gl_FragColor = vec4(uColor, clamp(alpha, 0.0, 1.0));
+            }
+        `,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        depthWrite: false
+    });
+    const atmosphereEdge = new THREE.Mesh(atmoEdgeGeo, atmoEdgeMat);
+    scene.add(atmosphereEdge);
+
+    // ── Layered glow system — tighter, more concentrated around planet ──
     const glowTexture = softGlowTex || glowTex;
 
-    // Layer 1: Tight bright core halo — cyan-white, hugs the planet
+    // Layer 1: Tight bright core halo — hugs the planet closely
     const innerGlow = new THREE.Sprite(new THREE.SpriteMaterial({
         map: glowTexture,
-        color: 0x55eeff,
+        color: 0x44ccff,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         depthTest: false
     }));
-    innerGlow.scale.set(14, 14, 1);
-    innerGlow.userData.baseScale = new THREE.Vector2(14, 14);
-    innerGlow.userData.targetOpacity = 0.45;
+    innerGlow.scale.set(12.5, 12.5, 1);
+    innerGlow.userData.baseScale = new THREE.Vector2(12.5, 12.5);
+    innerGlow.userData.targetOpacity = 0.5;
     innerGlow.userData.positionOffset = null;
     scene.add(innerGlow);
 
-    // Layer 2: Mid diffuse glow — softer cyan spread
+    // Layer 2: Mid corona — soft atmospheric spread
     const coronaGlow = new THREE.Sprite(new THREE.SpriteMaterial({
         map: glowTexture,
-        color: 0x22bbff,
+        color: 0x2299dd,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         depthTest: false
     }));
-    coronaGlow.scale.set(24, 24, 1);
-    coronaGlow.userData.baseScale = new THREE.Vector2(24, 24);
-    coronaGlow.userData.targetOpacity = 0.25;
+    coronaGlow.scale.set(18, 18, 1);
+    coronaGlow.userData.baseScale = new THREE.Vector2(18, 18);
+    coronaGlow.userData.targetOpacity = 0.22;
     coronaGlow.userData.positionOffset = null;
     scene.add(coronaGlow);
 
-    // Layer 3: Wide outer atmosphere halo — very soft, large radius
+    // Layer 3: Outer halo — very subtle, tighter than before
     const outerGlow = new THREE.Sprite(new THREE.SpriteMaterial({
         map: glowTexture,
-        color: 0x1188dd,
+        color: 0x1177bb,
         transparent: true,
         opacity: 0,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         depthTest: false
     }));
-    outerGlow.scale.set(38, 38, 1);
-    outerGlow.userData.baseScale = new THREE.Vector2(38, 38);
-    outerGlow.userData.targetOpacity = 0.15;
+    outerGlow.scale.set(26, 26, 1);
+    outerGlow.userData.baseScale = new THREE.Vector2(26, 26);
+    outerGlow.userData.targetOpacity = 0.12;
     outerGlow.userData.positionOffset = null;
     scene.add(outerGlow);
 
-    return { planet, clouds, cityLights, atmosphere, innerGlow, coronaGlow, outerGlow };
+    return { planet, clouds, cityLights, atmosphere, atmosphereEdge, innerGlow, coronaGlow, outerGlow };
 }
