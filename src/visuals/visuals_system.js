@@ -1353,7 +1353,7 @@ function _createPirateRaiderMesh() {
     rFin.scale.x = -1;
     shipGroup.add(rFin);
 
-    // ── Wing-mounted weapon pods ──
+    // ── Wing-mounted weapon pods (mesh only, no barrel sprites) ──
     const podGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.7, 6);
     const podL = new THREE.Mesh(podGeo, weaponMat);
     podL.rotation.x = Math.PI / 2;
@@ -1365,43 +1365,20 @@ function _createPirateRaiderMesh() {
     podR.position.set(-1.1, -0.05, 0.7);
     shipGroup.add(podR);
 
-    // Weapon barrel tips glow
-    const barrelGlowL = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: textures.glow, color: 0xff2200,
-        transparent: true, opacity: 0.5,
-        blending: THREE.AdditiveBlending, depthWrite: false
-    }));
-    barrelGlowL.scale.set(0.25, 0.25, 1);
-    barrelGlowL.position.set(1.1, -0.05, 1.1);
-    shipGroup.add(barrelGlowL);
-
-    const barrelGlowR = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: textures.glow, color: 0xff2200,
-        transparent: true, opacity: 0.5,
-        blending: THREE.AdditiveBlending, depthWrite: false
-    }));
-    barrelGlowR.scale.set(0.25, 0.25, 1);
-    barrelGlowR.position.set(-1.1, -0.05, 1.1);
-    shipGroup.add(barrelGlowR);
-
     // ── Engine block — rear housing ──
     const engineBlockGeo = new THREE.BoxGeometry(0.8, 0.45, 0.5);
     const engineBlock = new THREE.Mesh(engineBlockGeo, ribMat);
     engineBlock.position.set(0, 0, -0.9);
     shipGroup.add(engineBlock);
 
-    // ── Engine nozzles (3 — center + 2 outer) ──
+    // ── Engine nozzles (3 mesh cylinders) ──
     const enginePositions = [
         { x: 0, y: 0, z: -1.15 },
         { x: 0.28, y: 0.1, z: -1.1 },
         { x: -0.28, y: 0.1, z: -1.1 }
     ];
-    const engineGlows = [];
-    const engineCores = [];
-    const trailAnchors = [];
 
     enginePositions.forEach(pos => {
-        // Nozzle cylinder
         const nozzle = new THREE.Mesh(
             new THREE.CylinderGeometry(0.1, 0.14, 0.3, 8),
             engineMat
@@ -1409,71 +1386,62 @@ function _createPirateRaiderMesh() {
         nozzle.rotation.x = Math.PI / 2;
         nozzle.position.set(pos.x, pos.y, pos.z);
         shipGroup.add(nozzle);
-
-        // Trail anchor behind nozzle
-        const anchor = new THREE.Object3D();
-        anchor.position.set(pos.x, pos.y, pos.z - 0.25);
-        shipGroup.add(anchor);
-        trailAnchors.push(anchor);
-
-        // Engine flare — red glow
-        const flare = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: textures.glow, color: 0xff3300,
-            transparent: true, opacity: 0.8,
-            blending: THREE.AdditiveBlending, depthWrite: false
-        }));
-        flare.scale.set(0.9, 0.9, 1);
-        flare.position.set(pos.x, pos.y, pos.z - 0.05);
-        shipGroup.add(flare);
-        engineGlows.push(flare);
-
-        // White-hot core — bright inner glow
-        const core = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: textures.glow, color: 0xffffff,
-            transparent: true, opacity: 0.7,
-            blending: THREE.AdditiveBlending, depthWrite: false
-        }));
-        core.scale.set(0.35, 0.35, 1);
-        core.position.set(pos.x, pos.y, pos.z - 0.02);
-        shipGroup.add(core);
-        engineCores.push(core);
     });
 
-    // ── Engine point light — red illumination cast on surroundings ──
-    const engineLight = new THREE.PointLight(0xff3300, 8, 12);
-    engineLight.position.set(0, 0, -1.3);
-    shipGroup.add(engineLight);
+    // ── Single combined engine flare (covers all 3 nozzles) ──
+    const engineGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff3300,
+        transparent: true, opacity: 0.8,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+    }));
+    engineGlow.scale.set(1.6, 1.2, 1);
+    engineGlow.position.set(0, 0.03, -1.2);
+    shipGroup.add(engineGlow);
 
-    // ── Wing-tip nav lights ──
+    // ── Single white-hot core behind engines ──
+    const engineCore = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xffffff,
+        transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+    }));
+    engineCore.scale.set(0.6, 0.5, 1);
+    engineCore.position.set(0, 0.03, -1.15);
+    shipGroup.add(engineCore);
+
+    // ── Single trail anchor (center engine) ──
+    const trailAnchor = new THREE.Object3D();
+    trailAnchor.position.set(0, 0, -1.4);
+    shipGroup.add(trailAnchor);
+
+    // ── Wing-tip nav lights (depthTest off to prevent square clipping) ──
     const navL = new THREE.Sprite(new THREE.SpriteMaterial({
         map: textures.glow, color: 0xff2200,
         transparent: true, opacity: 0.6,
-        blending: THREE.AdditiveBlending, depthWrite: false
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
     }));
-    navL.scale.set(0.3, 0.3, 1);
+    navL.scale.set(0.35, 0.35, 1);
     navL.position.set(1.5, 0, 0.9);
     shipGroup.add(navL);
 
     const navR = new THREE.Sprite(new THREE.SpriteMaterial({
         map: textures.glow, color: 0xff2200,
         transparent: true, opacity: 0.6,
-        blending: THREE.AdditiveBlending, depthWrite: false
+        blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
     }));
-    navR.scale.set(0.3, 0.3, 1);
+    navR.scale.set(0.35, 0.35, 1);
     navR.position.set(-1.5, 0, 0.9);
     shipGroup.add(navR);
 
     // Store references for animation
-    shipGroup.userData.engineGlows = engineGlows;
-    shipGroup.userData.engineCores = engineCores;
-    shipGroup.userData.navLights = [navL, navR, barrelGlowL, barrelGlowR];
-    shipGroup.userData.engineLight = engineLight;
+    shipGroup.userData.engineGlow = engineGlow;
+    shipGroup.userData.engineCore = engineCore;
+    shipGroup.userData.navLights = [navL, navR];
 
     return {
         shipGroup,
-        engineGlow: engineGlows[0],
-        trailAnchor: trailAnchors[0],
-        trailAnchors
+        engineGlow,
+        trailAnchor,
+        trailAnchors: [trailAnchor]
     };
 }
 
@@ -1501,7 +1469,6 @@ export function buildPirateRaidRoutes(group) {
             mesh: raider.shipGroup,
             engineGlow: raider.engineGlow,
             trailAnchor: raider.trailAnchor,
-            trailAnchors: raider.trailAnchors,
             fromMesh: goingForward ? pirateMesh : homeMesh,
             toMesh: goingForward ? homeMesh : pirateMesh,
             progress: s / raiderCount,
@@ -1991,7 +1958,7 @@ export function updateSystemAnimations(time, dt, group) {
         }
     });
 
-    // ── Animate pirate raiders (splash-quality multi-engine ships) ─────────────
+    // ── Animate pirate raiders ────────────────────────────────────────────────
     _pirateRaiders.forEach(ts => {
         ts.progress += ts.speed * dt;
         if (ts.progress >= 1) {
@@ -2022,53 +1989,27 @@ export function updateSystemAnimations(time, dt, group) {
         _shipTmpDir.subVectors(_shipTmpTo, _shipTmpFrom).normalize();
         ts.mesh.lookAt(ts.mesh.position.clone().add(_shipTmpDir));
 
-        // Animate all engine flares + white-hot cores
+        // Engine glow + core pulse (single combined sprites)
         const ud = ts.mesh.userData;
-        if (ud.engineGlows) {
-            ud.engineGlows.forEach((flare, i) => {
-                flare.material.opacity = 0.6 + 0.3 * Math.sin(time * 6.0 + i * 1.2);
-                const s = 0.8 + 0.15 * Math.sin(time * 8.0 + i * 0.8);
-                flare.scale.set(s, s, 1);
-            });
+        if (ud.engineGlow) {
+            ud.engineGlow.material.opacity = 0.6 + 0.25 * Math.sin(time * 6.0);
+            const s = 1.5 + 0.15 * Math.sin(time * 8.0);
+            ud.engineGlow.scale.set(s, s * 0.8, 1);
         }
-        if (ud.engineCores) {
-            ud.engineCores.forEach((core, i) => {
-                core.material.opacity = 0.5 + 0.3 * Math.sin(time * 7.0 + i * 1.5);
-            });
+        if (ud.engineCore) {
+            ud.engineCore.material.opacity = 0.4 + 0.3 * Math.sin(time * 7.0);
         }
 
-        // Engine point light intensity pulse
-        if (ud.engineLight) {
-            ud.engineLight.intensity = 6 + 3 * Math.sin(time * 5.0);
-        }
-
-        // Nav light blink — alternating pattern
+        // Nav light blink — alternating
         if (ud.navLights) {
             ud.navLights.forEach((nav, i) => {
                 const blinkOn = Math.sin(time * 3.5 + i * Math.PI) > 0;
-                nav.material.opacity = blinkOn ? 0.7 : 0.1;
+                nav.material.opacity = blinkOn ? 0.6 : 0.08;
             });
         }
 
-        // Spawn trail particles from all engine trail anchors
-        if (ts.trailAnchors && _trailInited) {
-            ts.trailAnchors.forEach(anchor => {
-                anchor.getWorldPosition(_trailWorldPos);
-                const dx = _trailWorldPos.x - ts._prevPos.x;
-                const dy = _trailWorldPos.y - ts._prevPos.y;
-                const dz = _trailWorldPos.z - ts._prevPos.z;
-                const hasValid = ts._prevPos.lengthSq() > 0.001;
-                if (hasValid) {
-                    _spawnSatTrail(
-                        _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
-                        -dx * 2, -dy * 2, -dz * 2
-                    );
-                }
-            });
-            // Update _prevPos from primary trail anchor
-            ts.trailAnchors[0].getWorldPosition(_trailWorldPos);
-            ts._prevPos.copy(_trailWorldPos);
-        } else if (ts.trailAnchor && _trailInited) {
+        // Trail particles
+        if (ts.trailAnchor && _trailInited) {
             ts.trailAnchor.getWorldPosition(_trailWorldPos);
             const dx = _trailWorldPos.x - ts._prevPos.x;
             const dy = _trailWorldPos.y - ts._prevPos.y;
