@@ -61,6 +61,7 @@ export function initRenderer() {
     // Mobile: use UnsignedByteType render targets at half resolution to avoid
     // white tile artifacts caused by HalfFloat on mobile GPUs.
     // Desktop: use HalfFloat for full-quality HDR bloom.
+    // Post-processing at full resolution on all devices
     if (isMobile) {
         const mobileRtParams = {
             minFilter: THREE.LinearFilter,
@@ -69,17 +70,17 @@ export function initRenderer() {
             type: THREE.UnsignedByteType
         };
         const mobileRT = new THREE.WebGLRenderTarget(
-            Math.floor(window.innerWidth / 2),
-            Math.floor(window.innerHeight / 2),
+            window.innerWidth,
+            window.innerHeight,
             mobileRtParams
         );
         composer = new EffectComposer(renderer, mobileRT);
-        composer.setSize(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2));
+        composer.setSize(window.innerWidth, window.innerHeight);
         const renderPass = new RenderPass(scene, camera);
         composer.addPass(renderPass);
 
         const bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2)),
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
             0.75,  // strength (boosted to show planet glow on mobile)
             0.45,  // radius (wider spread for visible halos)
             0.75   // threshold (slightly lower to catch glow sprites)
@@ -116,9 +117,7 @@ export function initRenderer() {
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
         if (composer) {
-            const cw = isMobile ? Math.floor(window.innerWidth / 2) : window.innerWidth;
-            const ch = isMobile ? Math.floor(window.innerHeight / 2) : window.innerHeight;
-            composer.setSize(cw, ch);
+            composer.setSize(window.innerWidth, window.innerHeight);
         }
     });
 }
@@ -190,7 +189,7 @@ function recreateRenderer() {
         });
     }
 
-    // Rebuild composer for bloom
+    // Rebuild composer for bloom (full resolution on all devices)
     if (isMobile) {
         const mobileRtParams = {
             minFilter: THREE.LinearFilter,
@@ -199,16 +198,16 @@ function recreateRenderer() {
             type: THREE.UnsignedByteType
         };
         const mobileRT = new THREE.WebGLRenderTarget(
-            Math.floor(window.innerWidth / 2),
-            Math.floor(window.innerHeight / 2),
+            window.innerWidth,
+            window.innerHeight,
             mobileRtParams
         );
         composer = new EffectComposer(renderer, mobileRT);
-        composer.setSize(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2));
+        composer.setSize(window.innerWidth, window.innerHeight);
         const renderPass = new RenderPass(scene, camera);
         composer.addPass(renderPass);
         const bloomPass = new UnrealBloomPass(
-            new THREE.Vector2(Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 2)),
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
             0.5, 0.3, 0.8
         );
         bloomPass.enabled = config.bloom;
@@ -299,10 +298,10 @@ export function applyGraphicsConfig() {
     // GPU tier-based DPR cap (falls back to isMobile heuristic if tier not yet detected)
     let maxRatio;
     if (gpuTier.detected) {
-        const tierCaps = [1.0, 1.0, 1.5, 2.0]; // tier 0-3
-        maxRatio = config.ultraSharp ? 2.5 : tierCaps[gpuTier.tier] || 1.5;
+        const tierCaps = [1.0, 1.5, 2.0, 2.5]; // tier 0-3
+        maxRatio = config.ultraSharp ? 3.0 : tierCaps[gpuTier.tier] || 2.0;
     } else {
-        maxRatio = isMobile ? (config.ultraSharp ? 2.5 : 1.5) : 4.0;
+        maxRatio = isMobile ? 2.5 : 4.0;
     }
     const pixelRatio = Math.min(basePixelRatio * config.scale * ultraMultiplier, maxRatio);
     renderer.setPixelRatio(pixelRatio);
@@ -320,15 +319,13 @@ export function applyGraphicsConfig() {
         }
     }
 
-    // Update Composer size + pixel ratio
+    // Update Composer size + pixel ratio (full resolution on all devices)
     if (composer) {
-        const compWidth = isMobile ? Math.floor(width / 2) : width;
-        const compHeight = isMobile ? Math.floor(height / 2) : height;
         composer.setPixelRatio(pixelRatio);
-        composer.setSize(compWidth, compHeight);
+        composer.setSize(width, height);
         composer.passes.forEach(pass => {
             if (pass instanceof UnrealBloomPass) {
-                pass.resolution.set(compWidth, compHeight);
+                pass.resolution.set(width, height);
             }
         });
     }
