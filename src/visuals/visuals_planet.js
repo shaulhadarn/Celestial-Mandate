@@ -70,7 +70,7 @@ function initExplorationMouseControls() {
         const dx = e.clientX - lastMouseX;
         const dy = e.clientY - lastMouseY;
         cameraYaw -= dx * 0.005;
-        cameraPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
+        cameraPitch = Math.max(0.02, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
     };
@@ -83,8 +83,12 @@ function initExplorationMouseControls() {
     };
 
     // ── Touch ────────────────────────────────────────────────────────────────
+    // UI elements that should receive normal touch/click — skip camera drag for these
+    const _isUITouch = (e) => e.target.closest('#exploration-header, #harvester-hud, .action-btn, button');
+
     const onTouchStart = (e) => {
         if (gameState.viewMode !== 'EXPLORATION') return;
+        if (_isUITouch(e)) return; // let button taps pass through to click handler
 
         if (e.touches.length >= 2) {
             // While d-pad is active (drone moving), second finger = camera drag, NOT pinch zoom
@@ -139,6 +143,7 @@ function initExplorationMouseControls() {
 
     const onTouchMove = (e) => {
         if (gameState.viewMode !== 'EXPLORATION') return;
+        if (_isUITouch(e)) return; // don't hijack touches on buttons
         e.preventDefault();
 
         // ── Pinch to zoom (only when drone is NOT moving) ────────────────────
@@ -157,7 +162,7 @@ function initExplorationMouseControls() {
                 const dx = touch.clientX - lastMouseX;
                 const dy = touch.clientY - lastMouseY;
                 cameraYaw -= dx * 0.005;
-                cameraPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
+                cameraPitch = Math.max(0.02, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
                 lastMouseX = touch.clientX;
                 lastMouseY = touch.clientY;
             }
@@ -172,7 +177,7 @@ function initExplorationMouseControls() {
         const dx = touch.clientX - lastMouseX;
         const dy = touch.clientY - lastMouseY;
         cameraYaw -= dx * 0.005;
-        cameraPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
+        cameraPitch = Math.max(0.02, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
         lastMouseX = touch.clientX;
         lastMouseY = touch.clientY;
     };
@@ -247,6 +252,11 @@ export function createPlanetVisuals(planetData, group) {
         lastPos: playerMesh.position.clone() 
     };
     group.add(playerMesh);
+
+    // 3b. Engine trail sprites — added to parent group so they stay in world space
+    if (playerMesh.userData.engineTrails) {
+        playerMesh.userData.engineTrails.forEach(p => group.add(p.sprite));
+    }
 
     // 4. Props
     planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
@@ -370,8 +380,11 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 1. Camera Position (before movement so direction vectors are correct) ---
     const droneCenter = playerMesh.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
     const camX = droneCenter.x + cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
-    const camY = droneCenter.y + cameraDistance * Math.sin(cameraPitch);
+    let camY = droneCenter.y + cameraDistance * Math.sin(cameraPitch);
     const camZ = droneCenter.z + cameraDistance * Math.cos(cameraYaw) * Math.cos(cameraPitch);
+    // Hard floor — never let camera go below terrain to prevent seeing through the ground
+    const camGroundH = getTerrainHeightFast(camX, camZ) + 2.0;
+    if (camY < camGroundH) camY = camGroundH;
     camera.position.set(camX, camY, camZ);
     camera.lookAt(droneCenter);
 
@@ -441,6 +454,60 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         playerMesh.userData.flare.material.opacity = 0.4 + (moving ? 0.4 : 0.1);
     }
 
+    // --- 5b. Engine Trails ---
+    const trails = playerMesh.userData.engineTrails;
+    if (trails) {
+        const moving = velocity.length() > 0.5;
+        const spd = velocity.length();
+        // Emit new particles when moving
+        if (moving) {
+            playerMesh.userData.trailTimer = (playerMesh.userData.trailTimer || 0) + dt;
+            const emitRate = Math.min(0.03, 0.08 - spd * 0.003); // faster = more frequent
+            if (playerMesh.userData.trailTimer > emitRate) {
+                playerMesh.userData.trailTimer = 0;
+                const idle = trails.find(p => p.life <= 0);
+                if (idle) {
+                    idle.life = idle.maxLife;
+                    // Emit from one of the 4 repulsor pad positions (world space)
+                    const padAngle = (idle.padIndex / 4) * Math.PI * 2 + playerMesh.rotation.y;
+                    const padR = 1.4;
+                    idle.sprite.position.set(
+                        playerMesh.position.x + Math.sin(padAngle) * padR,
+                        playerMesh.position.y + 0.8,
+                        playerMesh.position.z + Math.cos(padAngle) * padR
+                    );
+                    // Drift opposite to movement + slight upward spread
+                    idle.velocity.set(
+                        -velocity.x * 0.15 + (Math.random() - 0.5) * 1.5,
+                        -1.5 + Math.random() * 0.8,
+                        -velocity.z * 0.15 + (Math.random() - 0.5) * 1.5
+                    );
+                    idle.sprite.visible = true;
+                    idle.sprite.material.opacity = 0.7;
+                    idle.sprite.scale.set(0.5, 0.5, 0.5);
+                }
+            }
+        }
+        // Update all live trail particles (runs whether moving or not so existing trails fade)
+        trails.forEach(p => {
+            if (p.life <= 0) return;
+            p.life -= dt;
+            const t = 1 - (p.life / p.maxLife); // 0→1 over lifetime
+            p.sprite.position.x += p.velocity.x * dt;
+            p.sprite.position.y += p.velocity.y * dt;
+            p.sprite.position.z += p.velocity.z * dt;
+            p.velocity.y *= 0.95;
+            // Grow and fade
+            const s = 0.5 + t * 2.0;
+            p.sprite.scale.set(s, s, s);
+            p.sprite.material.opacity = 0.7 * (1 - t) * (1 - t);
+            if (p.life <= 0) {
+                p.sprite.visible = false;
+                p.sprite.material.opacity = 0;
+            }
+        });
+    }
+
     // --- 6. Ground Height & Hover ---
     const HOVER_BUFFER = 6.0;  // target hover height above ground
     const HOVER_MIN = 5.0;     // absolute minimum clearance - hard floor
@@ -494,8 +561,9 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         const rawGroundH = getTerrainHeightFast(px, pz) + 0.15;
         sm.position.set(playerMesh.position.x, rawGroundH, playerMesh.position.z);
         const dist = playerMesh.position.y - rawGroundH;
-        sm.scale.setScalar(1.2 + (dist * 0.12));
-        sm.material.opacity = Math.max(0, 0.7 - (dist * 0.08));
+        // Normal hover is ~7 units above raw ground — scale/fade gently so shadow stays visible
+        sm.scale.setScalar(1.8 + (dist * 0.08));
+        sm.material.opacity = Math.max(0.05, 0.55 - (dist * 0.03));
     }
 
     // --- 7b. Sun light follows drone — keeps shadow frustum centred on player ---

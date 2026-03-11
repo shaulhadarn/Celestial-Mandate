@@ -95,6 +95,31 @@ export function createDroneMesh() {
     shipGroup.add(spotLight);
     shipGroup.add(spotLight.target);
 
+    // Engine trail particle pool
+    const TRAIL_COUNT = isMobileDevice ? 12 : 24;
+    const trails = [];
+    for (let i = 0; i < TRAIL_COUNT; i++) {
+        const mat = new THREE.SpriteMaterial({
+            map: textures.glow,
+            color: 0x00f2ff,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        });
+        const sprite = new THREE.Sprite(mat);
+        sprite.visible = false;
+        sprite.scale.set(0.3, 0.3, 0.3);
+        trails.push({
+            sprite,
+            life: 0,
+            maxLife: 0.6 + Math.random() * 0.3,
+            velocity: new THREE.Vector3(),
+            padIndex: i % 4, // cycle across 4 repulsor pads
+        });
+    }
+    shipGroup.userData.engineTrails = trails;
+    shipGroup.userData.trailTimer = 0;
+
     return shipGroup;
 }
 
