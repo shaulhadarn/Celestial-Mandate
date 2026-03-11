@@ -1460,7 +1460,7 @@ export function buildPirateRaidRoutes(group) {
     const raiderCount = 2 + (Math.random() > 0.5 ? 1 : 0);
     for (let s = 0; s < raiderCount; s++) {
         const raider = _createPirateRaiderMesh();
-        const scale = 1.0 + Math.random() * 0.5;
+        const scale = 0.55 + Math.random() * 0.25;
         raider.shipGroup.scale.setScalar(scale);
         group.add(raider.shipGroup);
 

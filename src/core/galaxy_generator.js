@@ -159,9 +159,8 @@ function generateSystemData(id, position, playerSettings) {
 
     // Tag one planet as pirate base in the home system
     if (id === 0 && playerSettings && planets.length >= 2) {
-        // Pick the 2nd planet (not homeworld) as pirate stronghold
-        const pirateIdx = planets[0].name.includes('Prime') ? 1 : planets.length - 1;
-        const piratePlanet = planets[pirateIdx];
+        // Pick the furthest planet from the homeworld as pirate stronghold
+        const piratePlanet = planets[planets.length - 1];
         piratePlanet.pirate = true;
         piratePlanet.name = "Corsair's Den";
         piratePlanet.type = Math.random() > 0.5 ? 'Barren' : 'Molten';
