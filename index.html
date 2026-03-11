@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="styles/styles_intro.css">
     <link rel="stylesheet" href="styles/styles_fleets.css">
     <link rel="stylesheet" href="styles/styles_codex.css">
+    <link rel="stylesheet" href="styles/styles_diplomacy.css">
     <!-- styles.css is deprecated -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -633,6 +634,14 @@
                     <div class="codex-empty">Select an entry to read</div>
                 </div>
             </div>
+        </div>
+
+        <div id="diplomacy-panel" class="fullscreen-panel hidden">
+            <div class="fullscreen-panel-header">
+                <h2><svg class="title-icon svg-icon" viewBox="0 0 24 24"><use href="#icon-diplomacy"></use></svg> Diplomacy</h2>
+                <button id="btn-close-diplomacy" class="panel-close-btn">✕ Close</button>
+            </div>
+            <div id="diplomacy-panel-content" class="fullscreen-panel-content"></div>
         </div>
 
         <div id="controls-hint">

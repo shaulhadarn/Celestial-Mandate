@@ -16,6 +16,7 @@ import { initFleetsUI } from './ui_fleets.js';
 import { initEventsUI } from './ui_events.js';
 import { initCodexUI } from './ui_codex.js';
 import { initMilestoneEvents } from '../core/milestone_events.js';
+import { initDiplomacyUI } from './ui_diplomacy.js';
 import { startMenuMusic } from '../core/assets.js';
 
 // Re-export for other modules to use
@@ -59,6 +60,7 @@ export function initUI() {
     initSpeedControls();
     initEventsUI();
     initCodexUI();
+    initDiplomacyUI();
     initMilestoneEvents();
 
     events.addEventListener('autosave', () => {

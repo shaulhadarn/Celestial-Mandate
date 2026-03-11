@@ -174,7 +174,7 @@ const ControlsWrapper = () => {
 
 
 const QualityManager = () => {
-  const [dpr, setDpr] = useState(isMobileDevice ? 1 : 1.5);
+  const [dpr, setDpr] = useState(isMobileDevice ? 1.5 : 1.5);
   if (isMobileDevice) return null;
   return /* @__PURE__ */ jsxDEV(
     PerformanceMonitor,
@@ -215,13 +215,13 @@ const Game = () => {
           wrapper.removeAttribute('tabindex');
         }
       },
-      dpr: isMobileDevice ? [1, 2.5] : [1, 4],
+      dpr: isMobileDevice ? [1.5, 2.5] : [1, 4],
       gl: {
-        antialias: getGraphicsConfig().antialias,
+        antialias: true,
         alpha: true,
         powerPreference: "high-performance",
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: isMobileDevice ? 1.0 : 1.1,
+        toneMappingExposure: isMobileDevice ? 1.1 : 1.1,
         outputColorSpace: THREE.SRGBColorSpace
       },
       style: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 0, touchAction: "none" },

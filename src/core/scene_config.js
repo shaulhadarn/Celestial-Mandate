@@ -36,18 +36,16 @@ export function initRenderer() {
     camera.position.set(0, 80, 150);
 
     renderer = new THREE.WebGLRenderer({
-        antialias: !isMobile,          // antialias is expensive on mobile GPU
+        antialias: true,
         powerPreference: 'high-performance',
-        precision: 'highp',            // force highp to prevent mediump tile artifacts
+        precision: 'highp',
         logarithmicDepthBuffer: false,
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    // Mobile: cap at 1.5x to avoid oversized framebuffers that cause bloom tile artifacts
-    // Desktop: use full device pixel ratio for crisp edges
-    renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 2.5 : 3));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = isMobile ? 1.0 : 1.2;
+    renderer.toneMappingExposure = isMobile ? 1.1 : 1.2;
     canvasContainer.appendChild(renderer.domElement);
 
     // Dynamic import for OrbitControls to avoid bundling issues if not present globally
@@ -164,10 +162,10 @@ function recreateRenderer() {
         logarithmicDepthBuffer: false,
     });
     newRenderer.setSize(window.innerWidth, window.innerHeight);
-    newRenderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : window.devicePixelRatio);
+    newRenderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 2.5 : 3));
     newRenderer.outputColorSpace = THREE.SRGBColorSpace;
     newRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-    newRenderer.toneMappingExposure = isMobile ? 1.0 : 1.2;
+    newRenderer.toneMappingExposure = isMobile ? 1.1 : 1.2;
 
     // Swap canvas
     container.replaceChild(newRenderer.domElement, oldCanvas);

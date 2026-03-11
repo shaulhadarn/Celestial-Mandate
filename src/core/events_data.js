@@ -29,6 +29,7 @@ export const RANDOM_EVENTS = [
     // ── Existing events (rewritten) ────────────────────────────────────────
     {
         id: 'mineral_vein',
+        image: 'assets/images/events/evt_mineral_vein.png',
         title: 'Rich Mineral Vein Discovered',
         desc: 'Deep-core geological surveys have revealed a mineral deposit of staggering proportions beneath one of our colony worlds. Preliminary scans indicate veins of rare-earth elements threading through kilometres of bedrock like the roots of some vast subterranean tree. The mining guilds are already mobilising, but our engineers warn that aggressive extraction could destabilise the tectonic plate above a major population centre.',
         category: 'opportunity',
@@ -40,6 +41,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'solar_flare',
+        image: 'assets/images/events/evt_solar_flare.png',
         title: 'Solar Flare Activity',
         desc: 'A series of coronal mass ejections from the local star has sent a wall of charged plasma hurtling toward our inner colonies. The energy grid is already fluctuating as the first wave strikes — transformers are overloading, and orbital stations have gone into emergency lockdown. Our engineers believe they can reconfigure the grid to harvest the excess radiation, but the window is narrow and the risk of catastrophic failure is real.',
         category: 'danger',
@@ -51,6 +53,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'alien_artifact',
+        image: 'assets/images/events/evt_alien_artifact.png',
         title: 'Alien Artifact Found',
         desc: 'An exploration team working in the ruins of a long-dead world has unearthed an object of clearly artificial origin — and clearly not of any known design. It is warm to the touch despite the frozen vacuum around it, and it pulses with an inner light that shifts through colours that have no name in any language we speak. Our xenoarchaeologists are divided: some see a treasure beyond price, others a warning we should heed.',
         category: 'ancient',
@@ -62,6 +65,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'food_surplus',
+        image: 'assets/images/events/evt_food_surplus.png',
         title: 'Bountiful Harvest',
         desc: 'Something extraordinary has happened across our agricultural worlds. Solar conditions, soil chemistry, and atmospheric composition have aligned in a confluence so improbable that our scientists are calling it a "golden convergence." The harvest is beyond anything in recorded history — granaries overflow, preservation vaults are at capacity, and the scent of fresh grain fills the corridors of every colony ship in orbit.',
         category: 'opportunity',
@@ -73,6 +77,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'pirate_raid',
+        image: 'assets/images/events/evt_pirate_raid.png',
         title: 'Pirate Raid',
         desc: 'Long-range sensors have detected a flotilla of unmarked vessels converging on our trade routes — the Harvesters, a pirate confederation that has plagued this sector for decades. Their leader has broadcast a single demand: tribute in minerals and energy, or they will burn every freighter in the shipping lane. Our admirals counsel that we can fight them off, but the engagement will cost us dearly in energy and munitions.',
         category: 'danger',
@@ -84,6 +89,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'refugee_fleet',
+        image: 'assets/images/events/evt_refugee_fleet.png',
         title: 'Refugee Fleet Arrives',
         desc: 'A vast fleet of battered, barely functional ships has appeared at the edge of our territory, broadcasting on all frequencies: they are the survivors of a civilization destroyed by a catastrophe they cannot — or will not — name. Millions of souls crowd their failing vessels, and they beg for sanctuary. Accepting them will strain our food reserves, but they bring with them knowledge, labour, and technologies we have never seen.',
         category: 'diplomacy',
@@ -95,6 +101,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'tech_breakthrough',
+        image: 'assets/images/events/evt_tech_breakthrough.png',
         title: 'Scientific Breakthrough',
         desc: 'A team of researchers working in an underfunded laboratory on the fringes of the empire has made a discovery that is sending shockwaves through the scientific community. They have found a new principle of energy conversion that contradicts decades of established theory — and it works. The implications are staggering: more efficient reactors, cheaper production, and applications we cannot yet imagine.',
         category: 'discovery',
@@ -106,6 +113,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'asteroid_impact',
+        image: 'assets/images/events/evt_asteroid_impact.png',
         title: 'Asteroid Detected',
         desc: 'A rogue asteroid the size of a small moon has been detected on a collision course with one of our colony worlds. Impact is estimated in days, not weeks. The asteroid is rich in heavy metals — a fortune in minerals — but its trajectory will carry it through the heart of our most productive agricultural zone. We must decide: deflect it at enormous energy cost, or attempt the dangerous gambit of mining it in transit.',
         category: 'danger',
@@ -117,6 +125,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'trade_caravan',
+        image: 'assets/images/events/evt_trade_caravan.png',
         title: 'Trade Caravan',
         desc: 'An interstellar trade caravan bearing the sigils of the Merchants\' Guild has dropped out of hyperspace near our capital system. Their holds are full of goods from a hundred worlds — exotic minerals, alien foodstuffs, and technologies that shimmer with unfamiliar energies. The caravan master offers fair prices, but warns that the Guild remembers those who turn them away.',
         category: 'diplomacy',
@@ -129,6 +138,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'energy_anomaly',
+        image: 'assets/images/events/evt_energy_anomaly.png',
         title: 'Energy Anomaly',
         desc: 'Deep-space telescopes have detected an impossible reading: a concentrated energy signature emanating from a region of space that should be empty. It pulses with a rhythm that our computers insist is non-random, as if something — or someone — is broadcasting. The signal is ancient beyond reckoning, its wavelength shifted by billions of years of cosmic expansion. Whatever is out there has been calling for a very, very long time.',
         category: 'discovery',
@@ -142,6 +152,7 @@ export const RANDOM_EVENTS = [
     // ── New events ─────────────────────────────────────────────────────────
     {
         id: 'void_whispers',
+        image: 'assets/images/events/evt_void_whispers.png',
         title: 'Whispers from the Void',
         desc: 'Communications arrays across the empire have begun picking up faint, repeating transmissions from deep interstellar space. The signals are encoded in a mathematical language of breathtaking complexity — one that predates every known civilization by millions of years. Linguists and mathematicians work in shifts to decode the patterns, and what little they have translated speaks of a warning: something ancient sleeps in the dark between stars, and it is beginning to stir.',
         category: 'ancient',
@@ -154,6 +165,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'derelict_leviathan',
+        image: 'assets/images/events/evt_derelict_leviathan.png',
         title: 'The Derelict Leviathan',
         desc: 'A patrol fleet has discovered the wreck of a starship so vast it dwarfs anything in our records — eight kilometres from bow to stern, its hull composed of alloys our metallurgists cannot identify. The vessel is dead, its crew gone for aeons, but its reactors still emit a faint thermal signature. Salvage teams could extract technologies centuries ahead of our own, but there are those who argue that some tombs should remain sealed.',
         category: 'ancient',
@@ -165,6 +177,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'precursor_data_core',
+        image: 'assets/images/events/evt_precursor_data_core.png',
         title: 'Precursor Data Core',
         desc: 'Deep within an asteroid field, a survey drone has detected a structure of unmistakable artificial origin — a data storage device the size of a building, its crystalline matrices still humming with information after untold millennia. The data within could represent the accumulated knowledge of a civilisation far more advanced than our own. The question is not whether we can access it, but whether we should. Every precursor archive ever opened has changed the civilisation that opened it. Not always for the better.',
         category: 'ancient',
@@ -176,6 +189,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'stellar_nursery',
+        image: 'assets/images/events/evt_stellar_nursery.png',
         title: 'Stellar Nursery Bloom',
         desc: 'A nearby nebula has begun collapsing — not in the slow geological timescale we expected, but with terrifying, beautiful speed. New stars are being born in cascades of light and radiation that paint the void in colours our sensors can barely process. The energy output is immense and largely unharnessed. Our scientists propose building collection arrays in the nebula\'s outer reaches, though the radiation makes any operation there inherently dangerous.',
         category: 'discovery',
@@ -187,6 +201,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'dark_matter_cascade',
+        image: 'assets/images/events/evt_dark_matter_cascade.png',
         title: 'Dark Matter Cascade',
         desc: 'Something has gone terribly wrong in the fabric of space near one of our colony systems. A cascade of dark matter interactions is destabilising the local hyperlane network, making FTL travel unpredictable and dangerous. Ships that enter the affected lanes emerge at random coordinates — or do not emerge at all. Our physicists believe they can stabilise the cascade, but the energy cost will be punishing.',
         category: 'danger',
@@ -198,6 +213,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'silent_armada',
+        image: 'assets/images/events/evt_silent_armada.png',
         title: 'The Silent Armada',
         desc: 'An armada of unknown origin has appeared at the edge of our territory. Hundreds of vessels hang motionless in the void, their hulls dark and unmarked, their drives cold. They do not respond to hails. They do not move. They simply watch, their presence a question without words. Our admirals are divided: some see an invasion fleet waiting for the signal to attack, others see refugees too traumatised to speak. The silence stretches, heavy with implication.',
         category: 'diplomacy',
@@ -210,6 +226,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'colony_dissent',
+        image: 'assets/images/events/evt_colony_dissent.png',
         title: 'Colony Dissent',
         desc: 'The governor of our most distant colony has transmitted a formal declaration of grievances. They claim the central administration has neglected their needs, diverted their resources to core worlds, and treated their population as expendable labourers rather than equal citizens. The declaration stops short of demanding independence, but the implication is unmistakable. If we do not act, this spark of discontent could ignite a fire across every frontier world.',
         category: 'crisis',

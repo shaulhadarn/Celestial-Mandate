@@ -95,6 +95,11 @@ function _ensureModal() {
                 <div class="evt-sep-line"></div>
             </div>
 
+            <!-- Image (Optional) -->
+            <div class="evt-image-wrap hidden">
+                <img class="evt-image" src="" alt="Event Image" />
+            </div>
+
             <!-- Description -->
             <div class="evt-desc"></div>
 
@@ -175,6 +180,17 @@ function _showEvent(evt, chainInfo) {
 
     // Title
     modal.querySelector('.evt-title').textContent = evt.title;
+
+    // Image
+    const imgWrap = modal.querySelector('.evt-image-wrap');
+    const imgEl = modal.querySelector('.evt-image');
+    if (evt.image) {
+        imgEl.src = evt.image;
+        imgWrap.classList.remove('hidden');
+    } else {
+        imgEl.src = '';
+        imgWrap.classList.add('hidden');
+    }
 
     // Description — break long text into readable paragraphs
     const descEl = modal.querySelector('.evt-desc');

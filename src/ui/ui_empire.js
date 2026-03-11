@@ -1,5 +1,6 @@
 import { gameState, getPlanet, selectSystem, selectPlanet } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
+import { openDiplomacyPanel } from './ui_diplomacy.js';
 
 /**
  * Initializes the Empire Hub — a quick-access launcher panel.
@@ -32,10 +33,11 @@ export function initEmpireHub() {
         }
     }
 
-    // Diplomacy has no fullscreen panel — show inline message
+    // Diplomacy panel
     const hubDiplomacy = document.getElementById('hub-diplomacy');
     if (hubDiplomacy) hubDiplomacy.addEventListener('click', () => {
-        showNotification('No civilizations encountered yet', 'info');
+        empirePanel.classList.add('hidden');
+        openDiplomacyPanel();
     });
 
     // Settings — open settings panel from hub
