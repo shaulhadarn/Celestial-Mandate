@@ -691,6 +691,56 @@ export function buildShip(planetId, shipId) {
     return true;
 }
 
+export function buildHarvester(planetId, isInstant = false) {
+    const col = gameState.colonies[planetId];
+    if (!col) return false;
+
+    if (!col.harvesters) col.harvesters = [];
+    if (!col.harvesterConstruction) col.harvesterConstruction = [];
+
+    const totalCount = col.harvesters.length + col.harvesterConstruction.length;
+    if (totalCount >= BUILDINGS.harvester.maxPerColony) return false;
+
+    let cost = BUILDINGS.harvester.cost.minerals;
+    if (isInstant) cost *= 2;
+    if (gameState.resources.minerals < cost) return false;
+
+    gameState.resources.minerals -= cost;
+
+    const nextId = totalCount;
+
+    if (isInstant) {
+        col.harvesters.push({
+            id: nextId,
+            position: { x: 30 + nextId * 20, z: 30 },
+            active: true
+        });
+        events.dispatchEvent(new CustomEvent('harvester-complete', { detail: { planetId } }));
+    } else {
+        col.harvesterConstruction.push({
+            id: nextId,
+            progress: 0,
+            total: BUILDINGS.harvester.buildTime
+        });
+    }
+
+    events.dispatchEvent(new CustomEvent('resources-updated'));
+    events.dispatchEvent(new CustomEvent('selection-changed'));
+    return true;
+}
+
+export function relocateHarvester(planetId, harvesterId, newPos) {
+    const col = gameState.colonies[planetId];
+    if (!col || !col.harvesters) return false;
+
+    const harvester = col.harvesters.find(h => h.id === harvesterId);
+    if (!harvester) return false;
+
+    harvester.position = { x: newPos.x, z: newPos.z };
+    events.dispatchEvent(new CustomEvent('selection-changed'));
+    return true;
+}
+
 export function cancelShipBuild(planetId, queueIndex) {
     const col = gameState.colonies[planetId];
     if (!col || !col.shipQueue) return;
@@ -843,7 +893,8 @@ export function buildBuilding(planetId, buildingKey, isInstant = false) {
     const col = gameState.colonies[planetId];
     const b = BUILDINGS[buildingKey];
     if (!col || !b) return false;
-    
+    if (b.isHarvester) return false; // harvesters use buildHarvester() instead
+
     // Enforce max buildings limit (5)
     const pendingCount = col.construction ? col.construction.length : 0;
     if (col.buildings.length + pendingCount >= 5) return false;
