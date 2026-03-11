@@ -34,11 +34,12 @@ export function playWarpAnimation({ onPrepare, onFlash } = {}) {
     canvas.id = 'warp-canvas';
     canvas.style.cssText =
         'position:fixed;top:0;left:0;width:100vw;height:100vh;' +
-        'z-index:99999;pointer-events:none;';
+        'z-index:99999;pointer-events:none;background:#010308;';
     document.body.appendChild(canvas);
 
     // DPR 1 — the warp effect is all motion blur and glow; retina adds cost, not quality
     let w, h, cx, cy, diag;
+    const ctx = canvas.getContext('2d');
 
     function resize() {
         w = canvas.width  = window.innerWidth;
@@ -46,12 +47,12 @@ export function playWarpAnimation({ onPrepare, onFlash } = {}) {
         cx = w * 0.5;
         cy = h * 0.5;
         diag = Math.sqrt(cx * cx + cy * cy);
+        // canvas.width assignment clears the pixel buffer to transparent —
+        // immediately refill so the 3D scene never leaks through
+        ctx.fillStyle = '#010308';
+        ctx.fillRect(0, 0, w, h);
     }
     resize();
-
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#010308';
-    ctx.fillRect(0, 0, w, h);
     window.addEventListener('resize', resize);
 
     // Pre-allocate star pool
@@ -102,6 +103,9 @@ export function playWarpAnimation({ onPrepare, onFlash } = {}) {
 
                     if (!flashFired) {
                         flashFired = true;
+                        // Drop the opaque CSS safety-net so the semi-transparent
+                        // pixel buffer can reveal the 3D scene during dissolve
+                        canvas.style.background = 'none';
                         if (onFlash) onFlash();
                     }
 

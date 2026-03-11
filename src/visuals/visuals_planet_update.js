@@ -224,11 +224,18 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 7. Shadow ---
     if (playerMesh.userData.shadowMesh) {
         const sm = playerMesh.userData.shadowMesh;
-        const rawGroundH = getTerrainHeightFast(px, pz) + 0.15;
-        sm.position.set(playerMesh.position.x, rawGroundH, playerMesh.position.z);
-        const dist = playerMesh.position.y - rawGroundH;
-        sm.scale.setScalar(1.8 + (dist * 0.08));
-        sm.material.opacity = Math.max(0.05, 0.55 - (dist * 0.03));
+        // Sample a small grid so shadow sits on top of terrain even on bumpy/high ground
+        let shadowGH = getTerrainHeightFast(px, pz);
+        shadowGH = Math.max(shadowGH, getTerrainHeightFast(px - 2, pz));
+        shadowGH = Math.max(shadowGH, getTerrainHeightFast(px + 2, pz));
+        shadowGH = Math.max(shadowGH, getTerrainHeightFast(px, pz - 2));
+        shadowGH = Math.max(shadowGH, getTerrainHeightFast(px, pz + 2));
+        shadowGH += 0.25; // stay above terrain surface
+        sm.position.set(playerMesh.position.x, shadowGH, playerMesh.position.z);
+        const dist = playerMesh.position.y - shadowGH;
+        // Larger shadow at height, strong opacity that fades gently
+        sm.scale.setScalar(2.2 + (dist * 0.06));
+        sm.material.opacity = Math.max(0.1, 0.85 - (dist * 0.04));
     }
 
     // --- 7b. Sun light follows drone ---

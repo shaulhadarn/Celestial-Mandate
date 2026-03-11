@@ -132,18 +132,19 @@ export function createShadowSprite() {
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
     const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    gradient.addColorStop(0, 'rgba(0,0,0,0.6)');
-    gradient.addColorStop(0.5, 'rgba(0,0,0,0.3)');
+    gradient.addColorStop(0, 'rgba(0,0,0,0.9)');
+    gradient.addColorStop(0.35, 'rgba(0,0,0,0.6)');
+    gradient.addColorStop(0.7, 'rgba(0,0,0,0.25)');
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 128, 128);
-    
+
     const tex = new THREE.CanvasTexture(canvas);
-    const shadowGeo = new THREE.PlaneGeometry(2.5, 2.5);
-    const shadowMat = new THREE.MeshBasicMaterial({ 
-        map: tex, transparent: true, opacity: 0.6,
+    const shadowGeo = new THREE.PlaneGeometry(3.0, 3.0);
+    const shadowMat = new THREE.MeshBasicMaterial({
+        map: tex, transparent: true, opacity: 0.85,
         depthWrite: false, depthTest: true,
-        polygonOffset: true, polygonOffsetFactor: -1
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
     });
     const mesh = new THREE.Mesh(shadowGeo, shadowMat);
     mesh.rotation.x = -Math.PI / 2;
