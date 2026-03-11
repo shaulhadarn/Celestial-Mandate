@@ -483,27 +483,27 @@
 
     /* Exploration header mobile adjustments */
     #exploration-header {
-        height: 38px;
-        padding: 0 8px;
+        height: 32px;
+        padding: 0 6px;
     }
 
-    #exploration-header #btn-exit-planet {
-        padding: 3px 10px;
-        font-size: 11px;
-        -webkit-tap-highlight-color: rgba(255, 170, 0, 0.15);
-        touch-action: manipulation;
+    #btn-exit-planet {
+        height: 24px;
+        padding: 0 8px;
+        font-size: 10px;
+        min-height: 24px;
     }
 
     #exploration-planet-name {
-        font-size: 12px !important;
+        font-size: 11px !important;
     }
 
     #exploration-planet-type {
-        font-size: 9px !important;
+        font-size: 8px !important;
     }
 
     #exploration-coords {
-        font-size: 9px !important;
+        font-size: 8px !important;
     }
 
     /* View toggle (Return to Galaxy) — mobile */

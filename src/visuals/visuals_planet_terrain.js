@@ -110,8 +110,11 @@ export function createTerrainMesh(planetType) {
     const pos = groundGeo.attributes.position;
     for (let i = 0; i < pos.count; i++) {
         const x = pos.getX(i);
-        const y = pos.getY(i); 
-        let z = getTerrainHeight(x, y);
+        const y = pos.getY(i);
+        // PlaneGeometry raw Y maps to -worldZ after rotation.x = -PI/2,
+        // so negate Y so the mesh matches getTerrainHeight(worldX, worldZ)
+        // used by all object placement and the baked height grid.
+        let z = getTerrainHeight(x, -y);
         
         // Micro-noise: skip on mobile (saves per-vertex Math.random calls)
         if (!isMobileDevice) {

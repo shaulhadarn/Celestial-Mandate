@@ -1383,7 +1383,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 34px;
+    height: 32px;
     padding: 0 10px;
     background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, transparent 100%);
     pointer-events: none;
@@ -1431,21 +1431,25 @@
     font-family: var(--font-mono, monospace);
 }
 
-#exploration-header #btn-exit-planet {
+#btn-exit-planet {
     background: rgba(255,170,0,0.15);
     border: 1px solid rgba(255,170,0,0.5);
     color: #ffaa00;
     padding: 2px 10px;
     font-size: 11px;
     line-height: 1.2;
+    height: 26px;
     border-radius: 3px;
     cursor: pointer;
     font-family: var(--font-main);
     letter-spacing: 0.5px;
     transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: rgba(255, 170, 0, 0.2);
+    touch-action: manipulation;
 }
 
-#exploration-header #btn-exit-planet:hover {
+#btn-exit-planet:hover {
     background: rgba(255,170,0,0.3);
     border-color: #ffcc44;
 }
