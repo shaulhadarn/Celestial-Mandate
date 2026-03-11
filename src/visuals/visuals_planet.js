@@ -508,7 +508,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     });
 
-    // --- 9. Animate harvesters — rotating arm + pulsing beacon + rover ---
+    // --- 9. Animate harvesters — rotating arm + pulsing beacon + rover + particles ---
     harvesterGroups.forEach(hGroup => {
         hGroup.children.forEach(child => {
             if (child.userData.rotatingArm) {
@@ -518,6 +518,52 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 child.intensity = 6 + Math.sin(performance.now() * 0.003) * 4;
             }
         });
+
+        // Drill rig steam vents — periodic puffs rising from the base
+        const steam = hGroup.userData.steamParticles;
+        if (steam) {
+            hGroup.userData.steamTimer = (hGroup.userData.steamTimer || 0) + dt;
+            // Emit a new puff every ~0.4s
+            if (hGroup.userData.steamTimer > 0.4) {
+                hGroup.userData.steamTimer = 0;
+                const idle = steam.find(p => p.life <= 0);
+                if (idle) {
+                    idle.life = idle.maxLife;
+                    const angle = idle.baseAngle + (Math.random() - 0.5) * 0.6;
+                    const dist = 4.5 + Math.random();
+                    idle.sprite.position.set(
+                        Math.cos(angle) * dist,
+                        2,
+                        Math.sin(angle) * dist
+                    );
+                    idle.velocity.set(
+                        (Math.random() - 0.5) * 0.5,
+                        2 + Math.random() * 1.5,
+                        (Math.random() - 0.5) * 0.5
+                    );
+                    idle.sprite.visible = true;
+                    idle.sprite.material.opacity = 0.4;
+                    idle.sprite.scale.set(1, 1, 1);
+                }
+            }
+            // Update all live steam particles
+            steam.forEach(p => {
+                if (p.life <= 0) return;
+                p.life -= dt;
+                const t = 1 - (p.life / p.maxLife); // 0→1 over lifetime
+                p.sprite.position.x += p.velocity.x * dt;
+                p.sprite.position.y += p.velocity.y * dt;
+                p.sprite.position.z += p.velocity.z * dt;
+                p.velocity.y *= 0.98; // slow rise
+                const s = 1 + t * 2.5;
+                p.sprite.scale.set(s, s, s);
+                p.sprite.material.opacity = 0.4 * (1 - t) * (1 - t);
+                if (p.life <= 0) {
+                    p.sprite.visible = false;
+                    p.sprite.material.opacity = 0;
+                }
+            });
+        }
 
         // Animate harvester rover orbiting around the drill rig
         const rover = hGroup.userData.rover;
@@ -540,6 +586,44 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                     child.rotation.z += 3 * dt;
                 }
             });
+
+            // Rover exhaust smoke puffs
+            const exhaust = ud.exhaustParticles;
+            if (exhaust) {
+                ud.exhaustTimer = (ud.exhaustTimer || 0) + dt;
+                if (ud.exhaustTimer > 0.15) {
+                    ud.exhaustTimer = 0;
+                    const idle = exhaust.find(p => p.life <= 0);
+                    if (idle) {
+                        idle.life = idle.maxLife;
+                        idle.sprite.position.set(-1.4, 0.8, (Math.random() - 0.5) * 0.4);
+                        idle.velocity.set(
+                            -0.5 - Math.random() * 0.5,
+                            1.5 + Math.random(),
+                            (Math.random() - 0.5) * 0.8
+                        );
+                        idle.sprite.visible = true;
+                        idle.sprite.material.opacity = 0.5;
+                        idle.sprite.scale.set(0.5, 0.5, 0.5);
+                    }
+                }
+                exhaust.forEach(p => {
+                    if (p.life <= 0) return;
+                    p.life -= dt;
+                    const t = 1 - (p.life / p.maxLife);
+                    p.sprite.position.x += p.velocity.x * dt;
+                    p.sprite.position.y += p.velocity.y * dt;
+                    p.sprite.position.z += p.velocity.z * dt;
+                    p.velocity.y *= 0.96;
+                    const s = 0.5 + t * 1.5;
+                    p.sprite.scale.set(s, s, s);
+                    p.sprite.material.opacity = 0.5 * (1 - t) * (1 - t);
+                    if (p.life <= 0) {
+                        p.sprite.visible = false;
+                        p.sprite.material.opacity = 0;
+                    }
+                });
+            }
         }
     });
 

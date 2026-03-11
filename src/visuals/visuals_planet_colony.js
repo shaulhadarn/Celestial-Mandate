@@ -4,6 +4,25 @@ import { gameState, BUILDINGS } from '../core/state.js';
 
 export let harvesterGroups = [];
 
+// Procedural smoke/steam sprite texture (cached)
+let _smokeTextureCache = null;
+function _getSmokeTexture() {
+    if (_smokeTextureCache) return _smokeTextureCache;
+    const size = 32;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    gradient.addColorStop(0, 'rgba(255,255,255,1)');
+    gradient.addColorStop(0.4, 'rgba(255,255,255,0.6)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    _smokeTextureCache = new THREE.CanvasTexture(canvas);
+    return _smokeTextureCache;
+}
+
 /**
  * Renders the 3D structures of a colony on the planetary surface.
  */
@@ -115,6 +134,33 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         beacon.userData.beacon = true;
         hGroup.add(beacon);
 
+        // Steam vent particles around drill rig base
+        const steamParticles = [];
+        const steamTex = _getSmokeTexture();
+        for (let si = 0; si < 12; si++) {
+            const sMat = new THREE.SpriteMaterial({
+                map: steamTex,
+                color: 0xcccccc,
+                transparent: true,
+                opacity: 0,
+                depthWrite: false,
+                blending: THREE.NormalBlending
+            });
+            const sp = new THREE.Sprite(sMat);
+            sp.scale.set(1, 1, 1);
+            sp.visible = false;
+            hGroup.add(sp);
+            steamParticles.push({
+                sprite: sp,
+                life: 0,
+                maxLife: 1.2 + Math.random() * 0.8,
+                velocity: new THREE.Vector3(),
+                baseAngle: (si / 12) * Math.PI * 2
+            });
+        }
+        hGroup.userData.steamParticles = steamParticles;
+        hGroup.userData.steamTimer = Math.random() * 2; // stagger start
+
         // Small harvester rover that orbits around the drill rig
         const rover = new THREE.Group();
         rover.userData.harvesterRover = true;
@@ -160,6 +206,33 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         const headlight = new THREE.PointLight(0xffaa00, 2, 8);
         headlight.position.set(1.5, 1.2, 0);
         rover.add(headlight);
+
+        // Rover exhaust smoke particles (pooled sprites behind rover)
+        const exhaustParticles = [];
+        const smokeTex = _getSmokeTexture();
+        for (let pi = 0; pi < 8; pi++) {
+            const spMat = new THREE.SpriteMaterial({
+                map: smokeTex,
+                color: 0x886644,
+                transparent: true,
+                opacity: 0,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+            const sp = new THREE.Sprite(spMat);
+            sp.scale.set(0.5, 0.5, 0.5);
+            sp.position.set(-1.4, 0.8, 0);
+            sp.visible = false;
+            rover.add(sp);
+            exhaustParticles.push({
+                sprite: sp,
+                life: 0,
+                maxLife: 0.6 + Math.random() * 0.4,
+                velocity: new THREE.Vector3()
+            });
+        }
+        rover.userData.exhaustParticles = exhaustParticles;
+        rover.userData.exhaustTimer = 0;
 
         // Place rover at initial orbit position
         const initAngle = rover.userData.orbitPhase;
