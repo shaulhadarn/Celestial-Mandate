@@ -619,3 +619,25 @@ export const EVENT_CHAINS = {
         ]
     },
 };
+
+/** Preload all event images lazily in the background so they're cached when needed */
+export function preloadEventImages() {
+    const urls = new Set();
+    for (const evt of RANDOM_EVENTS) {
+        if (evt.image) urls.add(evt.image);
+    }
+    for (const chain of Object.values(EVENT_CHAINS)) {
+        for (const step of chain.steps || []) {
+            if (step.image) urls.add(step.image);
+        }
+    }
+    // Stagger loads so we don't hammer the network on startup
+    let delay = 2000;
+    for (const url of urls) {
+        setTimeout(() => {
+            const img = new Image();
+            img.src = url;
+        }, delay);
+        delay += 150;
+    }
+}

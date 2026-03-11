@@ -11,6 +11,7 @@ import { initCreationUI } from "./ui/ui_creation.js";
 import { initSplashPlanet, stopSplashPlanet } from "./visuals/splash_renderer.js";
 import { showRaceIntro } from "./ui/ui_intro.js";
 import { playWarpAnimation } from "./visuals/warp_animation.js";
+import { preloadEventImages } from "./core/events_data.js";
 import { Game } from "./Game.js";
 document.querySelector('script[src="main.js"]')?.remove();
 async function start() {
@@ -79,6 +80,7 @@ function startGame(playerCiv) {
   // Galaxy visuals will be built when scene is ready in SceneBindings component
   startLogicLoop();
   startMusic();
+  preloadEventImages();
   const homeSystem = galaxyData.systems[0];
   const homePlanet = homeSystem.planets[0];
   if (homePlanet) {

@@ -117,10 +117,12 @@ export function playWarpAnimation({ onPrepare, onFlash } = {}) {
             // ── WARP PHASE ──────────────────────────────────────────────
             const t = elapsed / WARP_MS;  // 0→1 within warp portion
 
-            // Fire onPrepare mid-warp so scene loads behind the opaque overlay
+            // Fire onPrepare mid-warp so scene loads behind the opaque overlay.
+            // Defer to a setTimeout so the current animation frame finishes painting
+            // before the heavy createSystemVisuals work runs — prevents visible stutter.
             if (!prepareFired && t >= P_PREPARE) {
                 prepareFired = true;
-                if (onPrepare) onPrepare();
+                if (onPrepare) setTimeout(onPrepare, 0);
             }
 
             // Background trail

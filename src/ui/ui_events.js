@@ -97,7 +97,7 @@ function _ensureModal() {
 
             <!-- Image (Optional) -->
             <div class="evt-image-wrap hidden">
-                <img class="evt-image" src="" alt="Event Image" />
+                <img class="evt-image" src="" alt="Event Image" loading="lazy" decoding="async" />
             </div>
 
             <!-- Description -->
@@ -181,12 +181,24 @@ function _showEvent(evt, chainInfo) {
     // Title
     modal.querySelector('.evt-title').textContent = evt.title;
 
-    // Image
+    // Image — lazy load with fade-in so mobile doesn't get stuck
     const imgWrap = modal.querySelector('.evt-image-wrap');
     const imgEl = modal.querySelector('.evt-image');
     if (evt.image) {
-        imgEl.src = evt.image;
+        imgEl.classList.add('evt-image-loading');
+        imgEl.src = '';
         imgWrap.classList.remove('hidden');
+
+        const loader = new Image();
+        loader.onload = () => {
+            imgEl.src = evt.image;
+            imgEl.classList.remove('evt-image-loading');
+        };
+        loader.onerror = () => {
+            // Hide if image fails to load
+            imgWrap.classList.add('hidden');
+        };
+        loader.src = evt.image;
     } else {
         imgEl.src = '';
         imgWrap.classList.add('hidden');
