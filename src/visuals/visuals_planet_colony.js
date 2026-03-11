@@ -38,6 +38,86 @@ function _concreteMat() { return _mat('concrete', { color: 0x3a3a3a, roughness: 
 function _frameMat() { return _mat('frame', { color: 0x1a1a1a, roughness: 0.3, metalness: 0.9 }); }
 function _pipeMat() { return _mat('pipe', { color: 0x444444, roughness: 0.4, metalness: 0.8 }); }
 
+// ── Connection tube from hub to building ────────────────────────────────────
+
+function _buildConnectionTube(group, angle, heightFn, borderColor) {
+    const tubeMat = _mat('tube', { color: 0x2a2a2a, roughness: 0.5, metalness: 0.7 });
+    const railMat = _mat('tubeRail', { color: 0x1a1a1a, roughness: 0.3, metalness: 0.9 });
+    const glowMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.3,
+        transparent: true, opacity: 0.6, roughness: 0.2, metalness: 0.5
+    });
+
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    const startR = 10;  // hub entrance tunnel end
+    const endR = 18;    // building platform edge
+    const SEGS = 6;
+    const tubeW = 2.0;
+    const tubeH = 0.4;
+    const railH = 0.6;
+    const elevate = 0.6; // walkway above terrain
+
+    // Sample terrain points along the radial path
+    const pts = [];
+    for (let i = 0; i <= SEGS; i++) {
+        const t = i / SEGS;
+        const r = startR + (endR - startR) * t;
+        const x = cosA * r;
+        const z = sinA * r;
+        const y = heightFn(x, z) + elevate;
+        pts.push({ x, y, z });
+    }
+
+    for (let i = 0; i < SEGS; i++) {
+        const a = pts[i], b = pts[i + 1];
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        const mz = (a.z + b.z) / 2;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dz = b.z - a.z;
+        const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        // Walkway slab
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(tubeW, tubeH, len + 0.3), tubeMat);
+        slab.position.set(mx, my, mz);
+        slab.lookAt(b.x, b.y, b.z);
+        slab.receiveShadow = true;
+        group.add(slab);
+
+        // Side rails
+        [-1, 1].forEach(side => {
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, railH, len + 0.3), railMat);
+            rail.position.set(mx, my + (tubeH + railH) / 2, mz);
+            rail.lookAt(b.x, b.y + (tubeH + railH) / 2, b.z);
+            // Offset sideways in local space
+            const perpX = -sinA * side * (tubeW / 2 - 0.06);
+            const perpZ = cosA * side * (tubeW / 2 - 0.06);
+            rail.position.x += perpX;
+            rail.position.z += perpZ;
+            group.add(rail);
+        });
+
+        // Glow strip down the center
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, len + 0.2), glowMat);
+        strip.position.set(mx, my + tubeH / 2 + 0.04, mz);
+        strip.lookAt(b.x, b.y + tubeH / 2 + 0.04, b.z);
+        group.add(strip);
+
+        // Support pillars every other segment
+        if (i % 2 === 0) {
+            const pillarH = Math.max(0.5, my - heightFn(mx, mz) + elevate);
+            const pillar = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.2, pillarH, 4),
+                railMat
+            );
+            pillar.position.set(mx, my - pillarH / 2, mz);
+            group.add(pillar);
+        }
+    }
+}
+
 // ── Building-specific mesh builders ─────────────────────────────────────────
 
 function _buildBasePlatform(g) {
@@ -688,6 +768,9 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         else _buildDefault(bGroup, bc);
 
         group.add(bGroup);
+
+        // Connection tube from hub to this building
+        _buildConnectionTube(group, angle, heightFn, bc);
     });
 
     // ── Harvesters ──

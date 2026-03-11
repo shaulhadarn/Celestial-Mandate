@@ -786,35 +786,6 @@
         justify-content: center;
     }
 
-    /* Right-side camera drag zone hint */
-    #exploration-look-zone {
-        position: fixed;
-        bottom: 0;
-        right: 0;
-        width: 58vw;
-        height: 42vw;
-        max-height: 200px;
-        z-index: 999;
-        pointer-events: none;
-        display: none;
-        align-items: flex-end;
-        justify-content: flex-end;
-        padding: 12px;
-        box-sizing: border-box;
-    }
-
-    #exploration-look-zone.visible {
-        display: flex;
-    }
-
-    #exploration-look-zone::before {
-        content: '👁 Look';
-        font-size: 11px;
-        color: rgba(255,255,255,0.2);
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        font-family: 'Rajdhani', sans-serif;
-    }
 
     /* ── Event Modal — Mobile Overrides ────────────────────────────────────── */
     .evt-box {

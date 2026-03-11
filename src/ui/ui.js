@@ -195,9 +195,6 @@ export function initUI() {
             enterPlanetView(planet);
 
             if (window.innerWidth <= 768) {
-                const lookZone = document.getElementById('exploration-look-zone');
-                if (lookZone) lookZone.classList.add('visible');
-
                 try {
                     const nipplejs = (await import('nipplejs')).default;
                     const container = document.getElementById('joystick-container');
@@ -479,8 +476,6 @@ async function returnToSystemViewFromPlanet() {
     }
     const container = document.getElementById('joystick-container');
     if (container) container.classList.remove('visible');
-    const lookZone = document.getElementById('exploration-look-zone');
-    if (lookZone) lookZone.classList.remove('visible');
     setJoystickInput(0, 0);
 
     document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
