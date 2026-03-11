@@ -1,6 +1,7 @@
-/* Updated: Organized app hierarchy, moved to src/visuals folder, fixed imports and paths */
+/* Updated: Upgraded colony building visuals with detailed multi-part structures */
 import * as THREE from 'three';
 import { gameState, BUILDINGS } from '../core/state.js';
+import { textures } from '../core/assets.js';
 
 export let harvesterGroups = [];
 
@@ -23,6 +24,538 @@ function _getSmokeTexture() {
     return _smokeTextureCache;
 }
 
+// ── Shared materials (created once, reused across buildings) ─────────────────
+const _matCache = {};
+function _mat(key, props) {
+    if (!_matCache[key]) _matCache[key] = new THREE.MeshStandardMaterial(props);
+    return _matCache[key];
+}
+
+function _basePlatformMat() { return _mat('basePlat', { color: 0x2a2a2a, roughness: 0.5, metalness: 0.7 }); }
+function _concreteMat() { return _mat('concrete', { color: 0x3a3a3a, roughness: 0.8, metalness: 0.2 }); }
+function _frameMat() { return _mat('frame', { color: 0x1a1a1a, roughness: 0.3, metalness: 0.9 }); }
+function _pipeMat() { return _mat('pipe', { color: 0x444444, roughness: 0.4, metalness: 0.8 }); }
+
+// ── Building-specific mesh builders ─────────────────────────────────────────
+
+function _buildBasePlatform(g) {
+    // Multi-layer platform: foundation slab + edge trim + floor surface
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(8, 0.6, 8), _basePlatformMat());
+    slab.position.y = 0;
+    slab.receiveShadow = true;
+    g.add(slab);
+
+    // Raised inner deck
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.3, 6.5), _concreteMat());
+    deck.position.y = 0.45;
+    g.add(deck);
+
+    // Corner bollards
+    const bollardGeo = new THREE.CylinderGeometry(0.25, 0.3, 1.2, 6);
+    [[-3.5, 0, -3.5], [-3.5, 0, 3.5], [3.5, 0, -3.5], [3.5, 0, 3.5]].forEach(([bx, , bz]) => {
+        const b = new THREE.Mesh(bollardGeo, _frameMat());
+        b.position.set(bx, 0.9, bz);
+        g.add(b);
+    });
+}
+
+function _buildHub(g) {
+    // ── Main dome ──
+    const domeGeo = new THREE.SphereGeometry(7, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    const domeMat = new THREE.MeshStandardMaterial({
+        color: 0x556677, roughness: 0.25, metalness: 0.8,
+        emissive: 0x112233, emissiveIntensity: 0.1
+    });
+    const dome = new THREE.Mesh(domeGeo, domeMat);
+    dome.position.y = 0;
+    dome.castShadow = true;
+    g.add(dome);
+
+    // ── Base ring ──
+    const ringGeo = new THREE.TorusGeometry(7.2, 0.5, 8, 24);
+    const ring = new THREE.Mesh(ringGeo, _frameMat());
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.2;
+    g.add(ring);
+
+    // ── Foundation cylinder ──
+    const foundGeo = new THREE.CylinderGeometry(8, 9.5, 3, 12);
+    const found = new THREE.Mesh(foundGeo, _concreteMat());
+    found.position.y = -1.5;
+    found.receiveShadow = true;
+    g.add(found);
+
+    // ── Central antenna spire ──
+    const spire = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.15, 0.4, 6, 6),
+        _frameMat()
+    );
+    spire.position.y = 9;
+    g.add(spire);
+
+    // Antenna dish on top
+    const dishGeo = new THREE.SphereGeometry(1.2, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    const dish = new THREE.Mesh(dishGeo, new THREE.MeshStandardMaterial({
+        color: 0xaabbcc, roughness: 0.2, metalness: 0.9
+    }));
+    dish.rotation.x = Math.PI;
+    dish.position.y = 12.5;
+    g.add(dish);
+
+    // ── Entrance tunnels (4 radial) ──
+    const tunnelGeo = new THREE.BoxGeometry(3, 2.5, 8);
+    for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        const tunnel = new THREE.Mesh(tunnelGeo, _concreteMat());
+        tunnel.position.set(Math.cos(angle) * 10, 0.5, Math.sin(angle) * 10);
+        tunnel.rotation.y = -angle;
+        tunnel.castShadow = true;
+        g.add(tunnel);
+    }
+
+    // ── Window light strips around dome ──
+    const stripMat = new THREE.MeshStandardMaterial({
+        color: 0x00f2ff, emissive: 0x00f2ff, emissiveIntensity: 0.8,
+        transparent: true, opacity: 0.7
+    });
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.8, 2.5), stripMat);
+        strip.position.set(Math.cos(angle) * 6.8, 2.5, Math.sin(angle) * 6.8);
+        strip.rotation.y = -angle;
+        g.add(strip);
+    }
+
+    // ── Main light ──
+    const hubLight = new THREE.PointLight(0x00f2ff, 10, 40);
+    hubLight.position.set(0, 8, 0);
+    g.add(hubLight);
+}
+
+function _buildPowerPlant(g, borderColor) {
+    _buildBasePlatform(g);
+
+    const accentMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.25,
+        roughness: 0.3, metalness: 0.7
+    });
+
+    // ── Main reactor dome ──
+    const reactorGeo = new THREE.SphereGeometry(2.5, 12, 10);
+    const reactor = new THREE.Mesh(reactorGeo, new THREE.MeshStandardMaterial({
+        color: 0x555555, roughness: 0.2, metalness: 0.9
+    }));
+    reactor.position.y = 4;
+    reactor.castShadow = true;
+    g.add(reactor);
+
+    // Reactor core glow ring
+    const coreRing = new THREE.Mesh(
+        new THREE.TorusGeometry(2.7, 0.25, 8, 16), accentMat
+    );
+    coreRing.rotation.x = Math.PI / 2;
+    coreRing.position.y = 4;
+    g.add(coreRing);
+
+    // ── Twin cooling towers ──
+    const towerGeo = new THREE.CylinderGeometry(1.2, 1.6, 7, 8);
+    const towerMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, metalness: 0.6 });
+    [[-2.5, 0, -1.5], [2.5, 0, -1.5]].forEach(([tx, , tz]) => {
+        const tower = new THREE.Mesh(towerGeo, towerMat);
+        tower.position.set(tx, 4.5, tz);
+        tower.castShadow = true;
+        g.add(tower);
+
+        // Tower rim
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.15, 6, 12), _frameMat());
+        rim.rotation.x = Math.PI / 2;
+        rim.position.set(tx, 8, tz);
+        g.add(rim);
+    });
+
+    // ── Power conduits (pipes connecting towers to reactor) ──
+    const conduitGeo = new THREE.CylinderGeometry(0.2, 0.2, 3.5, 6);
+    [[-1.3, 3, -0.8], [1.3, 3, -0.8]].forEach(([cx, cy, cz]) => {
+        const conduit = new THREE.Mesh(conduitGeo, _pipeMat());
+        conduit.position.set(cx, cy, cz);
+        conduit.rotation.z = Math.PI / 4 * (cx > 0 ? -1 : 1);
+        g.add(conduit);
+    });
+
+    // ── Energy pylons ──
+    const pylonGeo = new THREE.BoxGeometry(0.4, 5, 0.4);
+    [[-3, 0, 2.5], [3, 0, 2.5]].forEach(([px, , pz]) => {
+        const pylon = new THREE.Mesh(pylonGeo, _frameMat());
+        pylon.position.set(px, 3.5, pz);
+        g.add(pylon);
+        // Pylon tip glow
+        const tip = new THREE.Mesh(new THREE.SphereGeometry(0.3, 6, 6), accentMat);
+        tip.position.set(px, 6.2, pz);
+        g.add(tip);
+    });
+
+    // ── Energy arc between pylons (glowing wire) ──
+    const arcMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.6,
+        transparent: true, opacity: 0.6
+    });
+    const arcGeo = new THREE.CylinderGeometry(0.08, 0.08, 6.2, 4);
+    const arc = new THREE.Mesh(arcGeo, arcMat);
+    arc.position.set(0, 6.2, 2.5);
+    arc.rotation.z = Math.PI / 2;
+    g.add(arc);
+
+    // ── Top light ──
+    const light = new THREE.PointLight(new THREE.Color(borderColor), 6, 25);
+    light.position.y = 8;
+    g.add(light);
+}
+
+function _buildMiningNetwork(g, borderColor) {
+    _buildBasePlatform(g);
+
+    const accentMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.3,
+        roughness: 0.4, metalness: 0.7
+    });
+
+    // ── Central ore processor — large industrial box ──
+    const processorMat = new THREE.MeshStandardMaterial({
+        color: 0x4a3a2a, roughness: 0.6, metalness: 0.5
+    });
+    const processor = new THREE.Mesh(new THREE.BoxGeometry(4, 5, 3.5), processorMat);
+    processor.position.y = 3.5;
+    processor.castShadow = true;
+    g.add(processor);
+
+    // Processor accent stripe
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.4, 3.6), accentMat);
+    stripe.position.y = 4.5;
+    g.add(stripe);
+
+    // ── Conveyor belt frame ──
+    const conveyorGeo = new THREE.BoxGeometry(1.0, 0.3, 8);
+    const conveyor = new THREE.Mesh(conveyorGeo, _frameMat());
+    conveyor.position.set(0, 1.2, -2);
+    conveyor.rotation.y = 0;
+    g.add(conveyor);
+
+    // Conveyor supports
+    const supportGeo = new THREE.BoxGeometry(0.2, 1.5, 0.2);
+    for (let si = 0; si < 4; si++) {
+        const s = new THREE.Mesh(supportGeo, _frameMat());
+        s.position.set(0, 0.6, -4.5 + si * 2.2);
+        g.add(s);
+    }
+
+    // ── Ore crusher cone ──
+    const crusherGeo = new THREE.ConeGeometry(1.5, 3, 6);
+    const crusher = new THREE.Mesh(crusherGeo, new THREE.MeshStandardMaterial({
+        color: 0x555544, roughness: 0.5, metalness: 0.7
+    }));
+    crusher.position.set(0, 7.5, 0);
+    crusher.rotation.x = Math.PI;
+    g.add(crusher);
+
+    // ── Sorting silos ──
+    const siloGeo = new THREE.CylinderGeometry(0.8, 0.8, 4, 8);
+    [[-2.5, 0, 2], [2.5, 0, 2]].forEach(([sx, , sz]) => {
+        const silo = new THREE.Mesh(siloGeo, _pipeMat());
+        silo.position.set(sx, 3, sz);
+        silo.castShadow = true;
+        g.add(silo);
+        // Silo cap
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1, 8), _frameMat());
+        cap.position.set(sx, 5.5, sz);
+        g.add(cap);
+    });
+
+    // ── Crane arm ──
+    const craneBase = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 8, 6), _frameMat());
+    craneBase.position.set(-2, 5, -1.5);
+    g.add(craneBase);
+    const craneArm = new THREE.Mesh(new THREE.BoxGeometry(6, 0.3, 0.3), _frameMat());
+    craneArm.position.set(0.5, 9.2, -1.5);
+    g.add(craneArm);
+
+    // ── Accent light ──
+    const light = new THREE.PointLight(new THREE.Color(borderColor), 5, 20);
+    light.position.y = 7;
+    g.add(light);
+}
+
+function _buildHydroponics(g, borderColor) {
+    _buildBasePlatform(g);
+
+    const glassMat = new THREE.MeshStandardMaterial({
+        color: 0x88ffaa, roughness: 0.1, metalness: 0.2,
+        transparent: true, opacity: 0.35,
+        emissive: borderColor, emissiveIntensity: 0.15
+    });
+    const accentMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.4,
+        roughness: 0.3, metalness: 0.5
+    });
+
+    // ── Main biodome ──
+    const domeGeo = new THREE.SphereGeometry(3.5, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    const dome = new THREE.Mesh(domeGeo, glassMat);
+    dome.position.y = 1;
+    dome.castShadow = true;
+    g.add(dome);
+
+    // Dome frame ribs
+    const ribMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.8 });
+    for (let r = 0; r < 6; r++) {
+        const angle = (r / 6) * Math.PI;
+        const rib = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.08, 4, 24, Math.PI), ribMat);
+        rib.rotation.y = angle;
+        rib.position.y = 1;
+        g.add(rib);
+    }
+
+    // Dome base ring
+    const baseRing = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.2, 6, 20), _frameMat());
+    baseRing.rotation.x = Math.PI / 2;
+    baseRing.position.y = 1;
+    g.add(baseRing);
+
+    // ── Side greenhouse tunnels ──
+    const tunnelGeo = new THREE.CylinderGeometry(1.2, 1.2, 5, 8, 1, false, 0, Math.PI);
+    [[-2.5, 0, 0], [2.5, 0, 0]].forEach(([tx, , tz], i) => {
+        const tunnel = new THREE.Mesh(tunnelGeo, glassMat);
+        tunnel.rotation.z = Math.PI / 2;
+        tunnel.rotation.y = i === 0 ? 0 : Math.PI;
+        tunnel.position.set(tx > 0 ? 5 : -5, 1.8, tz);
+        g.add(tunnel);
+    });
+
+    // ── Internal vegetation hint (green blob inside dome) ──
+    const vegGeo = new THREE.SphereGeometry(2.2, 8, 6);
+    const vegMat = new THREE.MeshStandardMaterial({
+        color: 0x226633, emissive: 0x114422, emissiveIntensity: 0.3,
+        roughness: 0.9, metalness: 0.0
+    });
+    const veg = new THREE.Mesh(vegGeo, vegMat);
+    veg.position.y = 1.8;
+    veg.scale.y = 0.6;
+    g.add(veg);
+
+    // ── Water tanks ──
+    const tankGeo = new THREE.CylinderGeometry(0.6, 0.6, 2.5, 8);
+    const tankMat = new THREE.MeshStandardMaterial({ color: 0x3366aa, roughness: 0.3, metalness: 0.6 });
+    [[3.5, 0, -2.5], [-3.5, 0, -2.5]].forEach(([wx, , wz]) => {
+        const tank = new THREE.Mesh(tankGeo, tankMat);
+        tank.position.set(wx, 2, wz);
+        g.add(tank);
+    });
+
+    // ── Growth light strips inside ──
+    for (let i = 0; i < 3; i++) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 4), accentMat);
+        strip.position.set(-1.5 + i * 1.5, 3.5, 0);
+        g.add(strip);
+    }
+
+    // ── Interior glow ──
+    const light = new THREE.PointLight(new THREE.Color(borderColor), 4, 18);
+    light.position.y = 3;
+    g.add(light);
+}
+
+function _buildResearchLab(g, borderColor) {
+    _buildBasePlatform(g);
+
+    const accentMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.4,
+        roughness: 0.2, metalness: 0.6
+    });
+
+    // ── Main lab building — clean angular design ──
+    const labMat = new THREE.MeshStandardMaterial({
+        color: 0x556688, roughness: 0.2, metalness: 0.8
+    });
+    const labBody = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 4), labMat);
+    labBody.position.y = 3;
+    labBody.castShadow = true;
+    g.add(labBody);
+
+    // Window band
+    const windowMat = new THREE.MeshStandardMaterial({
+        color: 0x88ccff, emissive: 0x4488ff, emissiveIntensity: 0.5,
+        transparent: true, opacity: 0.6
+    });
+    const windowBand = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.8, 4.1), windowMat);
+    windowBand.position.y = 3.8;
+    g.add(windowBand);
+
+    // ── Satellite dish on roof ──
+    const dishGeo = new THREE.SphereGeometry(1.5, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const dishMat = new THREE.MeshStandardMaterial({ color: 0xccccdd, roughness: 0.15, metalness: 0.9 });
+    const dish = new THREE.Mesh(dishGeo, dishMat);
+    dish.rotation.x = Math.PI;
+    dish.rotation.z = 0.3;
+    dish.position.set(1.5, 6, 0);
+    g.add(dish);
+
+    // Dish pedestal
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.5, 6), _frameMat());
+    pedestal.position.set(1.5, 5.5, 0);
+    g.add(pedestal);
+
+    // ── Antenna tower ──
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.15, 5, 4), _frameMat());
+    antenna.position.set(-1.5, 7.5, 0);
+    g.add(antenna);
+
+    // Antenna cross-bars
+    for (let ci = 0; ci < 3; ci++) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.06, 0.06), _frameMat());
+        bar.position.set(-1.5, 6 + ci * 1.2, 0);
+        g.add(bar);
+    }
+
+    // Antenna tip blink
+    const tipGlow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 6), accentMat);
+    tipGlow.position.set(-1.5, 10.2, 0);
+    g.add(tipGlow);
+
+    // ── Holographic projector base ──
+    const projBase = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1, 0.5, 8), accentMat);
+    projBase.position.set(0, 5.3, 0);
+    g.add(projBase);
+
+    // Hologram glow beam
+    const beamMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.8,
+        transparent: true, opacity: 0.2
+    });
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.6, 2.5, 6), beamMat);
+    beam.position.set(0, 6.8, 0);
+    g.add(beam);
+
+    // ── Side instrument pods ──
+    const podGeo = new THREE.BoxGeometry(1.5, 2.5, 1.5);
+    [[-3.5, 0, 0], [3.5, 0, 0]].forEach(([px, , pz]) => {
+        const pod = new THREE.Mesh(podGeo, labMat);
+        pod.position.set(px, 2, pz);
+        pod.castShadow = true;
+        g.add(pod);
+    });
+
+    // ── Lights ──
+    const light = new THREE.PointLight(new THREE.Color(borderColor), 5, 22);
+    light.position.y = 7;
+    g.add(light);
+}
+
+function _buildShipyard(g, borderColor) {
+    _buildBasePlatform(g);
+
+    const accentMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.35,
+        roughness: 0.3, metalness: 0.6
+    });
+
+    // ── Main hangar building ──
+    const hangarMat = new THREE.MeshStandardMaterial({
+        color: 0x444455, roughness: 0.4, metalness: 0.7
+    });
+    const hangar = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 5), hangarMat);
+    hangar.position.y = 3;
+    hangar.castShadow = true;
+    g.add(hangar);
+
+    // Hangar door opening (dark inset)
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x111122, roughness: 0.9, metalness: 0.1 });
+    const door = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3, 0.2), doorMat);
+    door.position.set(0, 2.5, 2.6);
+    g.add(door);
+
+    // Door frame accent
+    const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(3.8, 3.3, 0.1), accentMat);
+    doorFrame.position.set(0, 2.5, 2.65);
+    g.add(doorFrame);
+
+    // ── Gantry cranes (2 tall towers + crossbeam) ──
+    const gantryGeo = new THREE.BoxGeometry(0.4, 12, 0.4);
+    const gantryMat = _frameMat();
+    const gL = new THREE.Mesh(gantryGeo, gantryMat);
+    gL.position.set(-3.5, 7, 0);
+    g.add(gL);
+    const gR = new THREE.Mesh(gantryGeo, gantryMat);
+    gR.position.set(3.5, 7, 0);
+    g.add(gR);
+
+    // Crossbeam
+    const crossbeam = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.5, 0.5), gantryMat);
+    crossbeam.position.set(0, 13.2, 0);
+    g.add(crossbeam);
+
+    // Crane trolley
+    const trolley = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.6), accentMat);
+    trolley.position.set(0.5, 12.9, 0);
+    g.add(trolley);
+
+    // Crane cable
+    const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 5, 4), _pipeMat());
+    cable.position.set(0.5, 10.2, 0);
+    g.add(cable);
+
+    // ── Launch pad markings (accent circle on ground) ──
+    const padRing = new THREE.Mesh(new THREE.TorusGeometry(3, 0.15, 6, 20), accentMat);
+    padRing.rotation.x = Math.PI / 2;
+    padRing.position.set(0, 0.65, 0);
+    g.add(padRing);
+
+    // ── Fuel tanks ──
+    const fuelGeo = new THREE.CylinderGeometry(0.6, 0.6, 3, 8);
+    const fuelMat = new THREE.MeshStandardMaterial({ color: 0x993366, roughness: 0.4, metalness: 0.5 });
+    [[-3.5, 0, 3], [3.5, 0, 3]].forEach(([fx, , fz]) => {
+        const tank = new THREE.Mesh(fuelGeo, fuelMat);
+        tank.position.set(fx, 2.5, fz);
+        g.add(tank);
+    });
+
+    // ── Comms array on roof ──
+    const commsBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 3, 6), _frameMat());
+    commsBase.position.set(2, 6.5, -1.5);
+    g.add(commsBase);
+    const commsAntenna = new THREE.Mesh(new THREE.BoxGeometry(2, 0.06, 0.06), _frameMat());
+    commsAntenna.position.set(2, 8.2, -1.5);
+    g.add(commsAntenna);
+
+    // ── Shipyard light ──
+    const light = new THREE.PointLight(new THREE.Color(borderColor), 6, 25);
+    light.position.y = 10;
+    g.add(light);
+}
+
+// ── Default building (fallback) ─────────────────────────────────────────────
+
+function _buildDefault(g, borderColor) {
+    _buildBasePlatform(g);
+
+    const tower = new THREE.Mesh(
+        new THREE.BoxGeometry(3.5, 10, 3.5),
+        new THREE.MeshStandardMaterial({
+            color: borderColor || 0x00f2ff,
+            emissive: borderColor || 0x00f2ff,
+            emissiveIntensity: 0.2,
+            roughness: 0.3, metalness: 0.7
+        })
+    );
+    tower.position.y = 6;
+    tower.castShadow = true;
+    g.add(tower);
+
+    const light = new THREE.PointLight(new THREE.Color(borderColor || 0x00f2ff), 4, 18);
+    light.position.y = 10;
+    g.add(light);
+}
+
+// ── Main render function ────────────────────────────────────────────────────
+
 /**
  * Renders the 3D structures of a colony on the planetary surface.
  */
@@ -32,25 +565,18 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
     const colony = gameState.colonies[planetId];
     if (!colony) return;
 
-    // Hub
-    const hubGeo = new THREE.CylinderGeometry(8, 10, 4, 8);
-    const hubMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, metalness: 0.8 });
-    const hub = new THREE.Mesh(hubGeo, hubMat);
+    // ── Hub (central command structure) ──
+    const hubGroup = new THREE.Group();
     const hubY = heightFn(0, 0);
-    hub.position.set(0, hubY + 1.5, 0);
-    hub.castShadow = true;
-    hub.receiveShadow = true;
-    group.add(hub);
+    hubGroup.position.set(0, hubY, 0);
+    _buildHub(hubGroup);
+    group.add(hubGroup);
 
-    const hubLight = new THREE.PointLight(0x00f2ff, 10, 30);
-    hubLight.position.set(0, 5, 0);
-    hub.add(hubLight);
-
-    // Buildings
+    // ── Buildings arranged around hub ──
     colony.buildings.forEach((bKey, i) => {
         const buildingData = BUILDINGS[bKey];
         const angle = (i / 5) * Math.PI * 2;
-        const dist = 18;
+        const dist = 22;
         const x = Math.cos(angle) * dist;
         const z = Math.sin(angle) * dist;
         const y = heightFn(x, z);
@@ -59,30 +585,18 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         bGroup.position.set(x, y, z);
         bGroup.rotation.y = -angle;
 
-        const baseGeo = new THREE.BoxGeometry(6, 1, 6);
-        const baseMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-        bGroup.add(new THREE.Mesh(baseGeo, baseMat));
-
-        let towerGeo;
-        if (bKey === 'power_plant') towerGeo = new THREE.CylinderGeometry(2, 3, 10, 6);
-        else if (bKey === 'mining_network') towerGeo = new THREE.OctahedronGeometry(4);
-        else if (bKey === 'hydroponics') towerGeo = new THREE.TorusKnotGeometry(2, 0.5, 64, 8);
-        else towerGeo = new THREE.BoxGeometry(4, 12, 4);
-
-        const towerMat = new THREE.MeshStandardMaterial({
-            color: buildingData.borderColor || 0x00f2ff,
-            emissive: buildingData.borderColor || 0x00f2ff,
-            emissiveIntensity: 0.2
-        });
-        const tower = new THREE.Mesh(towerGeo, towerMat);
-        tower.position.y = 5;
-        tower.castShadow = true;
-        bGroup.add(tower);
+        const bc = buildingData.borderColor || '#00f2ff';
+        if (bKey === 'power_plant') _buildPowerPlant(bGroup, bc);
+        else if (bKey === 'mining_network') _buildMiningNetwork(bGroup, bc);
+        else if (bKey === 'hydroponics') _buildHydroponics(bGroup, bc);
+        else if (bKey === 'research_lab') _buildResearchLab(bGroup, bc);
+        else if (bKey === 'shipyard') _buildShipyard(bGroup, bc);
+        else _buildDefault(bGroup, bc);
 
         group.add(bGroup);
     });
 
-    // Harvesters
+    // ── Harvesters ──
     const harvesters = colony.harvesters || [];
     harvesters.forEach((h) => {
         const hx = h.position.x;
