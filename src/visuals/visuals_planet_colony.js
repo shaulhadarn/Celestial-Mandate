@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { gameState, BUILDINGS } from '../core/state.js';
 import { textures } from '../core/assets.js';
+import { createShadowSprite } from './visuals_planet_drone.js';
 
 export let harvesterGroups = [];
 export let soldierMeshes = [];
@@ -955,6 +956,29 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         // First waypoint
         const wpAngle = Math.random() * Math.PI * 2;
         const wpR = 2 + Math.random() * 4;
+        // Blob shadow
+        const sShadow = createShadowSprite();
+        sShadow.scale.setScalar(1.4);
+        sShadow.position.set(centerX, sy + 0.15, centerZ);
+        group.add(sShadow);
+
+        // Track-trail pool (small flat quads left behind while walking)
+        const TRAIL_MAX = 16;
+        const trailMarks = [];
+        const trailGeo = new THREE.PlaneGeometry(0.35, 0.55);
+        for (let ti = 0; ti < TRAIL_MAX; ti++) {
+            const tMat = new THREE.MeshBasicMaterial({
+                color: 0x000000, transparent: true, opacity: 0,
+                depthWrite: false, polygonOffset: true,
+                polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+            });
+            const mark = new THREE.Mesh(trailGeo, tMat);
+            mark.rotation.x = -Math.PI / 2;
+            mark.visible = false;
+            group.add(mark);
+            trailMarks.push({ mesh: mark, age: 999 });
+        }
+
         soldier.userData = {
             isSoldier: true,
             centerX, centerZ,
@@ -964,6 +988,10 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
             waitTimer: Math.random() * 1.5,
             walkPhase: 0,
             speed: 2.5 + Math.random() * 1.5,
+            shadowMesh: sShadow,
+            trailMarks,
+            trailIndex: 0,
+            trailDist: 0,
         };
         group.add(soldier);
         soldierMeshes.push(soldier);

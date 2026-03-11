@@ -293,9 +293,32 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     });
 
     // --- 8b. Patrol soldiers (waypoint-based walk) ---
+    const TRAIL_SPACING = 1.2;   // drop a footprint every N units
+    const TRAIL_LIFE    = 6.0;   // seconds before full fade
+
     soldierMeshes.forEach(s => {
         const ud = s.userData;
         if (!ud.isSoldier) return;
+
+        // ── Shadow follows soldier ──
+        if (ud.shadowMesh) {
+            const gH = getTerrainHeightFast(s.position.x, s.position.z) + 0.15;
+            ud.shadowMesh.position.set(s.position.x, gH, s.position.z);
+            ud.shadowMesh.material.opacity = 0.55;
+        }
+
+        // ── Age existing trail marks ──
+        if (ud.trailMarks) {
+            for (let ti = 0; ti < ud.trailMarks.length; ti++) {
+                const tm = ud.trailMarks[ti];
+                if (tm.age < TRAIL_LIFE) {
+                    tm.age += dt;
+                    const frac = tm.age / TRAIL_LIFE;
+                    tm.mesh.material.opacity = 0.25 * (1 - frac);
+                    if (frac >= 1) { tm.mesh.visible = false; tm.mesh.material.opacity = 0; }
+                }
+            }
+        }
 
         // Waiting at waypoint — stand still, legs/arms idle
         if (ud.waitTimer > 0) {
@@ -345,6 +368,22 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 child.rotation.x = Math.sin(ud.walkPhase + Math.PI) * 0.35 * child.userData.side;
             }
         });
+
+        // ── Drop track trail marks ──
+        if (ud.trailMarks) {
+            ud.trailDist += step;
+            if (ud.trailDist >= TRAIL_SPACING) {
+                ud.trailDist -= TRAIL_SPACING;
+                const tm = ud.trailMarks[ud.trailIndex % ud.trailMarks.length];
+                ud.trailIndex++;
+                const gH = getTerrainHeightFast(s.position.x, s.position.z) + 0.12;
+                tm.mesh.position.set(s.position.x, gH, s.position.z);
+                tm.mesh.rotation.z = s.rotation.y;
+                tm.mesh.visible = true;
+                tm.mesh.material.opacity = 0.25;
+                tm.age = 0;
+            }
+        }
     });
 
     // --- 9. Animate harvesters ---
