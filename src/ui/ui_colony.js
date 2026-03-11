@@ -92,7 +92,7 @@ export function renderColonyView(planetId) {
     cList.innerHTML = '';
     
     if(occupiedSlots < totalSlots) {
-        Object.keys(BUILDINGS).forEach(key => {
+        Object.keys(BUILDINGS).filter(key => !BUILDINGS[key].isHarvester).forEach(key => {
             const b = BUILDINGS[key];
             const currentMinerals = gameState.resources.minerals;
             const costNormal = b.cost.minerals;
@@ -278,7 +278,7 @@ export function updateColonyDynamicState(planetId) {
     });
 
     // Update Build Button States based on current resources
-    Object.keys(BUILDINGS).forEach(key => {
+    Object.keys(BUILDINGS).filter(key => !BUILDINGS[key].isHarvester).forEach(key => {
         const b = BUILDINGS[key];
         const btnNormal = document.getElementById(`build-${key}`);
         const btnInstant = document.getElementById(`instant-${key}`);
