@@ -238,6 +238,123 @@ function _showEvent(evt, chainInfo) {
     });
 }
 
+/* ── Pirate intro conversation ─────────────────────────────────────────── */
+
+const PIRATE_SKULL_ICON = `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/><path d="M9.5 15.5l1-.5 1.5.5 1.5-.5 1 .5" stroke="currentColor" stroke-width="1" fill="none"/>`;
+const COMMANDER_ICON = `<path d="M12 2L2 7l10 5 10-5-10-5z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4 8v6l8 4 8-4V8" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="12" r="2" fill="currentColor"/>`;
+
+const _pirateConvo = [
+    {
+        speaker: 'pirate',
+        title: 'Incoming Transmission',
+        desc: "A crackling signal cuts through your comms array. A scarred face appears on screen, grinning beneath a jagged red visor.\n\n\"Well, well... fresh colonists. Welcome to OUR sector, outsiders. The name's Krath. I run things around here.\"",
+        btn: 'Respond...'
+    },
+    {
+        speaker: 'player',
+        title: 'Colony Command',
+        desc: "\"This is a lawful colonial settlement under imperial charter. Identify yourself and state your intentions.\"",
+        btn: 'Continue...'
+    },
+    {
+        speaker: 'pirate',
+        title: 'Incoming Transmission',
+        desc: "Krath laughs. \"Imperial charter? Out here? That's adorable. Let me explain how this works, colonist. You see that planet on the edge of your system? That's MINE. My crew and I have been running operations from Corsair's Den long before you showed up.\"\n\nHe leans forward, his grin fading. \"Here's the deal — you pay us a little tribute. Minerals. Energy. Consider it... a protection fee.\"",
+        btn: 'Respond...'
+    },
+    {
+        speaker: 'player',
+        title: 'Colony Command',
+        desc: "\"We will not negotiate with raiders. This system is under our jurisdiction now.\"",
+        btn: 'Continue...'
+    },
+    {
+        speaker: 'pirate',
+        title: 'Incoming Transmission',
+        desc: "Krath slams his fist on the console. \"Wrong answer! You don't GET to say no. My raiders are already en route to your precious little colony. We'll take what we need — and we'll keep taking until there's nothing left.\"\n\nHe points at the screen. \"Unless you're smarter than you look... build yourself a shipyard, put together some real firepower, and come try to take us out. Until then — we OWN you.\"\n\nThe transmission cuts to static.",
+        btn: 'End Transmission'
+    }
+];
+
+function _showPirateConvoStep(stepIdx) {
+    const step = _pirateConvo[stepIdx];
+    if (!step) return;
+
+    const isPirate = step.speaker === 'pirate';
+    const evt = {
+        category: isPirate ? 'danger' : 'military',
+        icon: isPirate ? PIRATE_SKULL_ICON : COMMANDER_ICON,
+        title: step.title,
+        desc: step.desc,
+        choices: [{
+            label: step.btn,
+            effect: {}
+        }]
+    };
+
+    // Override the choice click to advance conversation instead of closing
+    const modal = _ensureModal();
+    const cat = CATEGORY_META[evt.category] || CATEGORY_META.danger;
+    modal.style.setProperty('--evt-accent', cat.color);
+
+    const iconSvg = modal.querySelector('.evt-icon');
+    iconSvg.innerHTML = evt.icon || '';
+
+    const catEl = modal.querySelector('.evt-category');
+    catEl.textContent = isPirate ? 'PIRATE COMMS' : 'YOUR RESPONSE';
+
+    // Chain indicator shows conversation progress
+    const chainBar = modal.querySelector('.evt-chain-bar');
+    chainBar.classList.remove('hidden');
+    chainBar.querySelector('.evt-chain-text').textContent =
+        `Transmission — ${stepIdx + 1} of ${_pirateConvo.length}`;
+
+    modal.querySelector('.evt-title').textContent = evt.title;
+
+    const descEl = modal.querySelector('.evt-desc');
+    descEl.innerHTML = _formatDesc(evt.desc);
+
+    const choicesEl = modal.querySelector('.evt-choices');
+    choicesEl.innerHTML = '';
+
+    const btn = document.createElement('button');
+    btn.className = 'evt-choice-btn';
+    btn.style.animation = 'none';
+    btn.style.opacity = '0';
+    const escapedLabel = step.btn.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    btn.innerHTML = `
+        <div class="evt-choice-row">
+            <span class="evt-choice-marker"></span>
+            <span class="evt-choice-label">${escapedLabel}</span>
+        </div>
+    `;
+    btn.addEventListener('click', () => {
+        if (stepIdx + 1 < _pirateConvo.length) {
+            // Advance to next step
+            _showPirateConvoStep(stepIdx + 1);
+        } else {
+            // End of conversation
+            _closeModal();
+            showNotification('Pirate raiders will periodically attack your colony. Build a Shipyard and ships to fight back!', 'alert');
+        }
+    });
+    choicesEl.appendChild(btn);
+
+    // Entrance animation
+    const box = modal.querySelector('.evt-box');
+    box.classList.remove('evt-enter', 'evt-exit');
+    if (stepIdx === 0) {
+        _openModal();
+    }
+    void box.offsetWidth;
+    box.classList.add('evt-enter');
+
+    requestAnimationFrame(() => {
+        btn.style.animation = '';
+        btn.style.animationDelay = '0.15s';
+    });
+}
+
 export function initEventsUI() {
     // Random events + chain events
     events.addEventListener('random-event', (e) => {
@@ -254,5 +371,10 @@ export function initEventsUI() {
     // Milestone events (no choices, just narrative)
     events.addEventListener('milestone-event', (e) => {
         _showEvent(e.detail.event, null);
+    });
+
+    // Pirate intro conversation
+    events.addEventListener('pirate-intro', () => {
+        _showPirateConvoStep(0);
     });
 }

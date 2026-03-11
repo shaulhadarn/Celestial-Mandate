@@ -844,6 +844,13 @@ function tickPirateRaids() {
     if (!pb || pb.defeated || pb.battleInProgress) return;
 
     pb.raidTimer++;
+
+    // Show pirate intro conversation ~15 ticks into the game (before raids start)
+    if (!pb.introShown && pb.raidTimer >= -30) {
+        pb.introShown = true;
+        events.dispatchEvent(new CustomEvent('pirate-intro'));
+    }
+
     if (pb.raidTimer < pb.raidInterval) return;
 
     // Raid! Steal resources
