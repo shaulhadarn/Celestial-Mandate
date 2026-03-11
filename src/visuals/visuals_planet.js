@@ -196,7 +196,9 @@ export function createPlanetVisuals(planetData, group) {
 
     // 3. Drone
     playerMesh = createDroneMesh();
-    const spawnX = 25, spawnZ = 25;
+    const hasColony = !!gameState.colonies[planetData.id];
+    const spawnX = hasColony ? 0 : 25;
+    const spawnZ = hasColony ? 10 : 25;
     const spawnGroundH = getTerrainHeight(spawnX, spawnZ);
     playerMesh.position.set(spawnX, spawnGroundH + 4.5, spawnZ); 
     
@@ -271,9 +273,9 @@ export function createPlanetVisuals(planetData, group) {
         group.add(p);
     }
 
-    // 6. Colony (hidden on landing - exploration starts with drone only)
+    // 6. Colony buildings — visible if planet has a colony
     colonyBuildingsGroup = new THREE.Group();
-    colonyBuildingsGroup.visible = false;
+    colonyBuildingsGroup.visible = !!gameState.colonies[planetData.id];
     group.add(colonyBuildingsGroup);
     updateColonyBuildings();
 
