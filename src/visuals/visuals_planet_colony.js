@@ -4,6 +4,7 @@ import { gameState, BUILDINGS } from '../core/state.js';
 import { textures } from '../core/assets.js';
 
 export let harvesterGroups = [];
+export let soldierMeshes = [];
 
 // Procedural smoke/steam sprite texture (cached)
 let _smokeTextureCache = null;
