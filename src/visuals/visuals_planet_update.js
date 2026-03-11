@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { gameState, HARVESTER_YIELDS, HARVESTER_YIELD_DEFAULT } from '../core/state.js';
 import { getTerrainHeight, getTerrainHeightFast } from './visuals_planet_terrain.js';
-import { harvesterGroups, soldierMeshes, renderColonyGroundBuildings } from './visuals_planet_colony.js';
+import { harvesterGroups, soldierMeshes, hubGroup, renderColonyGroundBuildings } from './visuals_planet_colony.js';
 import { getOrCreateHarvesterHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 
@@ -292,27 +292,57 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     });
 
-    // --- 8b. Patrol soldiers ---
+    // --- 8b. Patrol soldiers (waypoint-based walk) ---
     soldierMeshes.forEach(s => {
         const ud = s.userData;
         if (!ud.isSoldier) return;
-        ud.phase += dt * ud.speed;
 
-        const tx = ud.originX + Math.cos(ud.phase) * ud.patrolRadius;
-        const tz = ud.originZ + Math.sin(ud.phase) * ud.patrolRadius;
+        // Waiting at waypoint — stand still, legs/arms idle
+        if (ud.waitTimer > 0) {
+            ud.waitTimer -= dt;
+            // Gently return limbs to rest pose
+            s.children.forEach(child => {
+                if (child.userData.isLeg || child.userData.isArm) {
+                    child.rotation.x *= 0.9;
+                }
+            });
+            return;
+        }
 
-        s.position.x = THREE.MathUtils.lerp(s.position.x, tx, 2 * dt);
-        s.position.z = THREE.MathUtils.lerp(s.position.z, tz, 2 * dt);
+        // Walk toward current waypoint
+        const dx = ud.waypointX - s.position.x;
+        const dz = ud.waypointZ - s.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist < 0.5) {
+            // Reached waypoint — pause, then pick a new one within patrol zone
+            ud.waitTimer = 1.0 + Math.random() * 2.5;
+            const angle = Math.random() * Math.PI * 2;
+            const r = 2 + Math.random() * ud.patrolRadius;
+            ud.waypointX = ud.centerX + Math.cos(angle) * r;
+            ud.waypointZ = ud.centerZ + Math.sin(angle) * r;
+            return;
+        }
+
+        // Step toward waypoint
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const step = ud.speed * dt;
+        s.position.x += nx * step;
+        s.position.z += nz * step;
         s.position.y = getTerrainHeightFast(s.position.x, s.position.z);
 
-        s.rotation.y = -ud.phase + Math.PI / 2;
+        // Face walking direction
+        s.rotation.y = Math.atan2(nx, nz);
 
+        // Walk cycle — legs and arms swing based on distance traveled
+        ud.walkPhase += step * 4;
         s.children.forEach(child => {
             if (child.userData.isLeg) {
-                child.rotation.x = Math.sin(ud.phase * 8) * 0.5 * child.userData.side;
+                child.rotation.x = Math.sin(ud.walkPhase) * 0.5 * child.userData.side;
             }
             if (child.userData.isArm) {
-                child.rotation.x = Math.sin(ud.phase * 8 + Math.PI) * 0.35 * child.userData.side;
+                child.rotation.x = Math.sin(ud.walkPhase + Math.PI) * 0.35 * child.userData.side;
             }
         });
     });
@@ -430,6 +460,15 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             }
         }
     });
+
+    // --- 9b. Animate hub radar dish ---
+    if (hubGroup) {
+        hubGroup.children.forEach(child => {
+            if (child.userData.radarDish) {
+                child.rotation.y += 0.6 * dt;
+            }
+        });
+    }
 
     // --- 10. Drone proximity to harvesters ---
     if (!planetState.placementMode) {

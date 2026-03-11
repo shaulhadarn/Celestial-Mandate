@@ -5,6 +5,7 @@ import { textures } from '../core/assets.js';
 
 export let harvesterGroups = [];
 export let soldierMeshes = [];
+export let hubGroup = null;
 
 // Procedural smoke/steam sprite texture (cached)
 let _smokeTextureCache = null;
@@ -94,14 +95,28 @@ function _buildHub(g) {
     spire.position.y = 9;
     g.add(spire);
 
-    // Antenna dish on top
+    // Rotating radar dish on top of spire
+    const dishPivot = new THREE.Group();
+    dishPivot.position.y = 12.5;
+    dishPivot.userData.radarDish = true;
+
     const dishGeo = new THREE.SphereGeometry(1.2, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
     const dish = new THREE.Mesh(dishGeo, new THREE.MeshStandardMaterial({
         color: 0xaabbcc, roughness: 0.2, metalness: 0.9
     }));
     dish.rotation.x = Math.PI;
-    dish.position.y = 12.5;
-    g.add(dish);
+    dishPivot.add(dish);
+
+    // Small feed horn in front of dish
+    const feedHorn = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 1.0, 4),
+        _frameMat()
+    );
+    feedHorn.position.set(0, 0.2, 0.7);
+    feedHorn.rotation.x = Math.PI / 2;
+    dishPivot.add(feedHorn);
+
+    g.add(dishPivot);
 
     // ── Entrance tunnels (4 radial) ──
     const tunnelGeo = new THREE.BoxGeometry(3, 2.5, 8);
@@ -638,15 +653,18 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
     while(group.children.length > 0) group.remove(group.children[0]);
     harvesterGroups = [];
     soldierMeshes = [];
+    hubGroup = null;
     const colony = gameState.colonies[planetId];
     if (!colony) return;
 
     // ── Hub (central command structure) ──
-    const hubGroup = new THREE.Group();
+    const _hub = new THREE.Group();
     const hubY = heightFn(0, 0);
-    hubGroup.position.set(0, hubY, 0);
-    _buildHub(hubGroup);
-    group.add(hubGroup);
+    _hub.position.set(0, hubY, 0);
+    _hub.userData.isHub = true;
+    _buildHub(_hub);
+    group.add(_hub);
+    hubGroup = _hub;
 
     // ── Buildings arranged around hub ──
     colony.buildings.forEach((bKey, i) => {
@@ -840,23 +858,29 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         harvesterGroups.push(hGroup);
     });
 
-    // ── Patrol soldiers (3 around colony hub) ──
+    // ── Patrol soldiers (3, each guarding a different area near the colony) ──
     for (let si = 0; si < 3; si++) {
         const soldier = _buildSoldierMesh();
-        const patrolRadius = 12 + si * 3;
-        const startAngle = (si / 3) * Math.PI * 2 + Math.random() * 0.5;
-        const sx = Math.cos(startAngle) * patrolRadius;
-        const sz = Math.sin(startAngle) * patrolRadius;
-        const sy = heightFn(sx, sz);
-        soldier.position.set(sx, sy, sz);
-        soldier.rotation.y = -startAngle + Math.PI / 2;
+        // Each soldier patrols a distinct zone spread around the colony
+        const patrolAngle = (si / 3) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+        const patrolDist = 14 + Math.random() * 10;
+        const centerX = Math.cos(patrolAngle) * patrolDist;
+        const centerZ = Math.sin(patrolAngle) * patrolDist;
+        const sy = heightFn(centerX, centerZ);
+        soldier.position.set(centerX, sy, centerZ);
+
+        // First waypoint
+        const wpAngle = Math.random() * Math.PI * 2;
+        const wpR = 2 + Math.random() * 4;
         soldier.userData = {
             isSoldier: true,
-            originX: 0,
-            originZ: 0,
-            patrolRadius,
-            phase: startAngle,
-            speed: 0.25 + si * 0.08, // slightly different speeds so they don't overlap
+            centerX, centerZ,
+            patrolRadius: 4 + Math.random() * 4,
+            waypointX: centerX + Math.cos(wpAngle) * wpR,
+            waypointZ: centerZ + Math.sin(wpAngle) * wpR,
+            waitTimer: Math.random() * 1.5,
+            walkPhase: 0,
+            speed: 2.5 + Math.random() * 1.5,
         };
         group.add(soldier);
         soldierMeshes.push(soldier);
