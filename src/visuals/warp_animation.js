@@ -11,7 +11,7 @@
 
 const STAR_COUNT = 800;
 const WARP_MS    = 3200;
-const DISSOLVE_MS = 1400;
+const DISSOLVE_MS = 2400;
 
 // Phase boundaries within the warp portion (normalised to WARP_MS)
 const P_IDLE    = 0.07;
@@ -21,6 +21,7 @@ const P_FLASH   = 0.78;
 const P_PEAK    = 1.0;
 
 function easeOutQuint(x) { return 1 - Math.pow(1 - x, 5); }
+function easeInCubic(x) { return x * x * x; }
 
 /**
  * @param {Object}   opts
@@ -95,7 +96,9 @@ export function playWarpAnimation({ onPrepare, onFlash } = {}) {
                 // ── DISSOLVE PHASE ──────────────────────────────────────
                 if (elapsed >= WARP_MS) {
                     const u = Math.min((elapsed - WARP_MS) / DISSOLVE_MS, 1.0);
-                    const alpha = 1 - easeOutQuint(u);
+                    // easeInCubic: holds white longer, then accelerates fade
+                    // → cinematic "flash holds… then gently reveals"
+                    const alpha = 1 - easeInCubic(u);
 
                     if (!flashFired) {
                         flashFired = true;
