@@ -122,8 +122,28 @@ export const BUILDINGS = {
         buildTime: 10,
         color: 'rgba(180, 150, 255, 0.2)',
         borderColor: '#b496ff'
+    },
+    'harvester': {
+        name: "Resource Harvester",
+        icon: "🏭",
+        cost: { minerals: 120 },
+        buildTime: 6,
+        maintenance: { energy: 1 },
+        production: {},
+        maxPerColony: 2,
+        isHarvester: true,
+        color: 'rgba(255, 170, 0, 0.15)',
+        borderColor: '#ffaa00'
     }
 };
+
+export const HARVESTER_YIELDS = {
+    'Terran':  { energy: 1, minerals: 1, food: 3 },
+    'Molten':  { energy: 2, minerals: 3, food: 0 },
+    'Barren':  { energy: 1, minerals: 3, food: 1 },
+    'Ice':     { energy: 2, minerals: 2, food: 1 },
+};
+export const HARVESTER_YIELD_DEFAULT = { energy: 1, minerals: 2, food: 2 };
 
 // 3 unique ships per race — keyed by bodyType id
 export const RACE_SHIPS = {
