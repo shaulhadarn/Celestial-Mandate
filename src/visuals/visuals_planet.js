@@ -508,7 +508,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     });
 
-    // --- 9. Animate harvesters — rotating arm + pulsing beacon ---
+    // --- 9. Animate harvesters — rotating arm + pulsing beacon + rover ---
     harvesterGroups.forEach(hGroup => {
         hGroup.children.forEach(child => {
             if (child.userData.rotatingArm) {
@@ -518,6 +518,29 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 child.intensity = 6 + Math.sin(performance.now() * 0.003) * 4;
             }
         });
+
+        // Animate harvester rover orbiting around the drill rig
+        const rover = hGroup.userData.rover;
+        if (rover && rover.userData.harvesterRover) {
+            const ud = rover.userData;
+            ud.orbitPhase += ud.orbitSpeed * dt;
+
+            const rx = ud.baseX + Math.cos(ud.orbitPhase) * ud.orbitRadius;
+            const rz = ud.baseZ + Math.sin(ud.orbitPhase) * ud.orbitRadius;
+            const ry = ud.heightFn(rx, rz);
+            rover.position.set(rx, ry, rz);
+            rover.rotation.y = -ud.orbitPhase + Math.PI / 2; // face movement direction
+
+            // Bob the scoop arm up and down
+            rover.children.forEach(child => {
+                if (child.userData.scoopArm) {
+                    child.rotation.z = Math.sin(performance.now() * 0.005) * 0.3;
+                }
+                if (child.userData.wheel) {
+                    child.rotation.z += 3 * dt;
+                }
+            });
+        }
     });
 
     // --- 10. Drone proximity to harvesters — show relocate UI or placement HUD ---

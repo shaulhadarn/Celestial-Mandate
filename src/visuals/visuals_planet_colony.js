@@ -115,6 +115,64 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         beacon.userData.beacon = true;
         hGroup.add(beacon);
 
+        // Small harvester rover that orbits around the drill rig
+        const rover = new THREE.Group();
+        rover.userData.harvesterRover = true;
+        rover.userData.orbitRadius = 10 + Math.random() * 4;
+        rover.userData.orbitSpeed = 0.3 + Math.random() * 0.2;
+        rover.userData.orbitPhase = Math.random() * Math.PI * 2;
+        rover.userData.heightFn = heightFn;
+        rover.userData.baseX = hx;
+        rover.userData.baseZ = hz;
+
+        // Rover body
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcc8822, roughness: 0.5, metalness: 0.6 });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.2, 1.6), bodyMat);
+        body.position.y = 0.9;
+        body.castShadow = true;
+        rover.add(body);
+
+        // Cab / top section
+        const cabMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.4, metalness: 0.7 });
+        const cab = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.4), cabMat);
+        cab.position.set(-0.4, 1.7, 0);
+        rover.add(cab);
+
+        // Scoop arm at front
+        const scoopMat = new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.8, roughness: 0.3 });
+        const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 1.2), scoopMat);
+        scoop.position.set(1.6, 0.5, 0);
+        scoop.userData.scoopArm = true;
+        rover.add(scoop);
+
+        // Wheels (4 small cylinders)
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+        const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 8);
+        [[-0.8, 0.4, 0.9], [-0.8, 0.4, -0.9], [0.8, 0.4, 0.9], [0.8, 0.4, -0.9]].forEach(([wx, wy, wz]) => {
+            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+            wheel.position.set(wx, wy, wz);
+            wheel.rotation.x = Math.PI / 2;
+            wheel.userData.wheel = true;
+            rover.add(wheel);
+        });
+
+        // Small amber headlight
+        const headlight = new THREE.PointLight(0xffaa00, 2, 8);
+        headlight.position.set(1.5, 1.2, 0);
+        rover.add(headlight);
+
+        // Place rover at initial orbit position
+        const initAngle = rover.userData.orbitPhase;
+        const initR = rover.userData.orbitRadius;
+        const rx = hx + Math.cos(initAngle) * initR;
+        const rz = hz + Math.sin(initAngle) * initR;
+        const ry = heightFn(rx, rz);
+        rover.position.set(rx, ry, rz);
+        rover.rotation.y = -initAngle + Math.PI / 2;
+
+        group.add(rover);
+        hGroup.userData.rover = rover;
+
         group.add(hGroup);
         harvesterGroups.push(hGroup);
     });
