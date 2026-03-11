@@ -1,223 +1,60 @@
-/* Updated: Fixed mobile dpad+camera drag — second finger on camera zone while dpad is held now drags view instead of triggering pinch zoom */
+/**
+ * Planet exploration orchestrator.
+ * Wires together sub-modules; keeps createPlanetVisuals (the scene assembly function)
+ * and re-exports the public API unchanged for renderer.js and ui.js.
+ */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
-import { gameState, events, relocateHarvester, HARVESTER_YIELDS, HARVESTER_YIELD_DEFAULT } from '../core/state.js';
+import { gameState, events } from '../core/state.js';
 import { disposeGroup } from '../core/dispose.js';
-import { getTerrainHeight, getTerrainHeightFast, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
-import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
-import { getSkyColor, createPlanetProps, createCreatures } from './visuals_planet_environment.js';
-import { renderColonyGroundBuildings, harvesterGroups, soldierMeshes } from './visuals_planet_colony.js';
-
 import { scene } from '../core/scene_config.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
 
-let playerMesh;
-let terrainMesh;
-let planetProps = [];
-let colonyBuildingsGroup = null;
-let currentPlanetData = null;
-let explorationGroup = null;
-let sunLight = null;
-const creatures = [];
-const keyState = {};
-const joystickInput = { x: 0, y: 0 };
-let cameraYaw = Math.PI;
-let cameraPitch = 0.4;
-let cameraDistance = 18;
-const CAMERA_DISTANCE_MIN = 5;
-const CAMERA_DISTANCE_MAX = 60;
-const CAMERA_HEIGHT_OFFSET = 2;
-let dustMesh = null; // cached reference for per-frame time uniform update
-let placementMode = null; // null or { harvesterId, planetId }
-let nearestHarvesterData = null; // { harvesterId, planetId }
-let isMouseDown = false;
-let lastMouseX = 0;
-let lastMouseY = 0;
+import planetState from './visuals_planet_state.js';
+import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
+import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
+import { getSkyColor, createPlanetProps, createCreatures } from './visuals_planet_environment.js';
+import { renderColonyGroundBuildings } from './visuals_planet_colony.js';
 
-// Joystick zone: left 42% of screen width
-// Camera drag zone: right 58% of screen (or anywhere on desktop)
-// Pinch-to-zoom: 2-finger touch ONLY when drone is not moving
-const JOYSTICK_ZONE_WIDTH_RATIO = 0.42;
-let pinchStartDist = 0;
-let isPinching = false;
-let cameraDragTouchId = null; // track which touch is doing camera drag
+// Sub-modules — import also registers the mouse/touch listeners (self-invoking init)
+import { handleInput, setJoystickInput } from './visuals_planet_input.js';
+import { updatePlanetPhysics, updateColonyBuildings, resetCachedDOM } from './visuals_planet_update.js';
+import { exitPlacementMode, initHUD } from './visuals_planet_hud.js';
 
-function getTouchDistance(t1, t2) {
-    const dx = t1.clientX - t2.clientX;
-    const dy = t1.clientY - t2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-}
+// Wire HUD → update dependency (breaks potential circular import)
+initHUD(updateColonyBuildings);
 
-function isInJoystickZone(x) {
-    return x < window.innerWidth * JOYSTICK_ZONE_WIDTH_RATIO;
-}
+// Re-export public API (unchanged for renderer.js and ui.js)
+export { handleInput, setJoystickInput, updatePlanetPhysics };
 
-function isDroneMoving() {
-    return Math.abs(joystickInput.x) > 0.05 || Math.abs(joystickInput.y) > 0.05
-        || keyState['w'] || keyState['a'] || keyState['s'] || keyState['d'];
-}
-
-function initExplorationMouseControls() {
-    // ── Mouse (desktop) ──────────────────────────────────────────────────────
-    const onMouseDown = (e) => {
-        isMouseDown = true;
-        lastMouseX = e.clientX;
-        lastMouseY = e.clientY;
-    };
-    const onMouseUp = () => { isMouseDown = false; };
-    const onMouseMoveExploration = (e) => {
-        if (!isMouseDown || gameState.viewMode !== 'EXPLORATION') return;
-        const dx = e.clientX - lastMouseX;
-        const dy = e.clientY - lastMouseY;
-        cameraYaw -= dx * 0.005;
-        cameraPitch = Math.max(0.02, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
-        lastMouseX = e.clientX;
-        lastMouseY = e.clientY;
-    };
-
-    // ── Mouse wheel zoom ─────────────────────────────────────────────────────
-    const onWheel = (e) => {
-        if (gameState.viewMode !== 'EXPLORATION') return;
-        e.preventDefault();
-        cameraDistance = Math.max(CAMERA_DISTANCE_MIN, Math.min(CAMERA_DISTANCE_MAX, cameraDistance + e.deltaY * 0.05));
-    };
-
-    // ── Touch ────────────────────────────────────────────────────────────────
-    // UI elements that should receive normal touch/click — skip camera drag for these
-    const _isUITouch = (e) => e.target.closest('#exploration-header, #harvester-hud, .action-btn, button');
-
-    const onTouchStart = (e) => {
-        if (gameState.viewMode !== 'EXPLORATION') return;
-        if (_isUITouch(e)) return; // let button taps pass through to click handler
-
-        if (e.touches.length >= 2) {
-            // While d-pad is active (drone moving), second finger = camera drag, NOT pinch zoom
-            if (isDroneMoving()) {
-                // Find the non-joystick touch and use it as camera drag
-                const nonJoystickTouch = Array.from(e.touches).find(t => !isInJoystickZone(t.clientX));
-                if (nonJoystickTouch) {
-                    isMouseDown = true;
-                    cameraDragTouchId = nonJoystickTouch.identifier;
-                    lastMouseX = nonJoystickTouch.clientX;
-                    lastMouseY = nonJoystickTouch.clientY;
-                }
-                e.preventDefault();
-                return;
-            }
-
-            // Drone is NOT moving — allow pinch zoom
-            isMouseDown = false;
-            cameraDragTouchId = null;
-            isPinching = true;
-            pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
-            e.preventDefault();
-            return;
-        }
-
-        if (e.touches.length === 1) {
-            const touch = e.touches[0];
-            // Only start camera drag if touch is in the RIGHT zone (not joystick area)
-            if (!isInJoystickZone(touch.clientX)) {
-                isMouseDown = true;
-                cameraDragTouchId = touch.identifier;
-                lastMouseX = touch.clientX;
-                lastMouseY = touch.clientY;
-            }
-        }
-    };
-
-    const onTouchEnd = (e) => {
-        if (gameState.viewMode !== 'EXPLORATION') return;
-
-        if (e.touches.length < 2) {
-            isPinching = false;
-        }
-
-        // Check if the camera drag touch was lifted
-        const stillDown = Array.from(e.touches).some(t => t.identifier === cameraDragTouchId);
-        if (!stillDown) {
-            isMouseDown = false;
-            cameraDragTouchId = null;
-        }
-    };
-
-    const onTouchMove = (e) => {
-        if (gameState.viewMode !== 'EXPLORATION') return;
-        if (_isUITouch(e)) return; // don't hijack touches on buttons
-        e.preventDefault();
-
-        // ── Pinch to zoom (only when drone is NOT moving) ────────────────────
-        if (e.touches.length === 2 && isPinching && !isDroneMoving()) {
-            const newDist = getTouchDistance(e.touches[0], e.touches[1]);
-            const delta = pinchStartDist - newDist;
-            cameraDistance = Math.max(CAMERA_DISTANCE_MIN, Math.min(CAMERA_DISTANCE_MAX, cameraDistance + delta * 0.05));
-            pinchStartDist = newDist;
-            return;
-        }
-
-        // ── While d-pad is active with 2 touches: second finger is camera drag ──
-        if (e.touches.length >= 2 && isDroneMoving() && cameraDragTouchId !== null) {
-            const touch = Array.from(e.touches).find(t => t.identifier === cameraDragTouchId);
-            if (touch) {
-                const dx = touch.clientX - lastMouseX;
-                const dy = touch.clientY - lastMouseY;
-                cameraYaw -= dx * 0.005;
-                cameraPitch = Math.max(0.02, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
-                lastMouseX = touch.clientX;
-                lastMouseY = touch.clientY;
-            }
-            return;
-        }
-
-        // ── Single touch camera drag ─────────────────────────────────────────
-        if (!isMouseDown || !cameraDragTouchId) return;
-        const touch = Array.from(e.touches).find(t => t.identifier === cameraDragTouchId);
-        if (!touch) return;
-
-        const dx = touch.clientX - lastMouseX;
-        const dy = touch.clientY - lastMouseY;
-        cameraYaw -= dx * 0.005;
-        cameraPitch = Math.max(0.02, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
-        lastMouseX = touch.clientX;
-        lastMouseY = touch.clientY;
-    };
-
-    window.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mouseup', onMouseUp);
-    window.addEventListener('mousemove', onMouseMoveExploration);
-    window.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('touchstart', onTouchStart, { passive: false });
-    window.addEventListener('touchend', onTouchEnd, { passive: false });
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
-}
-initExplorationMouseControls();
+// ── Scene assembly ──────────────────────────────────────────────────────────
 
 export function createPlanetVisuals(planetData, group) {
-    _exitPlacementMode();
-    planetProps = [];
-    creatures.length = 0;
-    dustMesh = null;
-    currentPlanetData = planetData;
-    explorationGroup = group;
+    exitPlacementMode();
+    resetCachedDOM();
+    planetState.planetProps = [];
+    planetState.creatures.length = 0;
+    planetState.dustMesh = null;
+    planetState.currentPlanetData = planetData;
+    planetState.explorationGroup = group;
     disposeGroup(group);
 
-    // Ice/Arctic now have dark sky colors — treat them as dark for lighting purposes
     const isDark = ['Barren', 'Tomb', 'Molten', 'Ice', 'Arctic'].includes(planetData.type);
     const skyColor = getSkyColor(planetData.type);
 
-    // Dynamic Fog for atmosphere depth
+    // Dynamic Fog
     let fogDensity = 0.002;
     if (planetData.type === 'Ocean') fogDensity = 0.004;
-    if (planetData.type === 'Ice' || planetData.type === 'Arctic') fogDensity = 0.003; // Light haze
+    if (planetData.type === 'Ice' || planetData.type === 'Arctic') fogDensity = 0.003;
     if (planetData.type === 'Tomb' || planetData.type === 'Molten') fogDensity = 0.006;
-    if (planetData.type === 'Barren') fogDensity = 0.0005; // Thin atmosphere
-    
+    if (planetData.type === 'Barren') fogDensity = 0.0005;
+
     if (scene) {
         scene.fog = new THREE.FogExp2(skyColor, fogDensity);
         scene.background = new THREE.Color(skyColor);
     }
 
-    // 1. Sky (Kept as a fallback/backdrop)
+    // 1. Sky
     const skyGeo = new THREE.SphereGeometry(600, 32, 32);
     const skyMat = new THREE.MeshBasicMaterial({ color: skyColor, side: THREE.BackSide });
     group.add(new THREE.Mesh(skyGeo, skyMat));
@@ -226,48 +63,47 @@ export function createPlanetVisuals(planetData, group) {
         const starsGeo = new THREE.BufferGeometry();
         const starsCount = 1000;
         const starPos = new Float32Array(starsCount * 3);
-        for(let i=0; i<starsCount*3; i++) starPos[i] = (Math.random() - 0.5) * 1000;
+        for (let i = 0; i < starsCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 1000;
         starsGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-        group.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({color: 0xffffff, size: 2, transparent: true, opacity: 0.8})));
+        group.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 2, transparent: true, opacity: 0.8 })));
     }
 
     // 2. Terrain
-    terrainMesh = createTerrainMesh(planetData.type);
-    group.add(terrainMesh);
+    planetState.terrainMesh = createTerrainMesh(planetData.type);
+    group.add(planetState.terrainMesh);
 
     // 3. Drone
-    playerMesh = createDroneMesh();
+    planetState.playerMesh = createDroneMesh();
     const hasColony = !!gameState.colonies[planetData.id];
     const spawnX = hasColony ? 0 : 25;
     const spawnZ = hasColony ? 10 : 25;
     const spawnGroundH = getTerrainHeight(spawnX, spawnZ);
-    playerMesh.position.set(spawnX, spawnGroundH + 4.5, spawnZ); 
-    
+    planetState.playerMesh.position.set(spawnX, spawnGroundH + 4.5, spawnZ);
+
     const shadowMesh = createShadowSprite();
     group.add(shadowMesh);
-    playerMesh.userData = { 
-        ...playerMesh.userData, 
-        velocity: new THREE.Vector3(), 
+    planetState.playerMesh.userData = {
+        ...planetState.playerMesh.userData,
+        velocity: new THREE.Vector3(),
         shadowMesh,
-        lastPos: playerMesh.position.clone() 
+        lastPos: planetState.playerMesh.position.clone()
     };
-    group.add(playerMesh);
+    group.add(planetState.playerMesh);
 
-    // 3b. Engine trail sprites — added to parent group so they stay in world space
-    if (playerMesh.userData.engineTrails) {
-        playerMesh.userData.engineTrails.forEach(p => group.add(p.sprite));
+    // 3b. Engine trail sprites — world space
+    if (planetState.playerMesh.userData.engineTrails) {
+        planetState.playerMesh.userData.engineTrails.forEach(p => group.add(p.sprite));
     }
 
     // 4. Props
-    planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
+    planetState.planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
 
-    // 5. Particles — GPU-animated dust (ShaderMaterial: drift + twinkle in vertex/fragment shader)
-    // Mobile: 60 instead of 200 (fewer point sprites = fewer overdraw passes)
+    // 5. Particles — GPU-animated dust
     {
         const particleGeo = new THREE.BufferGeometry();
         const pCount = isMobileDevice ? 60 : 200;
         const pPos = new Float32Array(pCount * 3);
-        const pOffset = new Float32Array(pCount); // per-particle phase offset
+        const pOffset = new Float32Array(pCount);
         for (let i = 0; i < pCount; i++) {
             pPos[i * 3]     = (Math.random() - 0.5) * 200;
             pPos[i * 3 + 1] = (Math.random() - 0.5) * 200;
@@ -288,12 +124,9 @@ export function createPlanetVisuals(planetData, group) {
                 varying float vTwinkle;
                 void main() {
                     vec3 pos = position;
-                    // Per-particle Y drift based on time + unique offset
                     pos.y += sin(uTime * 0.5 + aOffset) * 5.0;
-                    // Slight XZ sway
                     pos.x += sin(uTime * 0.3 + aOffset * 1.7) * 1.5;
                     pos.z += cos(uTime * 0.25 + aOffset * 2.3) * 1.5;
-                    // Twinkle factor passed to fragment shader
                     vTwinkle = 0.3 + 0.7 * (0.5 + 0.5 * sin(uTime * 2.0 + aOffset * 3.0));
                     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
                     gl_PointSize = 4.0 / -mvPosition.z * 100.0;
@@ -315,14 +148,14 @@ export function createPlanetVisuals(planetData, group) {
 
         const p = new THREE.Points(particleGeo, dustShaderMat);
         p.userData = { isDust: true };
-        dustMesh = p;
+        planetState.dustMesh = p;
         group.add(p);
     }
 
-    // 6. Colony buildings — visible if planet has a colony
-    colonyBuildingsGroup = new THREE.Group();
-    colonyBuildingsGroup.visible = !!gameState.colonies[planetData.id];
-    group.add(colonyBuildingsGroup);
+    // 6. Colony buildings
+    planetState.colonyBuildingsGroup = new THREE.Group();
+    planetState.colonyBuildingsGroup.visible = !!gameState.colonies[planetData.id];
+    group.add(planetState.colonyBuildingsGroup);
     updateColonyBuildings();
 
     // 7. Creatures (with blob shadows)
@@ -333,603 +166,51 @@ export function createPlanetVisuals(planetData, group) {
         creatureShadow.scale.setScalar(bs * 1.6);
         group.add(creatureShadow);
         c.userData.shadowMesh = creatureShadow;
-        creatures.push(c);
+        planetState.creatures.push(c);
     });
 
     // 8. Lights
     const sunColor = isDark ? 0xffbb88 : 0xffffff;
-    sunLight = new THREE.DirectionalLight(sunColor, isDark ? 2.0 : 2.8);
-    sunLight.position.set(100, 200, 100);
-    // Shadow mapping — tighter frustum for sharper shadows
-    sunLight.castShadow = !isMobileDevice;
+    planetState.sunLight = new THREE.DirectionalLight(sunColor, isDark ? 2.0 : 2.8);
+    planetState.sunLight.position.set(100, 200, 100);
+    planetState.sunLight.castShadow = !isMobileDevice;
     if (!isMobileDevice) {
-        sunLight.shadow.mapSize.set(4096, 4096);
-        sunLight.shadow.camera.near = 10;
-        sunLight.shadow.camera.far = 400;
-        sunLight.shadow.camera.left = -40;
-        sunLight.shadow.camera.right = 40;
-        sunLight.shadow.camera.top = 40;
-        sunLight.shadow.camera.bottom = -40;
-        sunLight.shadow.bias = -0.0003;
-        sunLight.shadow.normalBias = 0.02;
+        planetState.sunLight.shadow.mapSize.set(4096, 4096);
+        planetState.sunLight.shadow.camera.near = 10;
+        planetState.sunLight.shadow.camera.far = 400;
+        planetState.sunLight.shadow.camera.left = -40;
+        planetState.sunLight.shadow.camera.right = 40;
+        planetState.sunLight.shadow.camera.top = 40;
+        planetState.sunLight.shadow.camera.bottom = -40;
+        planetState.sunLight.shadow.bias = -0.0003;
+        planetState.sunLight.shadow.normalBias = 0.02;
     }
-    group.add(sunLight);
-    group.add(sunLight.target);
+    group.add(planetState.sunLight);
+    group.add(planetState.sunLight.target);
 
-    // Fill light from opposite side — prevents pitch-black terrain on shadowed faces
     const fillLight = new THREE.DirectionalLight(isDark ? 0x334466 : 0x8899bb, isDark ? 0.8 : 0.5);
     fillLight.position.set(-80, 60, -80);
     fillLight.castShadow = false;
     group.add(fillLight);
 
-    // Ambient floor — guarantees minimum visibility everywhere regardless of surface angle
     const ambientColor = isDark ? 0x223344 : 0x445566;
     const ambientIntensity = isDark ? 1.2 : 0.9;
     group.add(new THREE.AmbientLight(ambientColor, ambientIntensity));
 
-    // Hemisphere light — sky/ground gradient for natural outdoor look
     const hemiIntensity = isDark ? 0.8 : 1.2;
     group.add(new THREE.HemisphereLight(skyColor, getGroundColor(planetData.type), hemiIntensity));
 
-    return playerMesh;
+    return planetState.playerMesh;
 }
 
-export function updatePlanetPhysics(dt, camera, controls, group) {
-    if (!playerMesh || !camera) return;
-
-    // --- 1. Camera Position (before movement so direction vectors are correct) ---
-    const droneCenter = playerMesh.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
-    const camX = droneCenter.x + cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
-    let camY = droneCenter.y + cameraDistance * Math.sin(cameraPitch);
-    const camZ = droneCenter.z + cameraDistance * Math.cos(cameraYaw) * Math.cos(cameraPitch);
-    // Hard floor — never let camera go below terrain to prevent seeing through the ground
-    const camGroundH = getTerrainHeightFast(camX, camZ) + 2.0;
-    if (camY < camGroundH) camY = camGroundH;
-    camera.position.set(camX, camY, camZ);
-    camera.lookAt(droneCenter);
-
-    // --- 2. Movement Direction (derived from cameraYaw, not camera.quaternion) ---
-    const speed = 100;
-    const drag = 0.92;
-    const velocity = playerMesh.userData.velocity;
-    const inputDir = new THREE.Vector3();
-
-    // Forward = direction camera is facing (flattened to XZ plane)
-    const forward = new THREE.Vector3(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
-    // Right vector is perpendicular to forward vector
-    const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
-
-    if (keyState['w']) inputDir.add(forward);
-    if (keyState['s']) inputDir.sub(forward);
-    if (keyState['a']) inputDir.sub(right);
-    if (keyState['d']) inputDir.add(right);
-    if (Math.abs(joystickInput.x) > 0.1 || Math.abs(joystickInput.y) > 0.1) {
-        inputDir.add(forward.clone().multiplyScalar(joystickInput.y).add(right.clone().multiplyScalar(joystickInput.x)));
-    }
-
-    if (inputDir.length() > 0) {
-        inputDir.normalize();
-        velocity.add(inputDir.multiplyScalar(speed * dt));
-    }
-
-    // --- 3. Apply Movement with slope collision ---
-    const nextPos = playerMesh.position.clone().add(velocity.clone().multiplyScalar(dt));
-    // Sample a small grid at next position to get worst-case terrain height
-    let nextGroundH = getTerrainHeightFast(nextPos.x, nextPos.z);
-    const NS = 3;
-    for (const [ox, oz] of [[-NS,0],[NS,0],[0,-NS],[0,NS]]) {
-        nextGroundH = Math.max(nextGroundH, getTerrainHeightFast(nextPos.x + ox, nextPos.z + oz));
-    }
-    nextGroundH += 1.2; // noise margin
-    // Only block if terrain at next step is above drone's current Y (would clip into slope)
-    if (nextGroundH >= playerMesh.position.y) {
-        // Terrain is above drone - stop horizontal movement, let hover push drone up first
-        velocity.x = 0;
-        velocity.z = 0;
-    } else {
-        playerMesh.position.add(velocity.clone().multiplyScalar(dt));
-    }
-    velocity.multiplyScalar(drag);
-
-    // --- 4. Drone Rotation (face movement direction) ---
-    if (velocity.length() > 0.1) {
-        const targetRot = Math.atan2(velocity.x, velocity.z);
-        let diff = targetRot - playerMesh.rotation.y;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        playerMesh.rotation.y += diff * 12 * dt;
-        playerMesh.rotation.z = THREE.MathUtils.lerp(playerMesh.rotation.z, -diff * velocity.length() * 0.05, 10 * dt);
-        playerMesh.rotation.x = 0; 
-    } else {
-        playerMesh.rotation.z *= 0.9;
-        playerMesh.rotation.x *= 0.9;
-    }
-
-    // --- 5. Drone Visual Effects ---
-    const time = Date.now() * 0.002;
-    if (playerMesh.userData.flare) {
-        const flicker = 0.8 + Math.random() * 0.4;
-        const moving = velocity.length() > 0.1;
-        playerMesh.userData.flare.scale.lerp(new THREE.Vector3((moving ? 4 : 2.5) * flicker, (moving ? 4 : 2.5) * flicker, 1), 0.1);
-        playerMesh.userData.flare.material.opacity = 0.4 + (moving ? 0.4 : 0.1);
-    }
-
-    // --- 5b. Engine Trails ---
-    const trails = playerMesh.userData.engineTrails;
-    if (trails) {
-        const moving = velocity.length() > 0.5;
-        const spd = velocity.length();
-        // Emit new particles when moving
-        if (moving) {
-            playerMesh.userData.trailTimer = (playerMesh.userData.trailTimer || 0) + dt;
-            const emitRate = Math.min(0.03, 0.08 - spd * 0.003); // faster = more frequent
-            if (playerMesh.userData.trailTimer > emitRate) {
-                playerMesh.userData.trailTimer = 0;
-                const idle = trails.find(p => p.life <= 0);
-                if (idle) {
-                    idle.life = idle.maxLife;
-                    // Emit from one of the 4 repulsor pad positions (world space)
-                    const padAngle = (idle.padIndex / 4) * Math.PI * 2 + playerMesh.rotation.y;
-                    const padR = 1.4;
-                    idle.sprite.position.set(
-                        playerMesh.position.x + Math.sin(padAngle) * padR,
-                        playerMesh.position.y + 0.8,
-                        playerMesh.position.z + Math.cos(padAngle) * padR
-                    );
-                    // Drift opposite to movement + slight upward spread
-                    idle.velocity.set(
-                        -velocity.x * 0.15 + (Math.random() - 0.5) * 1.5,
-                        -1.5 + Math.random() * 0.8,
-                        -velocity.z * 0.15 + (Math.random() - 0.5) * 1.5
-                    );
-                    idle.sprite.visible = true;
-                    idle.sprite.material.opacity = 0.7;
-                    idle.sprite.scale.set(0.5, 0.5, 0.5);
-                }
-            }
-        }
-        // Update all live trail particles (runs whether moving or not so existing trails fade)
-        trails.forEach(p => {
-            if (p.life <= 0) return;
-            p.life -= dt;
-            const t = 1 - (p.life / p.maxLife); // 0→1 over lifetime
-            p.sprite.position.x += p.velocity.x * dt;
-            p.sprite.position.y += p.velocity.y * dt;
-            p.sprite.position.z += p.velocity.z * dt;
-            p.velocity.y *= 0.95;
-            // Grow and fade
-            const s = 0.5 + t * 2.0;
-            p.sprite.scale.set(s, s, s);
-            p.sprite.material.opacity = 0.7 * (1 - t) * (1 - t);
-            if (p.life <= 0) {
-                p.sprite.visible = false;
-                p.sprite.material.opacity = 0;
-            }
-        });
-    }
-
-    // --- 6. Ground Height & Hover ---
-    const HOVER_BUFFER = 6.0;  // target hover height above ground
-    const HOVER_MIN = 5.0;     // absolute minimum clearance - hard floor
-    const px = playerMesh.position.x;
-    const pz = playerMesh.position.z;
-
-    // Sample terrain at current pos + wide grid + ahead in velocity direction
-    let groundH = getTerrainHeightFast(px, pz);
-    const R = 5; // sample radius
-    const sampleOffsets = [
-        [-R,0],[R,0],[0,-R],[0,R],
-        [-R,-R],[R,-R],[-R,R],[R,R],
-        [-R*0.5,0],[R*0.5,0],[0,-R*0.5],[0,R*0.5]
-    ];
-    for (const [ox, oz] of sampleOffsets) {
-        groundH = Math.max(groundH, getTerrainHeightFast(px + ox, pz + oz));
-    }
-    // Look ahead in velocity direction to pre-empt rising slopes
-    const velLen = velocity.length();
-    if (velLen > 0.1) {
-        const lookAhead = 8;
-        const vx = velocity.x / velLen;
-        const vz = velocity.z / velLen;
-        groundH = Math.max(groundH, getTerrainHeightFast(px + vx * lookAhead, pz + vz * lookAhead));
-        groundH = Math.max(groundH, getTerrainHeightFast(px + vx * lookAhead * 0.5, pz + vz * lookAhead * 0.5));
-    }
-    // Add margin for mesh micro-noise (±0.4 per vertex)
-    groundH += 1.2;
-
-    for (const prop of planetProps) {
-        const distSq = (px - prop.x)**2 + (pz - prop.z)**2;
-        if (distSq < prop.r * prop.r) groundH = Math.max(groundH, prop.topY);
-    }
-
-    const targetY = groundH + HOVER_BUFFER + Math.sin(time) * 0.3;
-    if (playerMesh.position.y < groundH + HOVER_MIN) {
-        // Hard snap - never allow drone below minimum clearance
-        playerMesh.position.y = groundH + HOVER_MIN;
-    } else if (playerMesh.position.y < targetY) {
-        // Terrain rising - snap up immediately, no lerp
-        playerMesh.position.y = targetY;
-    } else {
-        // Gentle float down when above target
-        playerMesh.position.y += (targetY - playerMesh.position.y) * 4 * dt;
-    }
-
-    // --- 7. Shadow ---
-    if (playerMesh.userData.shadowMesh) {
-        const sm = playerMesh.userData.shadowMesh;
-        // Use raw terrain height (without the +1.2 noise margin) so shadow sits on ground
-        const rawGroundH = getTerrainHeightFast(px, pz) + 0.15;
-        sm.position.set(playerMesh.position.x, rawGroundH, playerMesh.position.z);
-        const dist = playerMesh.position.y - rawGroundH;
-        // Normal hover is ~7 units above raw ground — scale/fade gently so shadow stays visible
-        sm.scale.setScalar(1.8 + (dist * 0.08));
-        sm.material.opacity = Math.max(0.05, 0.55 - (dist * 0.03));
-    }
-
-    // --- 7b. Sun light follows drone — keeps shadow frustum centred on player ---
-    if (sunLight) {
-        const dx = playerMesh.position.x;
-        const dz = playerMesh.position.z;
-        sunLight.position.set(dx + 100, 200, dz + 100);
-        sunLight.target.position.set(dx, 0, dz);
-        sunLight.target.updateMatrixWorld();
-        sunLight.shadow.camera.updateProjectionMatrix();
-    }
-
-    // --- 8. Dust & Creatures ---
-    // Dust particles: just update the time uniform — all animation runs on GPU
-    if (dustMesh && dustMesh.material.uniforms) {
-        dustMesh.material.uniforms.uTime.value = time;
-    }
-
-    creatures.forEach(c => {
-        const ud = c.userData;
-        ud.phase += dt * ud.speed;
-
-        const roam   = ud.roamRadius  || 10;
-        const bob    = ud.bobHeight   || 0.4;
-        const bscale = ud.bodyScale   || 1.0;
-
-        const targetX = ud.originX + Math.cos(ud.phase) * roam;
-        const targetZ = ud.originZ + Math.sin(ud.phase) * roam;
-
-        c.position.x = THREE.MathUtils.lerp(c.position.x, targetX, 0.5 * dt);
-        c.position.z = THREE.MathUtils.lerp(c.position.z, targetZ, 0.5 * dt);
-        c.position.y = getTerrainHeightFast(c.position.x, c.position.z) + bscale * 0.9
-                       + Math.abs(Math.sin(ud.phase * 4)) * bob;
-
-        // Face movement direction
-        const dx = targetX - c.position.x;
-        const dz = targetZ - c.position.z;
-        if (Math.abs(dx) + Math.abs(dz) > 0.01) {
-            c.rotation.y = Math.atan2(dx, dz);
-        }
-
-        // Leg swing — children after index 3 are legs (body, head, eye×2, then legs)
-        const legStart = ud.legStartIdx || 4;
-        const legCount = ud.legCount    || 4;
-        for (let li = 0; li < legCount * 2; li++) {
-            const child = c.children[legStart + li];
-            if (!child) continue;
-            const side  = li % 2 === 0 ? 1 : -1;
-            const swing = Math.sin(ud.phase * 6 + li * 0.8) * 0.35;
-            child.rotation.x = swing * side;
-        }
-
-        // Creature blob shadow
-        if (ud.shadowMesh) {
-            const rawGH = getTerrainHeightFast(c.position.x, c.position.z) + 0.1;
-            ud.shadowMesh.position.set(c.position.x, rawGH, c.position.z);
-            const distAbove = c.position.y - rawGH;
-            ud.shadowMesh.scale.setScalar(bscale * 1.6 + distAbove * 0.08);
-            ud.shadowMesh.material.opacity = Math.max(0, 0.5 - distAbove * 0.06);
-        }
-    });
-
-    // --- 8b. Patrol soldiers ---
-    soldierMeshes.forEach(s => {
-        const ud = s.userData;
-        if (!ud.isSoldier) return;
-        ud.phase += dt * ud.speed;
-
-        const tx = ud.originX + Math.cos(ud.phase) * ud.patrolRadius;
-        const tz = ud.originZ + Math.sin(ud.phase) * ud.patrolRadius;
-
-        s.position.x = THREE.MathUtils.lerp(s.position.x, tx, 2 * dt);
-        s.position.z = THREE.MathUtils.lerp(s.position.z, tz, 2 * dt);
-        s.position.y = getTerrainHeightFast(s.position.x, s.position.z);
-
-        // Face movement direction
-        s.rotation.y = -ud.phase + Math.PI / 2;
-
-        // Walk animation — swing legs and arms
-        s.children.forEach(child => {
-            if (child.userData.isLeg) {
-                child.rotation.x = Math.sin(ud.phase * 8) * 0.5 * child.userData.side;
-            }
-            if (child.userData.isArm) {
-                child.rotation.x = Math.sin(ud.phase * 8 + Math.PI) * 0.35 * child.userData.side;
-            }
-        });
-    });
-
-    // --- 9. Animate harvesters — rotating arm + pulsing beacon + rover + particles ---
-    harvesterGroups.forEach(hGroup => {
-        hGroup.children.forEach(child => {
-            if (child.userData.rotatingArm) {
-                child.rotation.y += 0.8 * dt;
-            }
-            if (child.userData.beacon) {
-                child.intensity = 6 + Math.sin(performance.now() * 0.003) * 4;
-            }
-        });
-
-        // Drill rig steam vents — periodic puffs rising from the base
-        const steam = hGroup.userData.steamParticles;
-        if (steam) {
-            hGroup.userData.steamTimer = (hGroup.userData.steamTimer || 0) + dt;
-            // Emit a new puff every ~0.4s
-            if (hGroup.userData.steamTimer > 0.4) {
-                hGroup.userData.steamTimer = 0;
-                const idle = steam.find(p => p.life <= 0);
-                if (idle) {
-                    idle.life = idle.maxLife;
-                    const angle = idle.baseAngle + (Math.random() - 0.5) * 0.6;
-                    const dist = 4.5 + Math.random();
-                    idle.sprite.position.set(
-                        Math.cos(angle) * dist,
-                        2,
-                        Math.sin(angle) * dist
-                    );
-                    idle.velocity.set(
-                        (Math.random() - 0.5) * 0.5,
-                        2 + Math.random() * 1.5,
-                        (Math.random() - 0.5) * 0.5
-                    );
-                    idle.sprite.visible = true;
-                    idle.sprite.material.opacity = 0.4;
-                    idle.sprite.scale.set(1, 1, 1);
-                }
-            }
-            // Update all live steam particles
-            steam.forEach(p => {
-                if (p.life <= 0) return;
-                p.life -= dt;
-                const t = 1 - (p.life / p.maxLife); // 0→1 over lifetime
-                p.sprite.position.x += p.velocity.x * dt;
-                p.sprite.position.y += p.velocity.y * dt;
-                p.sprite.position.z += p.velocity.z * dt;
-                p.velocity.y *= 0.98; // slow rise
-                const s = 1 + t * 2.5;
-                p.sprite.scale.set(s, s, s);
-                p.sprite.material.opacity = 0.4 * (1 - t) * (1 - t);
-                if (p.life <= 0) {
-                    p.sprite.visible = false;
-                    p.sprite.material.opacity = 0;
-                }
-            });
-        }
-
-        // Animate harvester rover orbiting around the drill rig
-        const rover = hGroup.userData.rover;
-        if (rover && rover.userData.harvesterRover) {
-            const ud = rover.userData;
-            ud.orbitPhase += ud.orbitSpeed * dt;
-
-            const rx = ud.baseX + Math.cos(ud.orbitPhase) * ud.orbitRadius;
-            const rz = ud.baseZ + Math.sin(ud.orbitPhase) * ud.orbitRadius;
-            const ry = ud.heightFn(rx, rz);
-            rover.position.set(rx, ry, rz);
-            rover.rotation.y = -ud.orbitPhase + Math.PI / 2; // face movement direction
-
-            // Bob the scoop arm up and down
-            rover.children.forEach(child => {
-                if (child.userData.scoopArm) {
-                    child.rotation.z = Math.sin(performance.now() * 0.005) * 0.3;
-                }
-                if (child.userData.wheel) {
-                    child.rotation.z += 3 * dt;
-                }
-            });
-
-            // Rover exhaust smoke puffs
-            const exhaust = ud.exhaustParticles;
-            if (exhaust) {
-                ud.exhaustTimer = (ud.exhaustTimer || 0) + dt;
-                if (ud.exhaustTimer > 0.15) {
-                    ud.exhaustTimer = 0;
-                    const idle = exhaust.find(p => p.life <= 0);
-                    if (idle) {
-                        idle.life = idle.maxLife;
-                        idle.sprite.position.set(-1.4, 0.8, (Math.random() - 0.5) * 0.4);
-                        idle.velocity.set(
-                            -0.5 - Math.random() * 0.5,
-                            1.5 + Math.random(),
-                            (Math.random() - 0.5) * 0.8
-                        );
-                        idle.sprite.visible = true;
-                        idle.sprite.material.opacity = 0.5;
-                        idle.sprite.scale.set(0.5, 0.5, 0.5);
-                    }
-                }
-                exhaust.forEach(p => {
-                    if (p.life <= 0) return;
-                    p.life -= dt;
-                    const t = 1 - (p.life / p.maxLife);
-                    p.sprite.position.x += p.velocity.x * dt;
-                    p.sprite.position.y += p.velocity.y * dt;
-                    p.sprite.position.z += p.velocity.z * dt;
-                    p.velocity.y *= 0.96;
-                    const s = 0.5 + t * 1.5;
-                    p.sprite.scale.set(s, s, s);
-                    p.sprite.material.opacity = 0.5 * (1 - t) * (1 - t);
-                    if (p.life <= 0) {
-                        p.sprite.visible = false;
-                        p.sprite.material.opacity = 0;
-                    }
-                });
-            }
-        }
-    });
-
-    // --- 10. Drone proximity to harvesters — show relocate UI or placement HUD ---
-    if (!placementMode) {
-        let nearHarvester = null;
-        harvesterGroups.forEach(hGroup => {
-            if (!hGroup.userData.isHarvester) return;
-            const dist = playerMesh.position.distanceTo(hGroup.position);
-            if (dist < 15) nearHarvester = hGroup;
-        });
-
-        const hud = _getOrCreateHarvesterHUD();
-        if (nearHarvester && currentPlanetData) {
-            nearestHarvesterData = {
-                harvesterId: nearHarvester.userData.harvesterId,
-                planetId: currentPlanetData.id
-            };
-            hud.style.display = 'block';
-            hud.querySelector('#harvester-hud-info').style.display = 'block';
-            hud.querySelector('#harvester-hud-relocate').style.display = 'block';
-            hud.querySelector('#harvester-hud-placing').style.display = 'none';
-
-            const pType = currentPlanetData.type || 'Barren';
-            const y = HARVESTER_YIELDS[pType] || HARVESTER_YIELD_DEFAULT;
-            const yieldsEl = hud.querySelector('#harvester-hud-yields');
-            if (yieldsEl) yieldsEl.innerHTML = `⚡+${y.energy} 💎+${y.minerals} 🍏+${y.food}`;
-        } else {
-            nearestHarvesterData = null;
-            hud.style.display = 'none';
-        }
-    } else {
-        const hud = document.getElementById('harvester-hud');
-        if (hud) {
-            hud.style.display = 'block';
-            hud.querySelector('#harvester-hud-info').style.display = 'none';
-            hud.querySelector('#harvester-hud-relocate').style.display = 'none';
-            hud.querySelector('#harvester-hud-placing').style.display = 'block';
-        }
-    }
-
-    // --- 11. Update exploration header coords ---
-    const coordsEl = document.getElementById('exploration-coords');
-    if (coordsEl) {
-        coordsEl.textContent = `X:${Math.round(playerMesh.position.x)} Z:${Math.round(playerMesh.position.z)}`;
-    }
-
-    // --- 12. Final Camera Update (after drone position is finalized) ---
-    const finalCenter = playerMesh.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
-    const finalCamX = finalCenter.x + cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
-    const finalCamY = finalCenter.y + cameraDistance * Math.sin(cameraPitch);
-    const finalCamZ = finalCenter.z + cameraDistance * Math.cos(cameraYaw) * Math.cos(cameraPitch);
-    camera.position.set(finalCamX, finalCamY, finalCamZ);
-    camera.lookAt(finalCenter);
-}
-
-function updateColonyBuildings() {
-    if (!colonyBuildingsGroup || !currentPlanetData) return;
-    renderColonyGroundBuildings(currentPlanetData.id, colonyBuildingsGroup, getTerrainHeight);
-}
-
-export function handleInput(key, pressed) {
-    const k = key.toLowerCase();
-    if (['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright'].includes(k)) {
-        if(k === 'arrowup') keyState['w'] = pressed;
-        else if(k === 'arrowdown') keyState['s'] = pressed;
-        else if(k === 'arrowleft') keyState['a'] = pressed;
-        else if(k === 'arrowright') keyState['d'] = pressed;
-        else keyState[k] = pressed;
-    }
-}
-
-export function setJoystickInput(x, y) { joystickInput.x = x; joystickInput.y = y; }
-
-function _getOrCreateHarvesterHUD() {
-    let el = document.getElementById('harvester-hud');
-    if (el) return el;
-
-    el = document.createElement('div');
-    el.id = 'harvester-hud';
-    el.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:200;display:none;text-align:center;';
-    el.innerHTML = `
-        <div id="harvester-hud-info" style="display:none;margin-bottom:8px;">
-            <div style="background:rgba(255,170,0,0.15);border:1px solid rgba(255,170,0,0.3);border-radius:6px;padding:8px 14px;font-size:12px;">
-                <span style="color:#ffcc44;">🏭 Harvester</span>
-                <span id="harvester-hud-yields" style="color:#ccc;margin-left:8px;"></span>
-            </div>
-        </div>
-        <div id="harvester-hud-relocate" style="display:none;">
-            <button id="btn-harvester-relocate" style="background:rgba(255,170,0,0.2);border:1px solid #ffaa00;color:#ffcc44;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">
-                ⛏ Relocate Harvester
-            </button>
-        </div>
-        <div id="harvester-hud-placing" style="display:none;">
-            <div style="color:#ffcc44;font-size:12px;margin-bottom:8px;">Fly to new location</div>
-            <div style="display:flex;gap:8px;justify-content:center;">
-                <button id="btn-harvester-place" style="background:rgba(0,255,100,0.2);border:1px solid #00ff66;color:#00ff66;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">
-                    ✓ Place Here
-                </button>
-                <button id="btn-harvester-cancel" style="background:rgba(255,50,50,0.2);border:1px solid #ff4444;color:#ff4444;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">
-                    ✕ Cancel
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(el);
-
-    // Amber tint overlay for placement mode
-    const tint = document.createElement('div');
-    tint.id = 'harvester-placement-tint';
-    tint.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:150;box-shadow:inset 0 0 80px rgba(255,170,0,0.15);display:none;';
-    document.body.appendChild(tint);
-
-    // Wire buttons
-    el.querySelector('#btn-harvester-relocate').addEventListener('click', () => {
-        if (!nearestHarvesterData) return;
-        placementMode = { ...nearestHarvesterData };
-        el.querySelector('#harvester-hud-info').style.display = 'none';
-        el.querySelector('#harvester-hud-relocate').style.display = 'none';
-        el.querySelector('#harvester-hud-placing').style.display = 'block';
-        document.getElementById('harvester-placement-tint').style.display = 'block';
-    });
-
-    el.querySelector('#btn-harvester-place').addEventListener('click', () => {
-        if (!placementMode || !playerMesh || !currentPlanetData) return;
-        relocateHarvester(placementMode.planetId, placementMode.harvesterId, {
-            x: playerMesh.position.x,
-            z: playerMesh.position.z
-        });
-        updateColonyBuildings();
-        _exitPlacementMode();
-    });
-
-    el.querySelector('#btn-harvester-cancel').addEventListener('click', () => {
-        _exitPlacementMode();
-    });
-
-    return el;
-}
-
-function _exitPlacementMode() {
-    placementMode = null;
-    nearestHarvesterData = null;
-    const hud = document.getElementById('harvester-hud');
-    if (hud) hud.style.display = 'none';
-    const tint = document.getElementById('harvester-placement-tint');
-    if (tint) tint.style.display = 'none';
-}
+// ── Colony event listeners ──────────────────────────────────────────────────
 
 events.addEventListener('building-complete', (e) => {
-    if (gameState.viewMode === 'EXPLORATION' && currentPlanetData && e.detail.planetId === currentPlanetData.id) updateColonyBuildings();
+    if (gameState.viewMode === 'EXPLORATION' && planetState.currentPlanetData && e.detail.planetId === planetState.currentPlanetData.id)
+        updateColonyBuildings();
 });
 
 events.addEventListener('harvester-complete', (e) => {
-    if (gameState.viewMode === 'EXPLORATION' && currentPlanetData && e.detail.planetId === currentPlanetData.id) updateColonyBuildings();
+    if (gameState.viewMode === 'EXPLORATION' && planetState.currentPlanetData && e.detail.planetId === planetState.currentPlanetData.id)
+        updateColonyBuildings();
 });
-
-// removed function getTerrainHeight() {} (moved to visuals_planet_terrain.js)
-// removed function getSkyColor() {} (moved to visuals_planet_environment.js)
-// removed function getGroundColor() {} (moved to visuals_planet_terrain.js)
-// removed function getPropColor() {} (moved to visuals_planet_environment.js)
-// removed function getGroundTexture() {} (moved to visuals_planet_terrain.js)
-// removed function createShadowTexture() {} (moved to visuals_planet_drone.js)
-// removed function createCreatures() {} (moved to visuals_planet_environment.js)
