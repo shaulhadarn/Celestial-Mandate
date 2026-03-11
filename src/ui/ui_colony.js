@@ -1,8 +1,119 @@
 /* Updated: Use shared openShipModal from ui_fleets.js instead of duplicate inline code */
-import { gameState, BUILDINGS, buildBuilding, RACE_SHIPS, buildShip } from '../core/state.js';
+import { gameState, BUILDINGS, buildBuilding, buildHarvester, HARVESTER_YIELDS, getPlanet, RACE_SHIPS, buildShip } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
 import { getShipSvg } from './ship_icons.js';
 import { openShipModal } from './ui_fleets.js';
+
+function renderHarvesterSection(planetId, parentEl) {
+    const existing = document.getElementById('colony-harvester-section');
+    if (existing) existing.remove();
+
+    const colony = gameState.colonies[planetId];
+    if (!colony) return;
+
+    if (!colony.harvesters) colony.harvesters = [];
+    if (!colony.harvesterConstruction) colony.harvesterConstruction = [];
+
+    const planet = getPlanet(planetId);
+    const planetType = planet ? planet.type : 'Barren';
+    const yields = HARVESTER_YIELDS[planetType] || { energy: 1, minerals: 2, food: 2 };
+    const maxH = BUILDINGS.harvester.maxPerColony;
+    const totalCount = colony.harvesters.length + colony.harvesterConstruction.length;
+
+    const section = document.createElement('div');
+    section.id = 'colony-harvester-section';
+    section.style.cssText = 'margin-top:16px;border-top:1px solid rgba(255,170,0,0.2);padding-top:14px;';
+
+    let cardsHtml = '';
+
+    colony.harvesters.forEach((h, i) => {
+        cardsHtml += `
+            <div style="background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.3);border-radius:6px;padding:10px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:20px;">🏭</span>
+                    <div>
+                        <div style="color:#ffcc44;font-size:13px;font-weight:bold;">Harvester #${i + 1}</div>
+                        <div style="color:#888;font-size:11px;">${planetType} yields</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;">
+                    ${yields.energy ? `<span style="color:#ffd700;">⚡+${yields.energy}</span>` : ''}
+                    ${yields.minerals ? `<span style="color:#00e5ff;">💎+${yields.minerals}</span>` : ''}
+                    ${yields.food ? `<span style="color:#00ff66;">🍏+${yields.food}</span>` : ''}
+                    <span style="color:#ff8844;margin-left:auto;">-1⚡</span>
+                </div>
+            </div>`;
+    });
+
+    colony.harvesterConstruction.forEach((hc) => {
+        const pct = Math.floor((hc.progress / hc.total) * 100);
+        cardsHtml += `
+            <div style="background:rgba(255,170,0,0.05);border:1px dashed rgba(255,170,0,0.25);border-radius:6px;padding:10px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:20px;opacity:0.5;">🏭</span>
+                    <div style="flex:1;">
+                        <div style="color:#ffaa00;font-size:12px;">Building Harvester...</div>
+                        <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:4px;">
+                            <div class="harvester-construction-fill" style="width:${pct}%;height:100%;background:linear-gradient(90deg,#ffaa00,#ffdd44);border-radius:2px;transition:width 0.3s;"></div>
+                        </div>
+                    </div>
+                    <span class="harvester-construction-pct" style="font-size:10px;color:#ffaa00;">${pct}%</span>
+                </div>
+            </div>`;
+    });
+
+    if (totalCount < maxH) {
+        const costNormal = BUILDINGS.harvester.cost.minerals;
+        const costInstant = costNormal * 2;
+        const currentMinerals = gameState.resources.minerals;
+
+        cardsHtml += `
+            <div style="background:rgba(255,255,255,0.02);border:1px dashed rgba(255,170,0,0.2);border-radius:6px;padding:12px;text-align:center;">
+                <div style="color:#ffaa00;font-size:12px;margin-bottom:8px;">+ Build Harvester</div>
+                <div style="display:flex;gap:6px;justify-content:center;">
+                    <button id="btn-build-harvester" class="btn-build-action btn-build-normal" style="border-color:#ffaa00;" ${currentMinerals < costNormal ? 'disabled' : ''}>
+                        <span>Build (${BUILDINGS.harvester.buildTime}s)</span>
+                        <span class="cost-display">💎${costNormal}</span>
+                    </button>
+                    <button id="btn-instant-harvester" class="btn-build-action btn-build-instant" style="border-color:#ffaa00;" ${currentMinerals < costInstant ? 'disabled' : ''}>
+                        <span>Instant</span>
+                        <span class="cost-display">💎${costInstant}</span>
+                    </button>
+                </div>
+            </div>`;
+    }
+
+    section.innerHTML = `
+        <div style="font-size:10px;letter-spacing:2px;color:#ffaa00;text-transform:uppercase;margin-bottom:10px;">⛏ Harvesters (${totalCount}/${maxH})</div>
+        ${cardsHtml}
+    `;
+
+    parentEl.appendChild(section);
+
+    const btnBuild = section.querySelector('#btn-build-harvester');
+    const btnInstant = section.querySelector('#btn-instant-harvester');
+
+    if (btnBuild) {
+        btnBuild.addEventListener('click', () => {
+            if (buildHarvester(planetId, false)) {
+                showNotification('Harvester construction started!', 'info');
+                renderColonyView(planetId);
+            } else {
+                showNotification('Insufficient Minerals', 'alert');
+            }
+        });
+    }
+    if (btnInstant) {
+        btnInstant.addEventListener('click', () => {
+            if (buildHarvester(planetId, true)) {
+                showNotification('Harvester built instantly!', 'success');
+                renderColonyView(planetId);
+            } else {
+                showNotification('Insufficient Minerals', 'alert');
+            }
+        });
+    }
+}
 
 /**
  * Renders the detailed view of a colony, including building slots and construction options.
@@ -158,6 +269,10 @@ export function renderColonyView(planetId) {
         cList.innerHTML = '<div style="color:#666;text-align:center;padding:15px;border:1px dashed #444;">No empty building slots</div>';
     }
 
+    // ── Harvester Section ──────────────────────────────────────────────────────
+    const colonyViewEl = document.getElementById('planet-colony-view');
+    if (colonyViewEl) renderHarvesterSection(planetId, colonyViewEl);
+
     // ── Shipyard Section ──────────────────────────────────────────────────────
     // Remove any existing shipyard section before re-rendering
     const existingYard = document.getElementById('colony-shipyard-section');
@@ -292,4 +407,24 @@ export function updateColonyDynamicState(planetId) {
             btnInstant.disabled = currentMinerals < costInstant;
         }
     });
+
+    // Update Harvester Construction Progress
+    const hFills = document.querySelectorAll('#colony-harvester-section .harvester-construction-fill');
+    const colony2 = gameState.colonies[planetId];
+    if (colony2 && colony2.harvesterConstruction) {
+        colony2.harvesterConstruction.forEach((hItem, i) => {
+            if (hFills[i]) {
+                const pct = Math.floor((hItem.progress / hItem.total) * 100);
+                hFills[i].style.width = `${pct}%`;
+                const text = hFills[i].closest('div')?.parentElement?.querySelector('.harvester-construction-pct');
+                if (text) text.innerText = `${pct}%`;
+            }
+        });
+    }
+
+    // Update Harvester Build Button States
+    const btnBuildH = document.getElementById('btn-build-harvester');
+    const btnInstantH = document.getElementById('btn-instant-harvester');
+    if (btnBuildH) btnBuildH.disabled = gameState.resources.minerals < BUILDINGS.harvester.cost.minerals;
+    if (btnInstantH) btnInstantH.disabled = gameState.resources.minerals < BUILDINGS.harvester.cost.minerals * 2;
 }
