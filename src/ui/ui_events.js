@@ -29,6 +29,15 @@ function _formatEffect(effect) {
     const parts = [];
     for (const [key, val] of Object.entries(effect)) {
         if (val === 0) continue;
+        // Special bonus effects
+        if (key === 'fleet') {
+            parts.push(`<span class="evt-eff-chip evt-eff-pos">🚀 +1 ${val} ship</span>`);
+            continue;
+        }
+        if (key === 'population') {
+            parts.push(`<span class="evt-eff-chip evt-eff-pos">👥 +${val} pop</span>`);
+            continue;
+        }
         const icon = RES_ICONS[key] || '';
         const sign = val > 0 ? '+' : '';
         const cls  = val > 0 ? 'evt-eff-pos' : 'evt-eff-neg';

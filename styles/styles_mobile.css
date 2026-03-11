@@ -476,27 +476,34 @@
         display: none !important;
     }
 
-    /* Move Return to Orbit button away from joystick zone on mobile */
+    /* Exploration controls — hide on mobile (header replaces bottom controls) */
     #exploration-controls {
-        position: fixed;
-        top: auto;
-        bottom: 16px;
-        right: 12px;
-        left: auto;
-        transform: none;
-        z-index: 1001;
+        display: none !important;
     }
 
-    #btn-exit-planet {
-        margin-top: 0 !important;
-        height: 42px;
-        padding: 0 16px;
-        font-size: 12px;
-        letter-spacing: 1.5px;
-        border-radius: 8px;
-        clip-path: none;
+    /* Exploration header mobile adjustments */
+    #exploration-header {
+        height: 38px;
+        padding: 0 8px;
+    }
+
+    #exploration-header #btn-exit-planet {
+        padding: 3px 10px;
+        font-size: 11px;
         -webkit-tap-highlight-color: rgba(255, 170, 0, 0.15);
         touch-action: manipulation;
+    }
+
+    #exploration-planet-name {
+        font-size: 12px !important;
+    }
+
+    #exploration-planet-type {
+        font-size: 9px !important;
+    }
+
+    #exploration-coords {
+        font-size: 9px !important;
     }
 
     /* View toggle (Return to Galaxy) — mobile */

@@ -4,6 +4,13 @@
  * Icons are inline SVG path data for each event category.
  */
 
+/* ── Condition helpers (receive gameState) ─────────────────────────────── */
+const _colonyCount = gs => Object.keys(gs.colonies).length;
+const _hasColony   = gs => _colonyCount(gs) > 0;
+const _hasFleets   = gs => (gs.fleets?.length || 0) > 0;
+const _totalRes    = gs => (gs.resources.energy + gs.resources.minerals + gs.resources.food);
+const _techCount   = gs => (gs.research?.completedTechs?.length || 0);
+
 /* ── SVG icon paths (viewBox 0 0 24 24) ─────────────────────────────────── */
 const ICONS = {
     mining: `<path d="M12 2L2 19h20L12 2zm0 4l6.5 11h-13L12 6z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="14" r="2" fill="currentColor" opacity="0.6"/><line x1="12" y1="6" x2="12" y2="11" stroke="currentColor" stroke-width="1" opacity="0.4"/>`,
@@ -34,6 +41,7 @@ export const RANDOM_EVENTS = [
         desc: 'Deep-core geological surveys have revealed a mineral deposit of staggering proportions beneath one of our colony worlds. Preliminary scans indicate veins of rare-earth elements threading through kilometres of bedrock like the roots of some vast subterranean tree. The mining guilds are already mobilising, but our engineers warn that aggressive extraction could destabilise the tectonic plate above a major population centre.',
         category: 'opportunity',
         icon: ICONS.mining,
+        condition: _hasColony,
         choices: [
             { label: 'Extract aggressively', effect: { minerals: 200 } },
             { label: 'Careful, staged extraction', effect: { minerals: 100, energy: 50 } },
@@ -46,6 +54,7 @@ export const RANDOM_EVENTS = [
         desc: 'A series of coronal mass ejections from the local star has sent a wall of charged plasma hurtling toward our inner colonies. The energy grid is already fluctuating as the first wave strikes — transformers are overloading, and orbital stations have gone into emergency lockdown. Our engineers believe they can reconfigure the grid to harvest the excess radiation, but the window is narrow and the risk of catastrophic failure is real.',
         category: 'danger',
         icon: ICONS.solar,
+        condition: _hasColony,
         choices: [
             { label: 'Reconfigure and harness', effect: { energy: 150, minerals: -30 } },
             { label: 'Shield all infrastructure', effect: { energy: -50 } },
@@ -70,6 +79,7 @@ export const RANDOM_EVENTS = [
         desc: 'Something extraordinary has happened across our agricultural worlds. Solar conditions, soil chemistry, and atmospheric composition have aligned in a confluence so improbable that our scientists are calling it a "golden convergence." The harvest is beyond anything in recorded history — granaries overflow, preservation vaults are at capacity, and the scent of fresh grain fills the corridors of every colony ship in orbit.',
         category: 'opportunity',
         icon: ICONS.food,
+        condition: gs => _colonyCount(gs) >= 2 || Object.values(gs.colonies).some(c => c.buildings.includes('farm')),
         choices: [
             { label: 'Distribute to all colonies', effect: { food: 250 } },
             { label: 'Trade surplus for materials', effect: { food: 100, minerals: 80 } },
@@ -82,6 +92,7 @@ export const RANDOM_EVENTS = [
         desc: 'Long-range sensors have detected a flotilla of unmarked vessels converging on our trade routes — the Harvesters, a pirate confederation that has plagued this sector for decades. Their leader has broadcast a single demand: tribute in minerals and energy, or they will burn every freighter in the shipping lane. Our admirals counsel that we can fight them off, but the engagement will cost us dearly in energy and munitions.',
         category: 'danger',
         icon: ICONS.combat,
+        condition: _hasFleets,
         choices: [
             { label: 'Pay the tribute', effect: { minerals: -80, energy: -40 } },
             { label: 'Engage and destroy', effect: { energy: -60 } },
@@ -94,8 +105,9 @@ export const RANDOM_EVENTS = [
         desc: 'A vast fleet of battered, barely functional ships has appeared at the edge of our territory, broadcasting on all frequencies: they are the survivors of a civilization destroyed by a catastrophe they cannot — or will not — name. Millions of souls crowd their failing vessels, and they beg for sanctuary. Accepting them will strain our food reserves, but they bring with them knowledge, labour, and technologies we have never seen.',
         category: 'diplomacy',
         icon: ICONS.diplomacy,
+        condition: gs => _colonyCount(gs) >= 2,
         choices: [
-            { label: 'Welcome them all', effect: { food: -100, minerals: 60, energy: 40 } },
+            { label: 'Welcome them all', effect: { food: -100, minerals: 60, energy: 40, population: 2 } },
             { label: 'Turn them away', effect: {} },
         ]
     },
@@ -106,6 +118,7 @@ export const RANDOM_EVENTS = [
         desc: 'A team of researchers working in an underfunded laboratory on the fringes of the empire has made a discovery that is sending shockwaves through the scientific community. They have found a new principle of energy conversion that contradicts decades of established theory — and it works. The implications are staggering: more efficient reactors, cheaper production, and applications we cannot yet imagine.',
         category: 'discovery',
         icon: ICONS.science,
+        condition: gs => _techCount(gs) >= 1,
         choices: [
             { label: 'Apply to energy grid', effect: { energy: 200 } },
             { label: 'Publish across all fields', effect: { energy: 60, minerals: 60, food: 60 } },
@@ -118,6 +131,7 @@ export const RANDOM_EVENTS = [
         desc: 'A rogue asteroid the size of a small moon has been detected on a collision course with one of our colony worlds. Impact is estimated in days, not weeks. The asteroid is rich in heavy metals — a fortune in minerals — but its trajectory will carry it through the heart of our most productive agricultural zone. We must decide: deflect it at enormous energy cost, or attempt the dangerous gambit of mining it in transit.',
         category: 'danger',
         icon: ICONS.asteroid,
+        condition: _hasColony,
         choices: [
             { label: 'Deflect it safely', effect: { energy: -100 } },
             { label: 'Risk mining it in transit', effect: { minerals: 180, energy: -50 } },
@@ -130,6 +144,7 @@ export const RANDOM_EVENTS = [
         desc: 'An interstellar trade caravan bearing the sigils of the Merchants\' Guild has dropped out of hyperspace near our capital system. Their holds are full of goods from a hundred worlds — exotic minerals, alien foodstuffs, and technologies that shimmer with unfamiliar energies. The caravan master offers fair prices, but warns that the Guild remembers those who turn them away.',
         category: 'diplomacy',
         icon: ICONS.trade,
+        condition: gs => _totalRes(gs) > 200,
         choices: [
             { label: 'Buy rare minerals', effect: { energy: -80, minerals: 150 } },
             { label: 'Buy alien foodstuffs', effect: { energy: -60, food: 180 } },
@@ -157,6 +172,7 @@ export const RANDOM_EVENTS = [
         desc: 'Communications arrays across the empire have begun picking up faint, repeating transmissions from deep interstellar space. The signals are encoded in a mathematical language of breathtaking complexity — one that predates every known civilization by millions of years. Linguists and mathematicians work in shifts to decode the patterns, and what little they have translated speaks of a warning: something ancient sleeps in the dark between stars, and it is beginning to stir.',
         category: 'ancient',
         icon: ICONS.ruins,
+        condition: gs => _colonyCount(gs) >= 2,
         choices: [
             { label: 'Dedicate resources to decoding', effect: { energy: -60, minerals: 80 } },
             { label: 'Increase sensor range', effect: { energy: -40 } },
@@ -170,8 +186,9 @@ export const RANDOM_EVENTS = [
         desc: 'A patrol fleet has discovered the wreck of a starship so vast it dwarfs anything in our records — eight kilometres from bow to stern, its hull composed of alloys our metallurgists cannot identify. The vessel is dead, its crew gone for aeons, but its reactors still emit a faint thermal signature. Salvage teams could extract technologies centuries ahead of our own, but there are those who argue that some tombs should remain sealed.',
         category: 'ancient',
         icon: ICONS.ruins,
+        condition: _hasFleets,
         choices: [
-            { label: 'Full salvage operation', effect: { minerals: 200, energy: -80 } },
+            { label: 'Full salvage operation', effect: { minerals: 200, energy: -80, fleet: 'scout' } },
             { label: 'Cautious survey only', effect: { minerals: 60 } },
         ]
     },
@@ -182,6 +199,7 @@ export const RANDOM_EVENTS = [
         desc: 'Deep within an asteroid field, a survey drone has detected a structure of unmistakable artificial origin — a data storage device the size of a building, its crystalline matrices still humming with information after untold millennia. The data within could represent the accumulated knowledge of a civilisation far more advanced than our own. The question is not whether we can access it, but whether we should. Every precursor archive ever opened has changed the civilisation that opened it. Not always for the better.',
         category: 'ancient',
         icon: ICONS.ruins,
+        condition: gs => _techCount(gs) >= 1,
         choices: [
             { label: 'Decrypt and download everything', effect: { energy: -100, minerals: 100, food: 80 } },
             { label: 'Extract only safe data', effect: { energy: -30, minerals: 40 } },
@@ -206,6 +224,7 @@ export const RANDOM_EVENTS = [
         desc: 'Something has gone terribly wrong in the fabric of space near one of our colony systems. A cascade of dark matter interactions is destabilising the local hyperlane network, making FTL travel unpredictable and dangerous. Ships that enter the affected lanes emerge at random coordinates — or do not emerge at all. Our physicists believe they can stabilise the cascade, but the energy cost will be punishing.',
         category: 'danger',
         icon: ICONS.wormhole,
+        condition: gs => _colonyCount(gs) >= 2,
         choices: [
             { label: 'Stabilise with massive energy', effect: { energy: -150 } },
             { label: 'Reroute trade lanes (costly)', effect: { minerals: -100 } },
@@ -218,8 +237,9 @@ export const RANDOM_EVENTS = [
         desc: 'An armada of unknown origin has appeared at the edge of our territory. Hundreds of vessels hang motionless in the void, their hulls dark and unmarked, their drives cold. They do not respond to hails. They do not move. They simply watch, their presence a question without words. Our admirals are divided: some see an invasion fleet waiting for the signal to attack, others see refugees too traumatised to speak. The silence stretches, heavy with implication.',
         category: 'diplomacy',
         icon: ICONS.diplomacy,
+        condition: _hasFleets,
         choices: [
-            { label: 'Send an envoy ship', effect: { energy: -30, food: 80 } },
+            { label: 'Send an envoy ship', effect: { energy: -30, food: 80, fleet: 'corvette' } },
             { label: 'Deploy a defensive screen', effect: { energy: -60 } },
             { label: 'Wait and observe', effect: {} },
         ]
@@ -231,8 +251,9 @@ export const RANDOM_EVENTS = [
         desc: 'The governor of our most distant colony has transmitted a formal declaration of grievances. They claim the central administration has neglected their needs, diverted their resources to core worlds, and treated their population as expendable labourers rather than equal citizens. The declaration stops short of demanding independence, but the implication is unmistakable. If we do not act, this spark of discontent could ignite a fire across every frontier world.',
         category: 'crisis',
         icon: ICONS.politics,
+        condition: gs => _colonyCount(gs) >= 3,
         choices: [
-            { label: 'Send aid and concessions', effect: { food: -80, energy: -40, minerals: 60 } },
+            { label: 'Send aid and concessions', effect: { food: -80, energy: -40, minerals: 60, population: 1 } },
             { label: 'Assert central authority', effect: { energy: -30 } },
         ]
     },
@@ -242,6 +263,7 @@ export const RANDOM_EVENTS = [
         desc: 'A controversial proposal has reached the highest levels of our scientific council: a genetic modification programme that could dramatically increase the productivity and resilience of our population. The science is sound, but the ethics are fiercely debated. Proponents argue it is the natural next step of evolution; opponents call it a betrayal of our species\' identity. The decision will define who we are as a civilisation for generations to come.',
         category: 'crisis',
         icon: ICONS.science,
+        condition: gs => _techCount(gs) >= 2,
         choices: [
             { label: 'Approve the programme', effect: { food: 100, energy: -60 } },
             { label: 'Fund ethical alternatives', effect: { energy: -40, minerals: -30 } },
@@ -254,6 +276,7 @@ export const RANDOM_EVENTS = [
         desc: 'A merchant vessel has staggered into port broadcasting an automated quarantine warning. Its crew is dead or dying, consumed by a pathogen that does not match any known biological agent. The ship\'s cargo hold contains medical supplies desperately needed by our colonies — but the contagion may have already spread to the goods. Burn the ship and lose the cargo, or risk unleashing a plague across our worlds.',
         category: 'danger',
         icon: ICONS.plague,
+        condition: gs => _colonyCount(gs) >= 2,
         choices: [
             { label: 'Quarantine and decontaminate', effect: { energy: -80, food: 60 } },
             { label: 'Destroy the vessel', effect: { minerals: -40 } },
@@ -276,6 +299,7 @@ export const RANDOM_EVENTS = [
         desc: 'A foreign envoy has arrived unannounced at our capital, bearing gifts of rare minerals and a proposal wrapped in silk and hidden daggers. They represent a distant power that seeks an alliance against a mutual threat — but the terms are suspiciously generous. Our intelligence services warn that the envoy\'s true purpose may be to map our defences under the guise of friendship. Trust is a commodity in shorter supply than any mineral.',
         category: 'diplomacy',
         icon: ICONS.diplomacy,
+        condition: gs => _colonyCount(gs) >= 2,
         choices: [
             { label: 'Accept the alliance', effect: { minerals: 120, energy: 40 } },
             { label: 'Decline gracefully', effect: { energy: 20 } },
@@ -287,6 +311,7 @@ export const RANDOM_EVENTS = [
         desc: 'A cloud of self-replicating nanomachines has escaped containment in one of our research facilities and is consuming everything in its path — metal, rock, organic matter — converting it all into more of itself. The swarm is spreading across the colony surface at an alarming rate, and conventional weapons are useless against something that rebuilds itself faster than it can be destroyed. Our engineers have a plan to disrupt the swarm\'s replication signal, but it requires diverting enormous energy reserves.',
         category: 'danger',
         icon: ICONS.nanite,
+        condition: _hasColony,
         choices: [
             { label: 'Disrupt the signal (costly)', effect: { energy: -120, minerals: 80 } },
             { label: 'Evacuate and quarantine', effect: { food: -60, minerals: -40 } },
@@ -298,6 +323,7 @@ export const RANDOM_EVENTS = [
         desc: 'Construction teams on one of our colony worlds have broken through into a vast subterranean complex that predates any known civilisation. The halls are kilometres long, lined with crystalline pillars that still glow with a faint bioluminescence. At the complex\'s heart lies what can only be described as a throne room — and on the throne, a figure carved from the same crystal, frozen in an expression of infinite patience. The expedition leader reports that the deeper they go, the warmer the crystals become.',
         category: 'ancient',
         icon: ICONS.ruins,
+        condition: _hasColony,
         choices: [
             { label: 'Fund a full expedition', effect: { energy: -80, minerals: 140 } },
             { label: 'Seal and protect the site', effect: { minerals: 30 } },
@@ -320,8 +346,9 @@ export const RANDOM_EVENTS = [
         desc: 'A fleet stationed at the empire\'s edge has declared mutiny. The officers claim they were ordered to abandon a colony under alien attack — an order they refused to carry out. Now they sit in defiant orbit above the world they saved, their guns trained on any vessel that approaches. The mutineers are heroes to the colonists and traitors to the admiralty. How we handle this will determine whether our military holds together or fractures along fault lines of conscience.',
         category: 'crisis',
         icon: ICONS.politics,
+        condition: gs => (gs.fleets?.length || 0) >= 2 && _colonyCount(gs) >= 2,
         choices: [
-            { label: 'Pardon and reinstate them', effect: { energy: -40, food: 60 } },
+            { label: 'Pardon and reinstate them', effect: { energy: -40, food: 60, fleet: 'corvette' } },
             { label: 'Negotiate surrender', effect: { energy: -20 } },
         ]
     },
@@ -331,6 +358,7 @@ export const RANDOM_EVENTS = [
         desc: 'A trader of legendary reputation has arrived in our space, commanding a vessel that is part warship, part treasure vault, and part mobile bazaar. Known only as the Merchant Prince, this enigmatic figure claims to have traded with civilisations that no longer exist and to possess goods from across the galaxy. The prices are steep, but those who have dealt with the Prince before whisper that the investments always pay off — eventually.',
         category: 'diplomacy',
         icon: ICONS.trade,
+        condition: gs => _totalRes(gs) > 300,
         choices: [
             { label: 'Buy exclusive goods', effect: { energy: -100, minerals: 100, food: 80 } },
             { label: 'Offer a trade partnership', effect: { energy: 40, minerals: 40 } },
@@ -353,6 +381,7 @@ export const RANDOM_EVENTS = [
         desc: 'A coalition of frontier colonies has formed a political movement calling itself the Free Stars Alliance, demanding self-governance and the right to conduct independent trade with alien civilisations. Their leader, a charismatic ex-governor, has published a manifesto that is spreading like wildfire through the imperial networks. The movement is peaceful — for now — but our intelligence services report that weapons are being stockpiled in hidden caches across the frontier.',
         category: 'crisis',
         icon: ICONS.politics,
+        condition: gs => _colonyCount(gs) >= 4,
         choices: [
             { label: 'Grant limited autonomy', effect: { energy: -50, food: -40, minerals: 80 } },
             { label: 'Crack down firmly', effect: { energy: -80 } },
@@ -364,6 +393,7 @@ export const RANDOM_EVENTS = [
         desc: 'Across the surface of one of our colony worlds, crystals have begun growing — erupting from the soil in pillars of impossible beauty, spreading across plains and mountains in a slow, inexorable tide. They pulse with light and emit harmonic frequencies that our sensors interpret as structured data. Our xenobiologists believe these are a form of silicon-based life, and they are growing at an accelerating rate. If this is life, it may be the most alien form of intelligence we have ever encountered.',
         category: 'discovery',
         icon: ICONS.anomaly,
+        condition: _hasColony,
         choices: [
             { label: 'Attempt to communicate', effect: { energy: -40, food: 60, minerals: 60 } },
             { label: 'Harvest the crystals', effect: { minerals: 150 } },
@@ -389,6 +419,7 @@ export const EVENT_CHAINS = {
     precursor_signal: {
         id: 'precursor_signal',
         title: 'The Precursor Signal',
+        condition: gs => _techCount(gs) >= 1,
         steps: [
             {
                 id: 'precursor_signal_1',
@@ -440,6 +471,7 @@ export const EVENT_CHAINS = {
     void_plague: {
         id: 'void_plague',
         title: 'The Void Plague',
+        condition: gs => _colonyCount(gs) >= 2,
         steps: [
             {
                 id: 'void_plague_1',
@@ -491,6 +523,7 @@ export const EVENT_CHAINS = {
     first_contact: {
         id: 'first_contact',
         title: 'First Contact Protocol',
+        condition: gs => _colonyCount(gs) >= 2,
         steps: [
             {
                 id: 'first_contact_1',
@@ -521,7 +554,7 @@ export const EVENT_CHAINS = {
                 category: 'diplomacy',
                 icon: ICONS.alien,
                 choices: [
-                    { label: 'Embrace full cultural exchange', effect: { energy: 120, food: 100, minerals: 80 }, nextStep: null },
+                    { label: 'Embrace full cultural exchange', effect: { energy: 120, food: 100, minerals: 80, population: 3 }, nextStep: null },
                     { label: 'Limited trade only', effect: { minerals: 100, energy: 40 }, nextStep: null },
                 ]
             },
@@ -531,6 +564,7 @@ export const EVENT_CHAINS = {
     exile_fleet: {
         id: 'exile_fleet',
         title: 'The Exile Fleet',
+        condition: gs => _colonyCount(gs) >= 3 && _totalRes(gs) > 400,
         steps: [
             {
                 id: 'exile_fleet_1',
@@ -561,7 +595,7 @@ export const EVENT_CHAINS = {
                 category: 'diplomacy',
                 icon: ICONS.diplomacy,
                 choices: [
-                    { label: 'Celebrate the union', effect: { food: 80, minerals: 80, energy: 80 }, nextStep: null },
+                    { label: 'Celebrate the union', effect: { food: 80, minerals: 80, energy: 80, population: 4 }, nextStep: null },
                     { label: 'Stay vigilant', effect: { energy: 60, minerals: 40 }, nextStep: null },
                 ]
             },
@@ -571,6 +605,7 @@ export const EVENT_CHAINS = {
     echoes_of_architects: {
         id: 'echoes_of_architects',
         title: 'Echoes of the Architects',
+        condition: gs => _techCount(gs) >= 2,
         steps: [
             {
                 id: 'echoes_1',
@@ -612,7 +647,7 @@ export const EVENT_CHAINS = {
                 category: 'ancient',
                 icon: ICONS.ruins,
                 choices: [
-                    { label: 'Honor the Architects\' legacy', effect: { energy: 150, minerals: 150, food: 100 }, nextStep: null },
+                    { label: 'Honor the Architects\' legacy', effect: { energy: 150, minerals: 150, food: 100, fleet: 'cruiser' }, nextStep: null },
                     { label: 'Archive and move forward', effect: { energy: 100, minerals: 100 }, nextStep: null },
                 ]
             },

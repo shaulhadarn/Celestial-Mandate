@@ -34,10 +34,10 @@ let isMouseDown = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
-// Joystick zone: left 40% of screen width, bottom half
-// Camera drag zone: right 60% of screen (or anywhere on desktop)
-// Pinch-to-zoom: 2-finger touch anywhere
-const JOYSTICK_ZONE_WIDTH_RATIO = 0.42; // left 42% reserved for joystick
+// Joystick zone: left 42% of screen width
+// Camera drag zone: right 58% of screen (or anywhere on desktop)
+// Pinch-to-zoom: 2-finger touch ONLY when drone is not moving
+const JOYSTICK_ZONE_WIDTH_RATIO = 0.42;
 let pinchStartDist = 0;
 let isPinching = false;
 let cameraDragTouchId = null; // track which touch is doing camera drag
@@ -50,6 +50,11 @@ function getTouchDistance(t1, t2) {
 
 function isInJoystickZone(x) {
     return x < window.innerWidth * JOYSTICK_ZONE_WIDTH_RATIO;
+}
+
+function isDroneMoving() {
+    return Math.abs(joystickInput.x) > 0.05 || Math.abs(joystickInput.y) > 0.05
+        || keyState['w'] || keyState['a'] || keyState['s'] || keyState['d'];
 }
 
 function initExplorationMouseControls() {
@@ -82,7 +87,21 @@ function initExplorationMouseControls() {
         if (gameState.viewMode !== 'EXPLORATION') return;
 
         if (e.touches.length >= 2) {
-            // Two fingers anywhere = pinch zoom — cancel any active camera drag
+            // While d-pad is active (drone moving), second finger = camera drag, NOT pinch zoom
+            if (isDroneMoving()) {
+                // Find the non-joystick touch and use it as camera drag
+                const nonJoystickTouch = Array.from(e.touches).find(t => !isInJoystickZone(t.clientX));
+                if (nonJoystickTouch) {
+                    isMouseDown = true;
+                    cameraDragTouchId = nonJoystickTouch.identifier;
+                    lastMouseX = nonJoystickTouch.clientX;
+                    lastMouseY = nonJoystickTouch.clientY;
+                }
+                e.preventDefault();
+                return;
+            }
+
+            // Drone is NOT moving — allow pinch zoom
             isMouseDown = false;
             cameraDragTouchId = null;
             isPinching = true;
@@ -122,12 +141,26 @@ function initExplorationMouseControls() {
         if (gameState.viewMode !== 'EXPLORATION') return;
         e.preventDefault();
 
-        // ── Pinch to zoom ────────────────────────────────────────────────────
-        if (e.touches.length === 2 && isPinching) {
+        // ── Pinch to zoom (only when drone is NOT moving) ────────────────────
+        if (e.touches.length === 2 && isPinching && !isDroneMoving()) {
             const newDist = getTouchDistance(e.touches[0], e.touches[1]);
-            const delta = pinchStartDist - newDist; // positive = fingers closer = zoom out
+            const delta = pinchStartDist - newDist;
             cameraDistance = Math.max(CAMERA_DISTANCE_MIN, Math.min(CAMERA_DISTANCE_MAX, cameraDistance + delta * 0.05));
             pinchStartDist = newDist;
+            return;
+        }
+
+        // ── While d-pad is active with 2 touches: second finger is camera drag ──
+        if (e.touches.length >= 2 && isDroneMoving() && cameraDragTouchId !== null) {
+            const touch = Array.from(e.touches).find(t => t.identifier === cameraDragTouchId);
+            if (touch) {
+                const dx = touch.clientX - lastMouseX;
+                const dy = touch.clientY - lastMouseY;
+                cameraYaw -= dx * 0.005;
+                cameraPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 2 - 0.05, cameraPitch + dy * 0.005));
+                lastMouseX = touch.clientX;
+                lastMouseY = touch.clientY;
+            }
             return;
         }
 
@@ -282,25 +315,33 @@ export function createPlanetVisuals(planetData, group) {
     group.add(colonyBuildingsGroup);
     updateColonyBuildings();
 
-    // 7. Creatures
+    // 7. Creatures (with blob shadows)
     const alienList = createCreatures(planetData.type, group, getTerrainHeight);
-    alienList.forEach(c => creatures.push(c));
+    alienList.forEach(c => {
+        const creatureShadow = createShadowSprite();
+        const bs = c.userData.bodyScale || 1;
+        creatureShadow.scale.setScalar(bs * 1.6);
+        group.add(creatureShadow);
+        c.userData.shadowMesh = creatureShadow;
+        creatures.push(c);
+    });
 
     // 8. Lights
     const sunColor = isDark ? 0xffbb88 : 0xffffff;
     sunLight = new THREE.DirectionalLight(sunColor, isDark ? 2.0 : 2.8);
     sunLight.position.set(100, 200, 100);
-    // Mobile: castShadow=false — shadow map is the #1 GPU cost in exploration view
+    // Shadow mapping — tighter frustum for sharper shadows
     sunLight.castShadow = !isMobileDevice;
     if (!isMobileDevice) {
-        sunLight.shadow.mapSize.set(2048, 2048);
-        sunLight.shadow.camera.near = 1;
-        sunLight.shadow.camera.far = 500;
-        sunLight.shadow.camera.left = -80;
-        sunLight.shadow.camera.right = 80;
-        sunLight.shadow.camera.top = 80;
-        sunLight.shadow.camera.bottom = -80;
-        sunLight.shadow.bias = -0.0005;
+        sunLight.shadow.mapSize.set(4096, 4096);
+        sunLight.shadow.camera.near = 10;
+        sunLight.shadow.camera.far = 400;
+        sunLight.shadow.camera.left = -40;
+        sunLight.shadow.camera.right = 40;
+        sunLight.shadow.camera.top = 40;
+        sunLight.shadow.camera.bottom = -40;
+        sunLight.shadow.bias = -0.0003;
+        sunLight.shadow.normalBias = 0.02;
     }
     group.add(sunLight);
     group.add(sunLight.target);
@@ -506,6 +547,15 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             const swing = Math.sin(ud.phase * 6 + li * 0.8) * 0.35;
             child.rotation.x = swing * side;
         }
+
+        // Creature blob shadow
+        if (ud.shadowMesh) {
+            const rawGH = getTerrainHeightFast(c.position.x, c.position.z) + 0.1;
+            ud.shadowMesh.position.set(c.position.x, rawGH, c.position.z);
+            const distAbove = c.position.y - rawGH;
+            ud.shadowMesh.scale.setScalar(bscale * 1.6 + distAbove * 0.08);
+            ud.shadowMesh.material.opacity = Math.max(0, 0.5 - distAbove * 0.06);
+        }
     });
 
     // --- 9. Animate harvesters — rotating arm + pulsing beacon + rover + particles ---
@@ -665,7 +715,13 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     }
 
-    // --- 11. Final Camera Update (after drone position is finalized) ---
+    // --- 11. Update exploration header coords ---
+    const coordsEl = document.getElementById('exploration-coords');
+    if (coordsEl) {
+        coordsEl.textContent = `X:${Math.round(playerMesh.position.x)} Z:${Math.round(playerMesh.position.z)}`;
+    }
+
+    // --- 12. Final Camera Update (after drone position is finalized) ---
     const finalCenter = playerMesh.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
     const finalCamX = finalCenter.x + cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
     const finalCamY = finalCenter.y + cameraDistance * Math.sin(cameraPitch);

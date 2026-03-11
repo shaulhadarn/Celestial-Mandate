@@ -317,7 +317,8 @@ function tickRandomEvents() {
         // Chance to start a chain (20%) if any are available
         const availableChains = Object.values(EVENT_CHAINS).filter(c =>
             !chains.completed.includes(c.id) &&
-            !chains.active.some(a => a.chainId === c.id)
+            !chains.active.some(a => a.chainId === c.id) &&
+            (!c.condition || c.condition(gameState))
         );
 
         if (availableChains.length > 0 && Math.random() < 0.2) {
@@ -333,7 +334,9 @@ function tickRandomEvents() {
                 }
             }));
         } else {
-            const evt = RANDOM_EVENTS[Math.floor(Math.random() * RANDOM_EVENTS.length)];
+            const eligible = RANDOM_EVENTS.filter(e => !e.condition || e.condition(gameState));
+            if (eligible.length === 0) return;
+            const evt = eligible[Math.floor(Math.random() * eligible.length)];
             events.dispatchEvent(new CustomEvent('random-event', { detail: { event: evt } }));
         }
     }
@@ -359,6 +362,38 @@ export function applyEventChoice(effect) {
     if (gameState.resources.energy < 0) gameState.resources.energy = 0;
     if (gameState.resources.minerals < 0) gameState.resources.minerals = 0;
     if (gameState.resources.food < 0) gameState.resources.food = 0;
+
+    // Bonus: spawn a ship in home system
+    if (effect.fleet) {
+        const race = gameState.playerCivilization?.bodyType || 'humanoid';
+        const ships = RACE_SHIPS[race] || [];
+        const classIdx = { scout: 0, corvette: 1, cruiser: 2 }[effect.fleet] ?? 0;
+        const shipDef = ships[classIdx] || ships[0];
+        if (shipDef) {
+            const fleet = {
+                id: Date.now() + Math.random(),
+                shipId: shipDef.id,
+                name: shipDef.name,
+                icon: shipDef.icon,
+                power: shipDef.power,
+                systemId: 0,
+                planetId: null,
+            };
+            if (!gameState.fleets) gameState.fleets = [];
+            gameState.fleets.push(fleet);
+            events.dispatchEvent(new CustomEvent('ship-built', { detail: { fleet } }));
+        }
+    }
+
+    // Bonus: add population to a random colony
+    if (effect.population) {
+        const colIds = Object.keys(gameState.colonies);
+        if (colIds.length > 0) {
+            const target = colIds[Math.floor(Math.random() * colIds.length)];
+            gameState.colonies[target].population += effect.population;
+        }
+    }
+
     events.dispatchEvent(new CustomEvent('resources-updated'));
 }
 

@@ -291,6 +291,18 @@
     <div id="game-container"></div>
     <div id="joystick-container"></div>
     <div id="exploration-look-zone"></div>
+    <div id="exploration-header" class="hidden">
+        <div id="exploration-header-left">
+            <button id="btn-exit-planet" class="action-btn">Return to Orbit</button>
+        </div>
+        <div id="exploration-header-center">
+            <span id="exploration-planet-name"></span>
+            <span id="exploration-planet-type"></span>
+        </div>
+        <div id="exploration-header-right">
+            <span id="exploration-coords"></span>
+        </div>
+    </div>
     
     <!-- Global UI Panels (Outside UI Layer for Z-Index independence) -->
     <div id="settings-panel" class="hidden">
@@ -648,7 +660,6 @@
             <div id="hint-text" class="hidden"></div>
             <div id="exploration-controls" class="hidden">
                 <div>WASD / Arrows to Move • Mouse to Look</div>
-                <button id="btn-exit-planet" class="action-btn" style="margin-top:10px; border-color: #ffaa00; color: #ffaa00;">Return to Orbit</button>
             </div>
             <div class="bottom-actions">
                 <button id="btn-empire-hub" class="mobile-only"><span>Empire Hub</span></button>

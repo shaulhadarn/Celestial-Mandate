@@ -182,6 +182,16 @@ export function initUI() {
             const mdb = document.getElementById('mobile-date-badge');
             if (mdb) mdb.style.display = 'none';
 
+            // Show exploration header with planet info
+            const exHeader = document.getElementById('exploration-header');
+            if (exHeader) {
+                exHeader.classList.remove('hidden');
+                const nameEl = document.getElementById('exploration-planet-name');
+                const typeEl = document.getElementById('exploration-planet-type');
+                if (nameEl) nameEl.textContent = planet.name;
+                if (typeEl) typeEl.textContent = planet.type;
+            }
+
             enterPlanetView(planet);
 
             if (window.innerWidth <= 768) {
@@ -231,6 +241,8 @@ export function initUI() {
             hideTransition();
             document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
             document.getElementById('exploration-controls').classList.add('hidden');
+            const exH = document.getElementById('exploration-header');
+            if (exH) exH.classList.add('hidden');
         }
     });
 
@@ -477,6 +489,10 @@ async function returnToSystemViewFromPlanet() {
     document.getElementById('btn-empire-hub').classList.add('hidden');
     const mdb = document.getElementById('mobile-date-badge');
     if (mdb) mdb.style.display = '';
+
+    // Hide exploration header
+    const exHeader = document.getElementById('exploration-header');
+    if (exHeader) exHeader.classList.add('hidden');
 
     restoreControlsAfterPlanet();
     updateSelectionPanel();

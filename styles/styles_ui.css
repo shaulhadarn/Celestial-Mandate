@@ -1373,6 +1373,82 @@
     text-align: center;
 }
 
+/* ── EXPLORATION HEADER (planet landing top bar) ───────────────────────────── */
+#exploration-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 42px;
+    padding: 0 12px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 70%, transparent 100%);
+    pointer-events: none;
+    font-family: var(--font-main);
+}
+
+#exploration-header.hidden {
+    display: none;
+}
+
+#exploration-header-left,
+#exploration-header-right {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#exploration-header-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.85);
+    font-size: 13px;
+    letter-spacing: 1px;
+}
+
+#exploration-planet-name {
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+#exploration-planet-type {
+    color: rgba(0,242,255,0.6);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+#exploration-coords {
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-family: var(--font-mono, monospace);
+}
+
+#exploration-header #btn-exit-planet {
+    background: rgba(255,170,0,0.15);
+    border: 1px solid rgba(255,170,0,0.5);
+    color: #ffaa00;
+    padding: 4px 14px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-main);
+    letter-spacing: 0.5px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+#exploration-header #btn-exit-planet:hover {
+    background: rgba(255,170,0,0.3);
+    border-color: #ffcc44;
+}
+
 .bottom-actions {
     display: flex;
     gap: 8px;
