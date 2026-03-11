@@ -6,7 +6,7 @@ import { disposeGroup } from '../core/dispose.js';
 import { getTerrainHeight, getTerrainHeightFast, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
 import { getSkyColor, createPlanetProps, createCreatures } from './visuals_planet_environment.js';
-import { renderColonyGroundBuildings } from './visuals_planet_colony.js';
+import { renderColonyGroundBuildings, harvesterGroups } from './visuals_planet_colony.js';
 
 import { scene } from '../core/scene_config.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
@@ -505,7 +505,19 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     });
 
-    // --- 9. Final Camera Update (after drone position is finalized) ---
+    // --- 9. Animate harvesters — rotating arm + pulsing beacon ---
+    harvesterGroups.forEach(hGroup => {
+        hGroup.children.forEach(child => {
+            if (child.userData.rotatingArm) {
+                child.rotation.y += 0.8 * dt;
+            }
+            if (child.userData.beacon) {
+                child.intensity = 6 + Math.sin(performance.now() * 0.003) * 4;
+            }
+        });
+    });
+
+    // --- 10. Final Camera Update (after drone position is finalized) ---
     const finalCenter = playerMesh.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
     const finalCamX = finalCenter.x + cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
     const finalCamY = finalCenter.y + cameraDistance * Math.sin(cameraPitch);
@@ -533,6 +545,10 @@ export function handleInput(key, pressed) {
 export function setJoystickInput(x, y) { joystickInput.x = x; joystickInput.y = y; }
 
 events.addEventListener('building-complete', (e) => {
+    if (gameState.viewMode === 'EXPLORATION' && currentPlanetData && e.detail.planetId === currentPlanetData.id) updateColonyBuildings();
+});
+
+events.addEventListener('harvester-complete', (e) => {
     if (gameState.viewMode === 'EXPLORATION' && currentPlanetData && e.detail.planetId === currentPlanetData.id) updateColonyBuildings();
 });
 
