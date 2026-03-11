@@ -408,6 +408,20 @@ export function updateResources() {
             }
         });
 
+        // Harvester Production
+        if (!col.harvesters) col.harvesters = [];
+        if (!col.harvesterConstruction) col.harvesterConstruction = [];
+
+        const planet = getPlanet(planetId);
+        const planetType = planet ? planet.type : null;
+        col.harvesters.forEach(() => {
+            const yields = HARVESTER_YIELDS[planetType] || HARVESTER_YIELD_DEFAULT;
+            colEnergy += yields.energy;
+            colMinerals += yields.minerals;
+            colFood += yields.food;
+            colEnergy -= (BUILDINGS.harvester.maintenance.energy || 0);
+        });
+
         // Apply per-colony research bonuses
         if (rb.energy_income) colEnergy += rb.energy_income;
         if (rb.minerals_income) colMinerals += rb.minerals_income;
@@ -461,6 +475,26 @@ export function updateResources() {
                 
                 events.dispatchEvent(new CustomEvent('building-complete', { 
                     detail: { planetId, buildingKey: item.buildingKey } 
+                }));
+                events.dispatchEvent(new CustomEvent('resources-updated'));
+            }
+        }
+
+        // Harvester Construction Queue
+        if (col.harvesterConstruction && col.harvesterConstruction.length > 0) {
+            const hItem = col.harvesterConstruction[0];
+            hItem.progress += 1;
+
+            if (hItem.progress >= hItem.total) {
+                col.harvesters.push({
+                    id: hItem.id,
+                    position: { x: 30 + hItem.id * 20, z: 30 },
+                    active: true
+                });
+                col.harvesterConstruction.shift();
+
+                events.dispatchEvent(new CustomEvent('harvester-complete', {
+                    detail: { planetId }
                 }));
                 events.dispatchEvent(new CustomEvent('resources-updated'));
             }
