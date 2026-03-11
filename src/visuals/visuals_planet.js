@@ -1,7 +1,7 @@
 /* Updated: Fixed mobile dpad+camera drag — second finger on camera zone while dpad is held now drags view instead of triggering pinch zoom */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
-import { gameState, events } from '../core/state.js';
+import { gameState, events, relocateHarvester, HARVESTER_YIELDS, HARVESTER_YIELD_DEFAULT } from '../core/state.js';
 import { disposeGroup } from '../core/dispose.js';
 import { getTerrainHeight, getTerrainHeightFast, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
@@ -28,6 +28,8 @@ const CAMERA_DISTANCE_MIN = 5;
 const CAMERA_DISTANCE_MAX = 60;
 const CAMERA_HEIGHT_OFFSET = 2;
 let dustMesh = null; // cached reference for per-frame time uniform update
+let placementMode = null; // null or { harvesterId, planetId }
+let nearestHarvesterData = null; // { harvesterId, planetId }
 let isMouseDown = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
@@ -153,6 +155,7 @@ function initExplorationMouseControls() {
 initExplorationMouseControls();
 
 export function createPlanetVisuals(planetData, group) {
+    _exitPlacementMode();
     planetProps = [];
     creatures.length = 0;
     dustMesh = null;
@@ -517,7 +520,45 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         });
     });
 
-    // --- 10. Final Camera Update (after drone position is finalized) ---
+    // --- 10. Drone proximity to harvesters — show relocate UI or placement HUD ---
+    if (!placementMode) {
+        let nearHarvester = null;
+        harvesterGroups.forEach(hGroup => {
+            if (!hGroup.userData.isHarvester) return;
+            const dist = playerMesh.position.distanceTo(hGroup.position);
+            if (dist < 15) nearHarvester = hGroup;
+        });
+
+        const hud = _getOrCreateHarvesterHUD();
+        if (nearHarvester && currentPlanetData) {
+            nearestHarvesterData = {
+                harvesterId: nearHarvester.userData.harvesterId,
+                planetId: currentPlanetData.id
+            };
+            hud.style.display = 'block';
+            hud.querySelector('#harvester-hud-info').style.display = 'block';
+            hud.querySelector('#harvester-hud-relocate').style.display = 'block';
+            hud.querySelector('#harvester-hud-placing').style.display = 'none';
+
+            const pType = currentPlanetData.type || 'Barren';
+            const y = HARVESTER_YIELDS[pType] || HARVESTER_YIELD_DEFAULT;
+            const yieldsEl = hud.querySelector('#harvester-hud-yields');
+            if (yieldsEl) yieldsEl.innerHTML = `⚡+${y.energy} 💎+${y.minerals} 🍏+${y.food}`;
+        } else {
+            nearestHarvesterData = null;
+            hud.style.display = 'none';
+        }
+    } else {
+        const hud = document.getElementById('harvester-hud');
+        if (hud) {
+            hud.style.display = 'block';
+            hud.querySelector('#harvester-hud-info').style.display = 'none';
+            hud.querySelector('#harvester-hud-relocate').style.display = 'none';
+            hud.querySelector('#harvester-hud-placing').style.display = 'block';
+        }
+    }
+
+    // --- 11. Final Camera Update (after drone position is finalized) ---
     const finalCenter = playerMesh.position.clone().add(new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0));
     const finalCamX = finalCenter.x + cameraDistance * Math.sin(cameraYaw) * Math.cos(cameraPitch);
     const finalCamY = finalCenter.y + cameraDistance * Math.sin(cameraPitch);
@@ -543,6 +584,81 @@ export function handleInput(key, pressed) {
 }
 
 export function setJoystickInput(x, y) { joystickInput.x = x; joystickInput.y = y; }
+
+function _getOrCreateHarvesterHUD() {
+    let el = document.getElementById('harvester-hud');
+    if (el) return el;
+
+    el = document.createElement('div');
+    el.id = 'harvester-hud';
+    el.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:200;display:none;text-align:center;';
+    el.innerHTML = `
+        <div id="harvester-hud-info" style="display:none;margin-bottom:8px;">
+            <div style="background:rgba(255,170,0,0.15);border:1px solid rgba(255,170,0,0.3);border-radius:6px;padding:8px 14px;font-size:12px;">
+                <span style="color:#ffcc44;">🏭 Harvester</span>
+                <span id="harvester-hud-yields" style="color:#ccc;margin-left:8px;"></span>
+            </div>
+        </div>
+        <div id="harvester-hud-relocate" style="display:none;">
+            <button id="btn-harvester-relocate" style="background:rgba(255,170,0,0.2);border:1px solid #ffaa00;color:#ffcc44;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">
+                ⛏ Relocate Harvester
+            </button>
+        </div>
+        <div id="harvester-hud-placing" style="display:none;">
+            <div style="color:#ffcc44;font-size:12px;margin-bottom:8px;">Fly to new location</div>
+            <div style="display:flex;gap:8px;justify-content:center;">
+                <button id="btn-harvester-place" style="background:rgba(0,255,100,0.2);border:1px solid #00ff66;color:#00ff66;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">
+                    ✓ Place Here
+                </button>
+                <button id="btn-harvester-cancel" style="background:rgba(255,50,50,0.2);border:1px solid #ff4444;color:#ff4444;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">
+                    ✕ Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(el);
+
+    // Amber tint overlay for placement mode
+    const tint = document.createElement('div');
+    tint.id = 'harvester-placement-tint';
+    tint.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:150;box-shadow:inset 0 0 80px rgba(255,170,0,0.15);display:none;';
+    document.body.appendChild(tint);
+
+    // Wire buttons
+    el.querySelector('#btn-harvester-relocate').addEventListener('click', () => {
+        if (!nearestHarvesterData) return;
+        placementMode = { ...nearestHarvesterData };
+        el.querySelector('#harvester-hud-info').style.display = 'none';
+        el.querySelector('#harvester-hud-relocate').style.display = 'none';
+        el.querySelector('#harvester-hud-placing').style.display = 'block';
+        document.getElementById('harvester-placement-tint').style.display = 'block';
+    });
+
+    el.querySelector('#btn-harvester-place').addEventListener('click', () => {
+        if (!placementMode || !playerMesh || !currentPlanetData) return;
+        relocateHarvester(placementMode.planetId, placementMode.harvesterId, {
+            x: playerMesh.position.x,
+            z: playerMesh.position.z
+        });
+        updateColonyBuildings();
+        _exitPlacementMode();
+    });
+
+    el.querySelector('#btn-harvester-cancel').addEventListener('click', () => {
+        _exitPlacementMode();
+    });
+
+    return el;
+}
+
+function _exitPlacementMode() {
+    placementMode = null;
+    nearestHarvesterData = null;
+    const hud = document.getElementById('harvester-hud');
+    if (hud) hud.style.display = 'none';
+    const tint = document.getElementById('harvester-placement-tint');
+    if (tint) tint.style.display = 'none';
+}
 
 events.addEventListener('building-complete', (e) => {
     if (gameState.viewMode === 'EXPLORATION' && currentPlanetData && e.detail.planetId === currentPlanetData.id) updateColonyBuildings();
