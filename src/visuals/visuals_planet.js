@@ -6,7 +6,7 @@ import { disposeGroup } from '../core/dispose.js';
 import { getTerrainHeight, getTerrainHeightFast, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
 import { getSkyColor, createPlanetProps, createCreatures } from './visuals_planet_environment.js';
-import { renderColonyGroundBuildings, harvesterGroups } from './visuals_planet_colony.js';
+import { renderColonyGroundBuildings, harvesterGroups, soldierMeshes } from './visuals_planet_colony.js';
 
 import { scene } from '../core/scene_config.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
@@ -624,6 +624,33 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             ud.shadowMesh.scale.setScalar(bscale * 1.6 + distAbove * 0.08);
             ud.shadowMesh.material.opacity = Math.max(0, 0.5 - distAbove * 0.06);
         }
+    });
+
+    // --- 8b. Patrol soldiers ---
+    soldierMeshes.forEach(s => {
+        const ud = s.userData;
+        if (!ud.isSoldier) return;
+        ud.phase += dt * ud.speed;
+
+        const tx = ud.originX + Math.cos(ud.phase) * ud.patrolRadius;
+        const tz = ud.originZ + Math.sin(ud.phase) * ud.patrolRadius;
+
+        s.position.x = THREE.MathUtils.lerp(s.position.x, tx, 2 * dt);
+        s.position.z = THREE.MathUtils.lerp(s.position.z, tz, 2 * dt);
+        s.position.y = getTerrainHeightFast(s.position.x, s.position.z);
+
+        // Face movement direction
+        s.rotation.y = -ud.phase + Math.PI / 2;
+
+        // Walk animation — swing legs and arms
+        s.children.forEach(child => {
+            if (child.userData.isLeg) {
+                child.rotation.x = Math.sin(ud.phase * 8) * 0.5 * child.userData.side;
+            }
+            if (child.userData.isArm) {
+                child.rotation.x = Math.sin(ud.phase * 8 + Math.PI) * 0.35 * child.userData.side;
+            }
+        });
     });
 
     // --- 9. Animate harvesters — rotating arm + pulsing beacon + rover + particles ---

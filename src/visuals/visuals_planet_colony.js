@@ -555,6 +555,80 @@ function _buildDefault(g, borderColor) {
     g.add(light);
 }
 
+// ── Patrol soldiers ─────────────────────────────────────────────────────────
+
+function _buildSoldierMesh() {
+    const g = new THREE.Group();
+    const skinMat = _mat('soldierSkin', { color: 0x445566, roughness: 0.6, metalness: 0.4 });
+    const armorMat = _mat('soldierArmor', { color: 0x2a3a2a, roughness: 0.5, metalness: 0.6 });
+    const visorMat = new THREE.MeshStandardMaterial({
+        color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.6,
+        roughness: 0.1, metalness: 0.8
+    });
+
+    // Torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.35), armorMat);
+    torso.position.y = 1.2;
+    torso.castShadow = true;
+    g.add(torso);
+
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), skinMat);
+    head.position.y = 1.85;
+    g.add(head);
+
+    // Visor
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.15), visorMat);
+    visor.position.set(0, 1.85, 0.15);
+    g.add(visor);
+
+    // Left leg
+    const legGeo = new THREE.BoxGeometry(0.2, 0.7, 0.2);
+    const legL = new THREE.Mesh(legGeo, skinMat);
+    legL.position.set(-0.15, 0.45, 0);
+    legL.userData.isLeg = true;
+    legL.userData.side = -1;
+    g.add(legL);
+
+    // Right leg
+    const legR = new THREE.Mesh(legGeo, skinMat);
+    legR.position.set(0.15, 0.45, 0);
+    legR.userData.isLeg = true;
+    legR.userData.side = 1;
+    g.add(legR);
+
+    // Left arm
+    const armGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
+    const armL = new THREE.Mesh(armGeo, skinMat);
+    armL.position.set(-0.42, 1.15, 0);
+    armL.userData.isArm = true;
+    armL.userData.side = -1;
+    g.add(armL);
+
+    // Right arm (holds weapon)
+    const armR = new THREE.Mesh(armGeo, skinMat);
+    armR.position.set(0.42, 1.15, 0);
+    armR.userData.isArm = true;
+    armR.userData.side = 1;
+    g.add(armR);
+
+    // Weapon (simple rifle shape on right side)
+    const rifle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.06, 0.7),
+        _mat('rifle', { color: 0x333333, roughness: 0.3, metalness: 0.9 })
+    );
+    rifle.position.set(0.42, 1.0, 0.25);
+    g.add(rifle);
+
+    // Backpack
+    const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.2), armorMat);
+    backpack.position.set(0, 1.25, -0.27);
+    g.add(backpack);
+
+    g.scale.setScalar(1.1);
+    return g;
+}
+
 // ── Main render function ────────────────────────────────────────────────────
 
 /**
@@ -563,6 +637,7 @@ function _buildDefault(g, borderColor) {
 export function renderColonyGroundBuildings(planetId, group, heightFn) {
     while(group.children.length > 0) group.remove(group.children[0]);
     harvesterGroups = [];
+    soldierMeshes = [];
     const colony = gameState.colonies[planetId];
     if (!colony) return;
 
@@ -764,4 +839,26 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         group.add(hGroup);
         harvesterGroups.push(hGroup);
     });
+
+    // ── Patrol soldiers (3 around colony hub) ──
+    for (let si = 0; si < 3; si++) {
+        const soldier = _buildSoldierMesh();
+        const patrolRadius = 12 + si * 3;
+        const startAngle = (si / 3) * Math.PI * 2 + Math.random() * 0.5;
+        const sx = Math.cos(startAngle) * patrolRadius;
+        const sz = Math.sin(startAngle) * patrolRadius;
+        const sy = heightFn(sx, sz);
+        soldier.position.set(sx, sy, sz);
+        soldier.rotation.y = -startAngle + Math.PI / 2;
+        soldier.userData = {
+            isSoldier: true,
+            originX: 0,
+            originZ: 0,
+            patrolRadius,
+            phase: startAngle,
+            speed: 0.25 + si * 0.08, // slightly different speeds so they don't overlap
+        };
+        group.add(soldier);
+        soldierMeshes.push(soldier);
+    }
 }
