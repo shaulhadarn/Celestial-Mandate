@@ -980,3 +980,190 @@ export function createAtmosphericHaze(skyColor, planetType) {
     mesh.renderOrder = 3;
     return mesh;
 }
+
+// ── Lakes with shore vegetation ─────────────────────────────────────────────
+
+// Planet types that can have lakes
+const LAKE_TYPES = {
+    'Terran':      { waterColor: 0x1a6a8a, waterEmissive: 0x051520, shoreVeg: true },
+    'Continental': { waterColor: 0x1a7a6a, waterEmissive: 0x051a18, shoreVeg: true },
+    'Ocean':       { waterColor: 0x0a4a7a, waterEmissive: 0x041222, shoreVeg: true },
+    'Ice':         { waterColor: 0x4a8aaa, waterEmissive: 0x0a1a2a, shoreVeg: false },
+    'Arctic':      { waterColor: 0x3a7a9a, waterEmissive: 0x081828, shoreVeg: false },
+    'Desert':      { waterColor: 0x2a6a5a, waterEmissive: 0x081a14, shoreVeg: true },
+};
+
+/**
+ * Generates lake positions. Uses seeded pseudo-random so lakes are consistent
+ * per planet but varied. One lake is always near the player start area.
+ */
+function _generateLakePositions(planetType) {
+    const lakes = [];
+    const count = isMobileDevice ? 2 : 3;
+
+    // Lake near player start (offset so it's visible but not blocking base)
+    lakes.push({
+        x: 55 + Math.sin(planetType.length * 1.7) * 15,
+        z: -40 + Math.cos(planetType.length * 2.3) * 15,
+        radius: 18 + (planetType.length % 3) * 4,
+    });
+
+    // Additional lakes scattered around the map
+    const seed = planetType.charCodeAt(0) * 137;
+    for (let i = 1; i < count; i++) {
+        const angle = (seed + i * 2.4) % (Math.PI * 2);
+        const dist = 120 + ((seed * i * 7) % 130);
+        lakes.push({
+            x: Math.cos(angle) * dist,
+            z: Math.sin(angle) * dist,
+            radius: 14 + ((seed * i) % 12),
+        });
+    }
+    return lakes;
+}
+
+/**
+ * Creates lake water meshes, shore vegetation, and returns collision data.
+ * Water is a slightly reflective animated disc sitting in a terrain depression.
+ */
+export function createLakes(planetType, group, heightFn) {
+    const conf = LAKE_TYPES[planetType];
+    if (!conf) return { meshes: [], collisions: [] };
+
+    const lakeDefs = _generateLakePositions(planetType);
+    const meshes = [];
+    const collisions = [];
+    const vegCfg = getVegetationConfig(planetType);
+
+    for (const lake of lakeDefs) {
+        // Find the lowest terrain height in the lake area for water level
+        let minH = Infinity;
+        for (let a = 0; a < Math.PI * 2; a += 0.4) {
+            for (let r = 0; r < lake.radius; r += 4) {
+                const h = heightFn(lake.x + Math.cos(a) * r, lake.z + Math.sin(a) * r);
+                if (h < minH) minH = h;
+            }
+        }
+        const waterY = minH - 0.3; // sit slightly below the lowest point
+
+        // ── Water surface disc ──
+        const segments = isMobileDevice ? 24 : 48;
+        const waterGeo = new THREE.CircleGeometry(lake.radius, segments);
+        const waterMat = isMobileDevice
+            ? new THREE.MeshLambertMaterial({
+                color: conf.waterColor,
+                emissive: conf.waterEmissive,
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: 0.82,
+            })
+            : new THREE.MeshStandardMaterial({
+                color: conf.waterColor,
+                emissive: conf.waterEmissive,
+                emissiveIntensity: 0.25,
+                roughness: 0.08,
+                metalness: 0.6,
+                transparent: true,
+                opacity: 0.82,
+                envMapIntensity: 1.5,
+            });
+
+        const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+        waterMesh.rotation.x = -Math.PI / 2;
+        waterMesh.position.set(lake.x, waterY, lake.z);
+        waterMesh.renderOrder = 2;
+        waterMesh.userData.isLake = true;
+        waterMesh.userData.baseY = waterY;
+        waterMesh.userData.time = Math.random() * 100;
+        group.add(waterMesh);
+        meshes.push(waterMesh);
+
+        // ── Subtle shore ring (sandy/muddy edge) ──
+        const shoreGeo = new THREE.RingGeometry(lake.radius - 1.5, lake.radius + 2.5, segments);
+        const shoreColor = planetType === 'Desert' ? 0x8a7a4a
+            : (planetType === 'Ice' || planetType === 'Arctic') ? 0x5a7a8a
+            : 0x4a5a3a;
+        const shoreMat = isMobileDevice
+            ? new THREE.MeshLambertMaterial({ color: shoreColor, transparent: true, opacity: 0.5 })
+            : new THREE.MeshStandardMaterial({ color: shoreColor, roughness: 0.95, metalness: 0, transparent: true, opacity: 0.5 });
+        const shoreMesh = new THREE.Mesh(shoreGeo, shoreMat);
+        shoreMesh.rotation.x = -Math.PI / 2;
+        shoreMesh.position.set(lake.x, waterY + 0.05, lake.z);
+        group.add(shoreMesh);
+
+        // ── Shore vegetation (trees, bushes, reeds around the lake edge) ──
+        if (conf.shoreVeg && vegCfg.hasVeg) {
+            const shoreVegCount = isMobileDevice ? 8 : 18;
+            for (let i = 0; i < shoreVegCount; i++) {
+                const angle = (i / shoreVegCount) * Math.PI * 2 + Math.random() * 0.3;
+                const dist = lake.radius + 2 + Math.random() * 6;
+                const vx = lake.x + Math.cos(angle) * dist;
+                const vz = lake.z + Math.sin(angle) * dist;
+                const vy = heightFn(vx, vz);
+                const scale = 0.5 + Math.random() * 0.7;
+                const roll = Math.random();
+
+                let vegMesh;
+                if (roll < 0.25) {
+                    // Willow-like tree (taller near water)
+                    vegMesh = makeTree(vegCfg.treeColor, vegCfg.trunkColor, scale * 1.2);
+                } else if (roll < 0.55) {
+                    // Dense bush cluster
+                    vegMesh = makeBush(vegCfg.bushColor, scale);
+                } else if (roll < 0.75) {
+                    // Alien plant (bioluminescent near water)
+                    vegMesh = makeAlienPlant(vegCfg.alienPlantColor, vegCfg.alienGlow, scale * 0.8);
+                } else {
+                    // Reed cluster (thin tall cylinders)
+                    vegMesh = _makeReedCluster(vegCfg.bushColor, scale);
+                }
+
+                vegMesh.position.set(vx, vy, vz);
+                vegMesh.rotation.y = Math.random() * Math.PI * 2;
+                group.add(vegMesh);
+
+                collisions.push({ x: vx, z: vz, r: 1.2 * scale, topY: vy + 4 * scale });
+            }
+        }
+
+        // Collision: treat the whole lake as a large circular obstacle
+        collisions.push({ x: lake.x, z: lake.z, r: lake.radius, topY: waterY + 0.5 });
+    }
+
+    return { meshes, collisions };
+}
+
+/**
+ * Reed cluster — thin tall grass-like cylinders growing near water.
+ */
+function _makeReedCluster(color, scale) {
+    const g = new THREE.Group();
+    const reedMat = mat(color, 0, 0, false, 1, 0.85);
+    const reedCount = 5 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < reedCount; i++) {
+        const h = (2.5 + Math.random() * 2) * scale;
+        const reed = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.04 * scale, 0.08 * scale, h, 4),
+            reedMat
+        );
+        reed.position.set(
+            (Math.random() - 0.5) * 1.2 * scale,
+            h * 0.5,
+            (Math.random() - 0.5) * 1.2 * scale
+        );
+        // Slight lean for natural look
+        reed.rotation.x = (Math.random() - 0.5) * 0.15;
+        reed.rotation.z = (Math.random() - 0.5) * 0.15;
+        reed.castShadow = true;
+        g.add(reed);
+    }
+    // Top tuft on tallest reed
+    const tuft = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2 * scale, 5, 4),
+        mat(color, 0, 0, false, 1, 0.8)
+    );
+    tuft.scale.set(0.6, 1.2, 0.6);
+    tuft.position.set(0, (3.5 + Math.random()) * scale, 0);
+    g.add(tuft);
+    return g;
+}

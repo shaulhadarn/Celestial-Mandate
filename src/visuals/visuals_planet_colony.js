@@ -757,16 +757,46 @@ function _buildShipyard(g, borderColor) {
     hangar.castShadow = true;
     g.add(hangar);
 
-    // Hangar door opening (dark inset)
-    const doorMat = new THREE.MeshStandardMaterial({ color: 0x111122, roughness: 0.9, metalness: 0.1 });
-    const door = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3, 0.2), doorMat);
-    door.position.set(0, 2.5, 2.6);
+    // Hangar door opening (dark inset — recessed into the building)
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x080810, roughness: 0.9, metalness: 0.1 });
+    const door = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.8, 0.6), doorMat);
+    door.position.set(0, 2.4, 2.3);
     g.add(door);
 
-    // Door frame accent
-    const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(3.8, 3.3, 0.1), accentMat);
-    doorFrame.position.set(0, 2.5, 2.65);
-    g.add(doorFrame);
+    // Door frame — thin accent strips around the opening instead of a flat rectangle
+    const frameThick = 0.15;
+    // Top strip
+    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(3.6, frameThick, 0.2), accentMat);
+    frameTop.position.set(0, 3.9, 2.55);
+    g.add(frameTop);
+    // Bottom strip
+    const frameBot = new THREE.Mesh(new THREE.BoxGeometry(3.6, frameThick, 0.2), accentMat);
+    frameBot.position.set(0, 1.0, 2.55);
+    g.add(frameBot);
+    // Left strip
+    const frameL = new THREE.Mesh(new THREE.BoxGeometry(frameThick, 3.0, 0.2), accentMat);
+    frameL.position.set(-1.72, 2.45, 2.55);
+    g.add(frameL);
+    // Right strip
+    const frameR = new THREE.Mesh(new THREE.BoxGeometry(frameThick, 3.0, 0.2), accentMat);
+    frameR.position.set(1.72, 2.45, 2.55);
+    g.add(frameR);
+
+    // Interior hint — small ship silhouette inside the hangar
+    const innerMat = new THREE.MeshStandardMaterial({
+        color: 0x334455, roughness: 0.6, metalness: 0.5
+    });
+    const innerShip = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.0, 4), innerMat);
+    innerShip.rotation.x = Math.PI / 2;
+    innerShip.position.set(0, 2.4, 1.6);
+    g.add(innerShip);
+
+    // ── Roof (angled hangar roof) ──
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x3a3a48, roughness: 0.5, metalness: 0.6 });
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.3, 5.2), roofMat);
+    roof.position.set(0, 5.15, 0);
+    roof.castShadow = true;
+    g.add(roof);
 
     // ── Gantry cranes (2 tall towers + crossbeam) ──
     const gantryGeo = new THREE.BoxGeometry(0.4, 12, 0.4);
@@ -793,19 +823,29 @@ function _buildShipyard(g, borderColor) {
     cable.position.set(0.5, 10.2, 0);
     g.add(cable);
 
+    // Crane hook
+    const hook = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.04, 4, 8, Math.PI), accentMat);
+    hook.position.set(0.5, 7.7, 0);
+    g.add(hook);
+
     // ── Launch pad markings (accent circle on ground) ──
     const padRing = new THREE.Mesh(new THREE.TorusGeometry(3, 0.15, 6, 20), accentMat);
     padRing.rotation.x = Math.PI / 2;
     padRing.position.set(0, 0.65, 0);
     g.add(padRing);
 
-    // ── Fuel tanks ──
+    // ── Fuel tanks (neutral color, not purple) ──
     const fuelGeo = new THREE.CylinderGeometry(0.6, 0.6, 3, 8);
-    const fuelMat = new THREE.MeshStandardMaterial({ color: 0x993366, roughness: 0.4, metalness: 0.5 });
+    const fuelMat = new THREE.MeshStandardMaterial({ color: 0x556666, roughness: 0.4, metalness: 0.5 });
     [[-3.5, 0, 3], [3.5, 0, 3]].forEach(([fx, , fz]) => {
         const tank = new THREE.Mesh(fuelGeo, fuelMat);
         tank.position.set(fx, 2.5, fz);
         g.add(tank);
+        // Tank accent band
+        const band = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.06, 4, 8), accentMat);
+        band.rotation.x = Math.PI / 2;
+        band.position.set(fx, 3.2, fz);
+        g.add(band);
     });
 
     // ── Comms array on roof ──
@@ -822,9 +862,9 @@ function _buildShipyard(g, borderColor) {
     g.add(light);
 
     // Glow effects
-    _addGlowSprite(g, 0, 2.5, 2.6, borderColor, 4, 0.3);  // hangar door glow
-    _addGlowSprite(g, 0.5, 12.9, 0, borderColor, 2, 0.25); // crane trolley glow
-    _addGlowSprite(g, 0, 0.65, 0, borderColor, 6, 0.15);   // launch pad ring glow
+    _addGlowSprite(g, 0, 2.4, 2.6, borderColor, 3, 0.2);   // hangar door glow (subtle)
+    _addGlowSprite(g, 0.5, 12.9, 0, borderColor, 2, 0.25);  // crane trolley glow
+    _addGlowSprite(g, 0, 0.65, 0, borderColor, 6, 0.15);    // launch pad ring glow
 }
 
 // ── Default building (fallback) ─────────────────────────────────────────────

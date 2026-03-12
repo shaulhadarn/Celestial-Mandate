@@ -527,6 +527,14 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         planetState.hazeMesh.position.z = followPos.position.z;
     }
 
+    // --- 8b. Lake water gentle bob ---
+    if (planetState.lakeMeshes) {
+        planetState.lakeMeshes.forEach(lm => {
+            lm.userData.time += dt;
+            lm.position.y = lm.userData.baseY + Math.sin(lm.userData.time * 0.6) * 0.15;
+        });
+    }
+
     // --- 8c. Grass wind animation ---
     updateGrass(planetState.grassData, dt);
 

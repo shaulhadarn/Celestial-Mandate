@@ -13,7 +13,7 @@ import { isMobile as isMobileDevice } from '../core/device.js';
 import planetState from './visuals_planet_state.js';
 import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
-import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers, createGroundMist, createAtmosphericHaze } from './visuals_planet_environment.js';
+import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers, createGroundMist, createAtmosphericHaze, createLakes } from './visuals_planet_environment.js';
 import { hasGrass, createGrassMesh } from './visuals_planet_grass.js';
 import { renderColonyGroundBuildings, soldierMeshes } from './visuals_planet_colony.js';
 
@@ -199,6 +199,7 @@ export function createPlanetVisuals(planetData, group) {
     planetState.groundMist = null;
     planetState.hazeMesh = null;
     planetState.grassData = null;
+    planetState.lakeMeshes = [];
     planetState.dustMesh = null;
     planetState.currentPlanetData = planetData;
     planetState.explorationGroup = group;
@@ -268,6 +269,12 @@ export function createPlanetVisuals(planetData, group) {
 
     // 4. Props
     planetState.planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
+
+    // 4b. Lakes (water bodies with shore vegetation)
+    const lakeResult = createLakes(planetData.type, group, getTerrainHeight);
+    planetState.lakeMeshes = lakeResult.meshes;
+    // Add lake shore vegetation collisions to prop list
+    lakeResult.collisions.forEach(c => planetState.planetProps.push(c));
 
     // 5. Atmospheric particles — floating motes, pollen, spores
     {
