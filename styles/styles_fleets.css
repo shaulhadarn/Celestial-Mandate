@@ -785,6 +785,7 @@
         max-width: none;
         max-height: 85vh;
         border-radius: 12px;
+        -webkit-overflow-scrolling: touch;
     }
 
     .ship-modal-close {

@@ -26,10 +26,17 @@ let _autoRotSpeed = 0.3; // auto-rotation speed (rad/s)
  * @param {string} shipId - e.g. 'h_scout'
  * @param {string} accentColor - e.g. '#00f2ff'
  */
+let _pendingRetry = null;
+
 export function initShipViewer(shipId, accentColor) {
     disposeShipViewer();
     _disposed = false;
+    clearTimeout(_pendingRetry);
 
+    _initViewerInner(shipId, accentColor, 0);
+}
+
+function _initViewerInner(shipId, accentColor, attempt) {
     const container = document.getElementById('ship-modal-viewer');
     const canvas = document.getElementById('ship-viewer-canvas');
     if (!container || !canvas) return;
@@ -37,14 +44,28 @@ export function initShipViewer(shipId, accentColor) {
     const rect = container.getBoundingClientRect();
     const w = rect.width;
     const h = rect.height;
+
+    // On mobile the modal may not have layout yet — retry a few times
+    if ((w < 10 || h < 10) && attempt < 5) {
+        _pendingRetry = setTimeout(() => _initViewerInner(shipId, accentColor, attempt + 1), 80);
+        return;
+    }
+    if (w < 10 || h < 10) return; // give up
+
     const dpr = Math.min(window.devicePixelRatio, 2);
 
     // Renderer
-    _renderer = new THREE.WebGLRenderer({
-        canvas,
-        antialias: true,
-        alpha: true,
-    });
+    try {
+        _renderer = new THREE.WebGLRenderer({
+            canvas,
+            antialias: dpr <= 1, // skip antialiasing on high-DPR mobile
+            alpha: true,
+            powerPreference: 'low-power',
+        });
+    } catch (e) {
+        console.warn('Ship viewer WebGL init failed:', e);
+        return;
+    }
     _renderer.setSize(w, h);
     _renderer.setPixelRatio(dpr);
     _renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -133,10 +154,22 @@ function _bindPointerEvents(container) {
         _prevY = pt.clientY;
     };
 
-    const onMove = (e) => {
+    const onMouseMove = (e) => {
         if (!_isDragging) return;
-        e.preventDefault();
-        const pt = e.touches ? e.touches[0] : e;
+        const dx = e.clientX - _prevX;
+        const dy = e.clientY - _prevY;
+        _prevX = e.clientX;
+        _prevY = e.clientY;
+
+        _rotY += dx * 0.008;
+        _rotX += dy * 0.006;
+        _rotX = Math.max(-1.2, Math.min(1.2, _rotX));
+    };
+
+    const onTouchMove = (e) => {
+        if (!_isDragging) return;
+        e.preventDefault(); // only blocks scroll when dragging the viewer
+        const pt = e.touches[0];
         const dx = pt.clientX - _prevX;
         const dy = pt.clientY - _prevY;
         _prevX = pt.clientX;
@@ -144,7 +177,6 @@ function _bindPointerEvents(container) {
 
         _rotY += dx * 0.008;
         _rotX += dy * 0.006;
-        // Clamp vertical to avoid flipping
         _rotX = Math.max(-1.2, Math.min(1.2, _rotX));
     };
 
@@ -153,24 +185,26 @@ function _bindPointerEvents(container) {
         container.classList.remove('dragging');
     };
 
-    // Mouse
+    // Mouse — move/up on window for drag continuation outside container
     container.addEventListener('mousedown', onDown);
-    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onUp);
 
-    // Touch
+    // Touch — keep move on CONTAINER so it doesn't block modal scrolling
     container.addEventListener('touchstart', onDown, { passive: false });
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onUp);
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onUp);
+    container.addEventListener('touchcancel', onUp);
 
     // Store cleanup refs
     container._shipViewerCleanup = () => {
         container.removeEventListener('mousedown', onDown);
-        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onUp);
         container.removeEventListener('touchstart', onDown);
-        window.removeEventListener('touchmove', onMove);
-        window.removeEventListener('touchend', onUp);
+        container.removeEventListener('touchmove', onTouchMove);
+        container.removeEventListener('touchend', onUp);
+        container.removeEventListener('touchcancel', onUp);
     };
 }
 
@@ -179,6 +213,7 @@ function _bindPointerEvents(container) {
  */
 export function disposeShipViewer() {
     _disposed = true;
+    clearTimeout(_pendingRetry);
     if (_animId) {
         cancelAnimationFrame(_animId);
         _animId = null;

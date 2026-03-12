@@ -332,6 +332,7 @@ export async function enterSystemView(systemId, instant = false) {
         }
 
         gameState.viewMode = 'SYSTEM';
+        gameState.selectedSystemId = systemId; // Set early so buildPlayerShips can find fleet ships
         setMusicState('SYSTEM');
 
         // Reset background and fog to deep space defaults
