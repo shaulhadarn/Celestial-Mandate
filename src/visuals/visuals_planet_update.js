@@ -95,12 +95,29 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             sVel.z += _inputDir.z * soldierSpeed * dt;
         }
 
+        // Jump (spacebar) — only when grounded
+        const groundH = getTerrainHeightFast(controlTarget.position.x, controlTarget.position.z);
+        const isGrounded = controlTarget.position.y <= groundH + 0.05;
+        if (keyState[' '] && isGrounded) {
+            sVel.y = 12; // jump impulse
+        }
+
+        // Gravity
+        sVel.y -= 30 * dt;
+
         controlTarget.position.x += sVel.x * dt;
         controlTarget.position.z += sVel.z * dt;
-        controlTarget.position.y = getTerrainHeightFast(controlTarget.position.x, controlTarget.position.z);
+        controlTarget.position.y += sVel.y * dt;
+
+        // Ground collision
+        const newGroundH = getTerrainHeightFast(controlTarget.position.x, controlTarget.position.z);
+        if (controlTarget.position.y <= newGroundH) {
+            controlTarget.position.y = newGroundH;
+            sVel.y = 0;
+        }
+
         sVel.x *= soldierDrag;
         sVel.z *= soldierDrag;
-        sVel.y = 0;
 
         const soldierSpd = Math.sqrt(sVel.x * sVel.x + sVel.z * sVel.z);
 
@@ -181,6 +198,15 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             velocity.y += _inputDir.y * speed * dt;
             velocity.z += _inputDir.z * speed * dt;
         }
+        // Spacebar = fly higher
+        if (keyState[' ']) {
+            velocity.y += 60 * dt;
+        }
+    }
+
+    // Drone gravity (pulls drone back to hover height when not pressing space)
+    if (!controlTarget) {
+        velocity.y -= 25 * dt;
     }
 
     // --- 3. Apply drone movement with slope collision ---
@@ -195,9 +221,12 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         nextGroundH = Math.max(nextGroundH, getTerrainHeightFast(_nextPos.x + ox, _nextPos.z + oz));
     }
     nextGroundH += 1.2;
-    if (nextGroundH >= playerMesh.position.y) {
-        velocity.x = 0;
-        velocity.z = 0;
+    if (nextGroundH >= _nextPos.y) {
+        // Landed on terrain — stop vertical velocity, slide horizontally
+        velocity.y = 0;
+        playerMesh.position.x += velocity.x * dt;
+        playerMesh.position.z += velocity.z * dt;
+        playerMesh.position.y = nextGroundH;
     } else {
         playerMesh.position.x += velocity.x * dt;
         playerMesh.position.y += velocity.y * dt;
@@ -464,6 +493,34 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 const gH = getTerrainHeightFast(s.position.x, s.position.z) + 0.15;
                 ud.shadowMesh.position.set(s.position.x, gH, s.position.z);
                 ud.shadowMesh.material.opacity = 0.55;
+            }
+            // Trail marks while player walks
+            if (ud.trailMarks) {
+                for (let ti = 0; ti < ud.trailMarks.length; ti++) {
+                    const tm = ud.trailMarks[ti];
+                    if (tm.age < TRAIL_LIFE) {
+                        tm.age += dt;
+                        const frac = tm.age / TRAIL_LIFE;
+                        tm.mesh.material.opacity = 0.25 * (1 - frac);
+                        if (frac >= 1) { tm.mesh.visible = false; tm.mesh.material.opacity = 0; }
+                    }
+                }
+                const sVel = ud.velocity;
+                const spd = sVel ? Math.sqrt(sVel.x * sVel.x + sVel.z * sVel.z) : 0;
+                if (spd > 0.5) {
+                    ud.trailDist = (ud.trailDist || 0) + spd * dt;
+                    if (ud.trailDist >= TRAIL_SPACING) {
+                        ud.trailDist -= TRAIL_SPACING;
+                        const tm = ud.trailMarks[ud.trailIndex % ud.trailMarks.length];
+                        ud.trailIndex++;
+                        const gH2 = getTerrainHeightFast(s.position.x, s.position.z) + 0.12;
+                        tm.mesh.position.set(s.position.x, gH2, s.position.z);
+                        tm.mesh.rotation.z = s.rotation.y;
+                        tm.mesh.visible = true;
+                        tm.mesh.material.opacity = 0.25;
+                        tm.age = 0;
+                    }
+                }
             }
             return;
         }

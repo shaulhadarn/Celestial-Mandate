@@ -123,7 +123,7 @@ function _buildUnitPanel() {
     const droneBtn = document.createElement('button');
     droneBtn.className = 'unit-btn unit-active';
     droneBtn.dataset.unitType = 'drone';
-    droneBtn.innerHTML = '<span class="unit-icon">🤖</span><span class="unit-label">Drone</span>';
+    droneBtn.innerHTML = '<span class="unit-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="3"/><path d="M5 7h2M17 7h2"/><rect x="8" y="12" width="8" height="6" rx="1"/><path d="M10 18v3M14 18v3"/></svg></span><span class="unit-label">Drone</span>';
     droneBtn.onclick = () => _switchToDrone();
     list.appendChild(droneBtn);
 
@@ -133,7 +133,7 @@ function _buildUnitPanel() {
         btn.className = 'unit-btn';
         btn.dataset.soldierIdx = i;
         btn.dataset.unitType = 'soldier';
-        btn.innerHTML = `<span class="unit-icon">🪖</span><span class="unit-label">S-${i + 1}</span>`;
+        btn.innerHTML = `<span class="unit-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><path d="M8 5h8"/><rect x="9" y="10" width="6" height="8" rx="1"/><path d="M9 14h6M10 18v3M14 18v3M7 13l-2 4M17 13l2 4"/></svg></span><span class="unit-label">S-${i + 1}</span>`;
         btn.onclick = () => _switchToSoldier(soldierMeshes[i]);
         list.appendChild(btn);
     });

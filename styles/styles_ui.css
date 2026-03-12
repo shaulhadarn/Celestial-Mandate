@@ -1561,7 +1561,16 @@
 .unit-btn .unit-icon {
     font-size: 20px;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
+.unit-btn .unit-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: #c0d0e0;
+}
+.unit-btn.unit-active .unit-icon svg { stroke: #00f2ff; }
 .unit-btn .unit-label {
     font-size: 8px;
     text-transform: uppercase;

@@ -80,7 +80,11 @@ export async function init() {
 
     // Use capture phase on document so keyboard events fire before R3F's Canvas
     // can intercept them (R3F creates a focusable div that can swallow key events)
-    document.addEventListener('keydown', (e) => handleInput(e.key, true), true);
+    document.addEventListener('keydown', (e) => {
+        handleInput(e.key, true);
+        // Prevent spacebar from scrolling during exploration
+        if (e.key === ' ' && gameState.viewMode === 'EXPLORATION') e.preventDefault();
+    }, true);
     document.addEventListener('keyup', (e) => handleInput(e.key, false), true);
 
     // Events

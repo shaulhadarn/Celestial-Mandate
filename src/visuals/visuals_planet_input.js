@@ -188,6 +188,8 @@ export function handleInput(key, pressed) {
         else if (k === 'arrowright') planetState.keyState['d'] = pressed;
         else planetState.keyState[k] = pressed;
     }
+    // Spacebar (jump / fly)
+    if (key === ' ') planetState.keyState[' '] = pressed;
 }
 
 export function setJoystickInput(x, y) {
