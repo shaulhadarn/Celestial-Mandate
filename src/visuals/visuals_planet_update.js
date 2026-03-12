@@ -295,6 +295,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 8b. Patrol soldiers (waypoint-based walk) ---
     const TRAIL_SPACING = 1.2;   // drop a footprint every N units
     const TRAIL_LIFE    = 6.0;   // seconds before full fade
+    const now = performance.now() * 0.001; // seconds for idle anims
 
     soldierMeshes.forEach(s => {
         const ud = s.userData;
@@ -320,15 +321,39 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             }
         }
 
-        // Waiting at waypoint — stand still, legs/arms idle
+        // ── Idle breathing + head scan (always active) ──
+        const idlePhase = now + (ud.centerX || 0); // unique per soldier
+        s.children.forEach(child => {
+            if (child.userData.isHead) {
+                // Slow head scan left-right while idle, subtler while walking
+                const scanAmp = ud.waitTimer > 0 ? 0.35 : 0.1;
+                child.rotation.y = Math.sin(idlePhase * 0.7) * scanAmp;
+            }
+            if (child.userData.muzzle) {
+                // Occasional flicker when idle
+                child.material.opacity = ud.waitTimer > 0
+                    ? (Math.sin(idlePhase * 8) > 0.95 ? 0.6 : 0)
+                    : 0;
+            }
+        });
+
+        // Waiting at waypoint — stand still, breathing + slight sway
         if (ud.waitTimer > 0) {
             ud.waitTimer -= dt;
-            // Gently return limbs to rest pose
+            const breathe = Math.sin(idlePhase * 2.5) * 0.015;
             s.children.forEach(child => {
-                if (child.userData.isLeg || child.userData.isArm) {
-                    child.rotation.x *= 0.9;
+                if (child.userData.isLeg) {
+                    child.rotation.x *= 0.9; // return to rest
+                } else if (child.userData.isArm) {
+                    // Subtle arm sway while idle
+                    child.rotation.x = child.rotation.x * 0.9
+                        + Math.sin(idlePhase * 1.3 + child.userData.side) * 0.04;
+                    child.rotation.z = breathe * child.userData.side;
                 }
             });
+            // Slight body bob from breathing
+            s.position.y = getTerrainHeightFast(s.position.x, s.position.z)
+                + Math.sin(idlePhase * 2.5) * 0.02;
             return;
         }
 
@@ -358,14 +383,24 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         // Face walking direction
         s.rotation.y = Math.atan2(nx, nz);
 
-        // Walk cycle — legs and arms swing based on distance traveled
+        // Walk cycle — legs and arms swing, body bob
         ud.walkPhase += step * 4;
+        const walkSin = Math.sin(ud.walkPhase);
+        const walkCos = Math.cos(ud.walkPhase);
+        // Subtle vertical bob while walking
+        s.position.y += Math.abs(walkSin) * 0.04;
+        // Slight body lean into movement
+        s.rotation.z = walkCos * 0.02;
+
         s.children.forEach(child => {
             if (child.userData.isLeg) {
-                child.rotation.x = Math.sin(ud.walkPhase) * 0.5 * child.userData.side;
+                child.rotation.x = walkSin * 0.5 * child.userData.side;
             }
             if (child.userData.isArm) {
-                child.rotation.x = Math.sin(ud.walkPhase + Math.PI) * 0.35 * child.userData.side;
+                // Arms counter-swing, weapon arm less swing
+                const amp = child.userData.side === 1 ? 0.2 : 0.35;
+                child.rotation.x = Math.sin(ud.walkPhase + Math.PI) * amp * child.userData.side;
+                child.rotation.z = 0; // reset idle arm sway
             }
         });
 
@@ -496,6 +531,77 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                         p.sprite.material.opacity = 0;
                     }
                 });
+            }
+
+            // ── Engine trail glow sprites (world-space) ──
+            const eTrail = ud.engineTrailSprites;
+            if (eTrail) {
+                ud.engineTrailTimer = (ud.engineTrailTimer || 0) + dt;
+                if (ud.engineTrailTimer > 0.12) {
+                    ud.engineTrailTimer = 0;
+                    const idle = eTrail.find(p => p.life <= 0);
+                    if (idle) {
+                        idle.life = idle.maxLife;
+                        // Spawn behind rover in world space
+                        const bx = rx - Math.cos(-ud.orbitPhase + Math.PI / 2) * 1.5;
+                        const bz = rz - Math.sin(-ud.orbitPhase + Math.PI / 2) * 1.5;
+                        idle.sprite.position.set(bx, ry + 0.5, bz);
+                        idle.sprite.visible = true;
+                        idle.sprite.material.opacity = 0.5;
+                        idle.sprite.scale.set(0.6, 0.6, 0.6);
+                    }
+                }
+                for (let ei = 0; ei < eTrail.length; ei++) {
+                    const p = eTrail[ei];
+                    if (p.life <= 0) continue;
+                    p.life -= dt;
+                    const t = 1 - (p.life / p.maxLife);
+                    p.sprite.position.y += 0.3 * dt; // drift up
+                    const s = 0.6 + t * 1.2;
+                    p.sprite.scale.set(s, s, s);
+                    p.sprite.material.opacity = 0.5 * (1 - t) * (1 - t);
+                    if (p.life <= 0) {
+                        p.sprite.visible = false;
+                        p.sprite.material.opacity = 0;
+                    }
+                }
+            }
+
+            // ── Rover track marks (world-space ground decals) ──
+            const rTracks = ud.trackMarks;
+            if (rTracks) {
+                // Age existing marks
+                for (let rti = 0; rti < rTracks.length; rti++) {
+                    const tm = rTracks[rti];
+                    if (tm.age < 8) {
+                        tm.age += dt;
+                        const frac = tm.age / 8;
+                        tm.mesh.material.opacity = 0.2 * (1 - frac);
+                        if (frac >= 1) { tm.mesh.visible = false; tm.mesh.material.opacity = 0; }
+                    }
+                }
+                // Distance since last mark
+                const tdx = rx - ud.lastRX;
+                const tdz = rz - ud.lastRZ;
+                ud.trackDist += Math.sqrt(tdx * tdx + tdz * tdz);
+                ud.lastRX = rx;
+                ud.lastRZ = rz;
+                if (ud.trackDist >= 1.5) {
+                    ud.trackDist -= 1.5;
+                    // Drop two tracks (left + right wheel lines)
+                    const perpX = Math.sin(-ud.orbitPhase + Math.PI / 2) * 0.7;
+                    const perpZ = -Math.cos(-ud.orbitPhase + Math.PI / 2) * 0.7;
+                    [-1, 1].forEach(side => {
+                        const tm = rTracks[ud.trackIndex % rTracks.length];
+                        ud.trackIndex++;
+                        const gH = ud.heightFn(rx + perpX * side, rz + perpZ * side) + 0.1;
+                        tm.mesh.position.set(rx + perpX * side, gH, rz + perpZ * side);
+                        tm.mesh.rotation.z = rover.rotation.y;
+                        tm.mesh.visible = true;
+                        tm.mesh.material.opacity = 0.2;
+                        tm.age = 0;
+                    });
+                }
             }
         }
     });

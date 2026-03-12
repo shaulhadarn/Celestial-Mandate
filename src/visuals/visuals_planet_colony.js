@@ -655,73 +655,176 @@ function _buildDefault(g, borderColor) {
 
 function _buildSoldierMesh() {
     const g = new THREE.Group();
-    const skinMat = _mat('soldierSkin', { color: 0x445566, roughness: 0.6, metalness: 0.4 });
-    const armorMat = _mat('soldierArmor', { color: 0x2a3a2a, roughness: 0.5, metalness: 0.6 });
+
+    // ── Materials ──
+    const armorMat = new THREE.MeshStandardMaterial({
+        color: 0x2a3a2a, roughness: 0.45, metalness: 0.7
+    });
+    const armorTrimMat = new THREE.MeshStandardMaterial({
+        color: 0x1a2a1a, roughness: 0.3, metalness: 0.85
+    });
+    const underMat = new THREE.MeshStandardMaterial({
+        color: 0x222222, roughness: 0.7, metalness: 0.3
+    });
+    const bootMat = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a, roughness: 0.6, metalness: 0.5
+    });
     const visorMat = new THREE.MeshStandardMaterial({
-        color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.6,
-        roughness: 0.1, metalness: 0.8
+        color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.8,
+        roughness: 0.05, metalness: 0.95
+    });
+    const rifleMat = new THREE.MeshStandardMaterial({
+        color: 0x2a2a2a, roughness: 0.25, metalness: 0.95
     });
 
-    // Torso
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.35), armorMat);
-    torso.position.y = 1.2;
-    torso.castShadow = true;
-    g.add(torso);
+    // ── Torso (chest plate + belly) ──
+    const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.55, 0.38), armorMat);
+    chestPlate.position.y = 1.35;
+    chestPlate.castShadow = true;
+    g.add(chestPlate);
 
-    // Head
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), skinMat);
-    head.position.y = 1.85;
-    g.add(head);
+    const belly = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.3, 0.32), underMat);
+    belly.position.y = 0.95;
+    g.add(belly);
 
-    // Visor
-    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.15), visorMat);
-    visor.position.set(0, 1.85, 0.15);
+    // Shoulder pads
+    [-1, 1].forEach(side => {
+        const pad = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.32), armorTrimMat);
+        pad.position.set(side * 0.38, 1.58, 0);
+        pad.castShadow = true;
+        g.add(pad);
+    });
+
+    // Collar / neck guard
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 0.12, 6), armorTrimMat);
+    collar.position.y = 1.65;
+    g.add(collar);
+
+    // ── Head (helmet + visor) ──
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), armorMat);
+    helmet.position.y = 1.88;
+    helmet.castShadow = true;
+    helmet.userData.isHead = true;
+    g.add(helmet);
+
+    const visor = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
+        visorMat
+    );
+    visor.position.set(0, 1.84, 0.1);
+    visor.rotation.x = -0.3;
     g.add(visor);
 
-    // Left leg
-    const legGeo = new THREE.BoxGeometry(0.2, 0.7, 0.2);
-    const legL = new THREE.Mesh(legGeo, skinMat);
-    legL.position.set(-0.15, 0.45, 0);
-    legL.userData.isLeg = true;
-    legL.userData.side = -1;
-    g.add(legL);
+    // Small antenna on helmet
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.25, 3), rifleMat);
+    antenna.position.set(-0.15, 2.08, -0.05);
+    antenna.rotation.z = 0.2;
+    g.add(antenna);
 
-    // Right leg
-    const legR = new THREE.Mesh(legGeo, skinMat);
-    legR.position.set(0.15, 0.45, 0);
-    legR.userData.isLeg = true;
-    legR.userData.side = 1;
-    g.add(legR);
+    // ── Legs (upper + boot) ──
+    const upperLegGeo = new THREE.BoxGeometry(0.2, 0.4, 0.2);
+    const bootGeo = new THREE.BoxGeometry(0.22, 0.38, 0.25);
 
-    // Left arm
-    const armGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
-    const armL = new THREE.Mesh(armGeo, skinMat);
-    armL.position.set(-0.42, 1.15, 0);
-    armL.userData.isArm = true;
-    armL.userData.side = -1;
-    g.add(armL);
+    [-1, 1].forEach(side => {
+        // Upper leg
+        const uLeg = new THREE.Mesh(upperLegGeo, underMat);
+        uLeg.position.set(side * 0.16, 0.6, 0);
+        uLeg.userData.isLeg = true;
+        uLeg.userData.side = side;
+        g.add(uLeg);
 
-    // Right arm (holds weapon)
-    const armR = new THREE.Mesh(armGeo, skinMat);
-    armR.position.set(0.42, 1.15, 0);
-    armR.userData.isArm = true;
-    armR.userData.side = 1;
-    g.add(armR);
+        // Boot
+        const boot = new THREE.Mesh(bootGeo, bootMat);
+        boot.position.set(side * 0.16, 0.25, 0.02);
+        boot.userData.isLeg = true;
+        boot.userData.side = side;
+        g.add(boot);
+    });
 
-    // Weapon (simple rifle shape on right side)
-    const rifle = new THREE.Mesh(
-        new THREE.BoxGeometry(0.06, 0.06, 0.7),
-        _mat('rifle', { color: 0x333333, roughness: 0.3, metalness: 0.9 })
+    // Knee pads
+    [-1, 1].forEach(side => {
+        const kneePad = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.08), armorTrimMat);
+        kneePad.position.set(side * 0.16, 0.48, 0.14);
+        kneePad.userData.isLeg = true;
+        kneePad.userData.side = side;
+        g.add(kneePad);
+    });
+
+    // ── Arms (upper + forearm) ──
+    [-1, 1].forEach(side => {
+        const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.35, 0.14), underMat);
+        upperArm.position.set(side * 0.44, 1.3, 0);
+        upperArm.userData.isArm = true;
+        upperArm.userData.side = side;
+        g.add(upperArm);
+
+        const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.3, 0.13), armorMat);
+        forearm.position.set(side * 0.44, 1.0, 0.04);
+        forearm.userData.isArm = true;
+        forearm.userData.side = side;
+        g.add(forearm);
+
+        // Glove
+        const glove = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.12), bootMat);
+        glove.position.set(side * 0.44, 0.87, 0.06);
+        glove.userData.isArm = true;
+        glove.userData.side = side;
+        g.add(glove);
+    });
+
+    // ── Weapon (detailed rifle on right side) ──
+    // Barrel
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.65, 6), rifleMat);
+    barrel.position.set(0.44, 0.95, 0.38);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.userData.isArm = true;
+    barrel.userData.side = 1;
+    g.add(barrel);
+
+    // Stock
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.25), rifleMat);
+    stock.position.set(0.44, 0.95, -0.05);
+    barrel.userData.isArm = true;
+    g.add(stock);
+
+    // Scope
+    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.15, 4), armorTrimMat);
+    scope.position.set(0.44, 1.02, 0.25);
+    scope.rotation.x = Math.PI / 2;
+    scope.userData.isArm = true;
+    scope.userData.side = 1;
+    g.add(scope);
+
+    // Muzzle flash point (tiny emissive dot at barrel tip)
+    const muzzle = new THREE.Mesh(
+        new THREE.SphereGeometry(0.025, 4, 4),
+        new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
     );
-    rifle.position.set(0.42, 1.0, 0.25);
-    g.add(rifle);
+    muzzle.position.set(0.44, 0.95, 0.72);
+    muzzle.userData.muzzle = true;
+    g.add(muzzle);
 
-    // Backpack
-    const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.2), armorMat);
-    backpack.position.set(0, 1.25, -0.27);
+    // ── Backpack (equipment pack + canister) ──
+    const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.48, 0.2), armorMat);
+    backpack.position.set(0, 1.28, -0.28);
+    backpack.castShadow = true;
     g.add(backpack);
 
-    g.scale.setScalar(1.1);
+    const canister = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 6), armorTrimMat);
+    canister.position.set(0.12, 1.15, -0.38);
+    g.add(canister);
+
+    // Belt / waist strap
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.08, 0.36), bootMat);
+    belt.position.y = 0.82;
+    g.add(belt);
+
+    // Belt pouch
+    const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.08), armorTrimMat);
+    pouch.position.set(-0.28, 0.82, 0.18);
+    g.add(pouch);
+
+    g.scale.setScalar(1.2);
     return g;
 }
 
@@ -926,6 +1029,49 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         rover.userData.exhaustParticles = exhaustParticles;
         rover.userData.exhaustTimer = 0;
 
+        // Engine trail sprites (world-space glow left behind rover)
+        const ROVER_TRAIL_COUNT = 10;
+        const roverTrailSprites = [];
+        for (let eti = 0; eti < ROVER_TRAIL_COUNT; eti++) {
+            const etMat = new THREE.SpriteMaterial({
+                map: textures.glow,
+                color: 0xffaa44,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                opacity: 0,
+            });
+            const etSprite = new THREE.Sprite(etMat);
+            etSprite.visible = false;
+            etSprite.scale.set(0.6, 0.6, 0.6);
+            group.add(etSprite);
+            roverTrailSprites.push({ sprite: etSprite, life: 0, maxLife: 1.0 + Math.random() * 0.5 });
+        }
+        rover.userData.engineTrailSprites = roverTrailSprites;
+        rover.userData.engineTrailTimer = 0;
+
+        // Track marks pool (flat quads on ground behind rover)
+        const ROVER_TRACK_MAX = 24;
+        const roverTracks = [];
+        const roverTrackGeo = new THREE.PlaneGeometry(0.4, 0.7);
+        for (let rti = 0; rti < ROVER_TRACK_MAX; rti++) {
+            const rtMat = new THREE.MeshBasicMaterial({
+                color: 0x111100, transparent: true, opacity: 0,
+                depthWrite: false, polygonOffset: true,
+                polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+            });
+            const rtMark = new THREE.Mesh(roverTrackGeo, rtMat);
+            rtMark.rotation.x = -Math.PI / 2;
+            rtMark.visible = false;
+            group.add(rtMark);
+            roverTracks.push({ mesh: rtMark, age: 999 });
+        }
+        rover.userData.trackMarks = roverTracks;
+        rover.userData.trackIndex = 0;
+        rover.userData.trackDist = 0;
+        rover.userData.lastRX = 0;
+        rover.userData.lastRZ = 0;
+
         // Place rover at initial orbit position
         const initAngle = rover.userData.orbitPhase;
         const initR = rover.userData.orbitRadius;
@@ -934,6 +1080,8 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         const ry = heightFn(rx, rz);
         rover.position.set(rx, ry, rz);
         rover.rotation.y = -initAngle + Math.PI / 2;
+        rover.userData.lastRX = rx;
+        rover.userData.lastRZ = rz;
 
         group.add(rover);
         hGroup.userData.rover = rover;
