@@ -233,22 +233,40 @@ export function playSound(name) {
     source.start(0);
 }
 
-// --- Background Music (2-track crossfade playlist) ---
-const TRACKS = [
-    encodeURI('assets/Shaul Hadar - Time To Profit Demo.mp3'),
-    encodeURI('assets/9.Counter Point - Master of Epic.mp3'),
-];
-const FADE_DURATION = 2000; // ms
-const MUSIC_VOLUME = 0.35;
-let _currentAudio = null;
-let _trackIndex = 0;
-let _musicStarted = false;
-let _userVolume = MUSIC_VOLUME;
+// --- Background Music (state-based crossfade system) ---
+const MUSIC_DIR = 'assets/music/';
+const _enc = (name) => encodeURI(MUSIC_DIR + name);
 
-function _fadeAudio(audio, fromVol, toVol, duration = FADE_DURATION) {
+// Track pools per game state — shuffled within each pool
+const STATE_TRACKS = {
+    GALAXY: [
+        _enc('9.Counter Point - Master of Epic.mp3'),
+        _enc('Galactic Command Uplink.mp3'),
+    ],
+    SYSTEM: [
+        _enc('Shaul Hadar - Time To Profit Demo.mp3'),
+        _enc('Orbital War Drums.mp3'),
+    ],
+    EXPLORATION: [
+        _enc('Starforge War Drums.mp3'),
+        _enc('Starforge War Drums (1).mp3'),
+        _enc('Starforge War Drums (2).mp3'),
+    ],
+};
+
+const FADE_MS = 2500;
+const DEFAULT_VOL = 0.35;
+let _currentAudio = null;
+let _currentState = null;
+let _trackIdx = 0;
+let _musicStarted = false;
+let _userVolume = DEFAULT_VOL;
+let _fading = false;
+
+function _fadeAudio(audio, fromVol, toVol, duration = FADE_MS) {
     return new Promise(resolve => {
         if (!audio) { resolve(); return; }
-        const steps = 30;
+        const steps = 40;
         const stepTime = duration / steps;
         const volStep = (toVol - fromVol) / steps;
         let current = 0;
@@ -266,67 +284,110 @@ function _fadeAudio(audio, fromVol, toVol, duration = FADE_DURATION) {
 }
 
 function _playWithRetry(audio) {
-    audio.play().catch(() => {
-        const resume = () => { if (audio) audio.play().catch(() => {}); };
-        window.addEventListener('click', resume, { once: true });
-        window.addEventListener('touchstart', resume, { once: true });
-    });
+    const p = audio.play();
+    if (p && p.catch) {
+        p.catch(() => {
+            const resume = () => { if (audio) audio.play().catch(() => {}); };
+            window.addEventListener('click', resume, { once: true });
+            window.addEventListener('touchstart', resume, { once: true });
+        });
+    }
 }
 
-async function _playTrack(index) {
-    const audio = new Audio(TRACKS[index]);
+// Play a specific track from the current state pool with fade-in
+async function _playStateTrack(stateName, index) {
+    const pool = STATE_TRACKS[stateName];
+    if (!pool || pool.length === 0) return;
+
+    _currentState = stateName;
+    _trackIdx = index % pool.length;
+
+    const audio = new Audio(pool[_trackIdx]);
     audio.loop = false;
     audio.volume = 0;
     _currentAudio = audio;
-    _trackIndex = index;
 
-    // When track ends, crossfade to next
+    // When track ends, advance to next in same state pool
     audio.addEventListener('ended', () => {
-        _advanceTrack();
+        if (_currentState === stateName && _currentAudio === audio) {
+            _advanceInPool();
+        }
     });
 
     _playWithRetry(audio);
     await _fadeAudio(audio, 0, _userVolume);
 }
 
-async function _advanceTrack() {
+// Advance to next track in the current state's pool (with crossfade)
+async function _advanceInPool() {
+    if (_fading || !_currentState) return;
+    _fading = true;
     const old = _currentAudio;
-    const nextIndex = (_trackIndex + 1) % TRACKS.length;
+    const nextIdx = (_trackIdx + 1) % STATE_TRACKS[_currentState].length;
 
-    // Fade out current
     if (old) {
         await _fadeAudio(old, old.volume, 0);
         old.pause();
         old.src = '';
     }
 
-    // Play next
-    await _playTrack(nextIndex);
+    await _playStateTrack(_currentState, nextIdx);
+    _fading = false;
+}
+
+// Switch music to match a new game state (crossfade between states)
+async function _switchToState(stateName) {
+    if (!_musicStarted) return;
+    if (stateName === _currentState) return;
+    if (_fading) return; // avoid overlapping transitions
+
+    _fading = true;
+    const old = _currentAudio;
+
+    // Fade out current track
+    if (old) {
+        await _fadeAudio(old, old.volume, 0, FADE_MS);
+        old.pause();
+        old.src = '';
+        _currentAudio = null;
+    }
+
+    // Start a random track from the new state's pool
+    const pool = STATE_TRACKS[stateName];
+    if (pool && pool.length > 0) {
+        const startIdx = Math.floor(Math.random() * pool.length);
+        await _playStateTrack(stateName, startIdx);
+    }
+    _fading = false;
 }
 
 export function startMenuMusic() {
     if (_musicStarted) return;
     _musicStarted = true;
     try {
-        _playTrack(0);
+        _switchToState('GALAXY');
     } catch (e) {
         console.warn('Music init failed (non-fatal):', e);
     }
 }
 
 export function startMusic() {
-    // No-op — music is already running from startMenuMusic and will keep cycling
     if (_musicStarted) return;
-    // Fallback if startMenuMusic was never called
     _musicStarted = true;
     try {
-        _playTrack(0);
+        _switchToState('GALAXY');
     } catch (e) {
         console.warn('Music init failed (non-fatal):', e);
     }
 }
 
+/** Call when gameState.viewMode changes to crossfade music */
+export function setMusicState(viewMode) {
+    const state = STATE_TRACKS[viewMode] ? viewMode : 'GALAXY';
+    _switchToState(state);
+}
+
 export function setMusicVolume(vol) {
     _userVolume = Math.max(0, Math.min(1, vol));
-    if (_currentAudio) _currentAudio.volume = _userVolume;
+    if (_currentAudio && !_fading) _currentAudio.volume = _userVolume;
 }

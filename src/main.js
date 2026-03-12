@@ -3,7 +3,7 @@ import { jsxDEV } from "react/jsx-dev-runtime";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { init as initRenderer, buildGalaxyVisuals, focusCamera, enterSystemView, isRendererReady } from "./visuals/renderer.js";
-import { startMusic } from "./core/assets.js";
+import { startMusic, setMusicState } from "./core/assets.js";
 import { generateGalaxy } from "./core/galaxy_generator.js";
 import { gameState, updateResources, events, colonizePlanet, selectSystem, selectPlanet, rebuildIndexes } from "./core/state.js";
 import { initUI } from "./ui/ui.js";

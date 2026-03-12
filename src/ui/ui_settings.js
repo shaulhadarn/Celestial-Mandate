@@ -2,6 +2,7 @@
 import { setGraphicsPreset, updateGraphicsSetting } from '../core/scene_config.js';
 import { saveGame } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
+import { setMusicVolume } from '../core/assets.js';
 
 /**
  * Initializes the graphics and audio settings panel.
@@ -23,6 +24,7 @@ export function initSettingsUI() {
     if (volSlider && volDisplay) {
         volSlider.addEventListener('input', () => {
             volDisplay.textContent = `${volSlider.value}%`;
+            setMusicVolume(volSlider.value / 100);
         });
     }
 

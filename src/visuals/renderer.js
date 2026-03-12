@@ -1,7 +1,7 @@
 /* Updated: Fixed mobile race intro buttons — added #race-intro-overlay to preventDefault exclusions so all UI buttons work on mobile */
 import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
-import { loadAssets, playSound } from '../core/assets.js';
+import { loadAssets, playSound, setMusicState } from '../core/assets.js';
 import { disposeGroup } from '../core/dispose.js';
 import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
 import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
@@ -243,6 +243,7 @@ export async function enterSystemView(systemId, instant = false) {
         }
 
         gameState.viewMode = 'SYSTEM';
+        setMusicState('SYSTEM');
 
         // Reset background and fog to deep space defaults
         if (scene) {
@@ -313,6 +314,7 @@ export async function returnToGalaxyView() {
         await _fadeIn(500);
 
         gameState.viewMode = 'GALAXY';
+        setMusicState('GALAXY');
 
         // Reset background and fog to deep space defaults
         if (scene) {
@@ -397,6 +399,7 @@ export function enterPlanetView(planetData) {
     };
 
     gameState.viewMode = 'EXPLORATION';
+    setMusicState('EXPLORATION');
 
     groups.galaxy.visible = false;
     groups.system.visible = false;

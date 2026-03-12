@@ -17,7 +17,7 @@ import { initEventsUI } from './ui_events.js';
 import { initCodexUI } from './ui_codex.js';
 import { initMilestoneEvents } from '../core/milestone_events.js';
 import { initDiplomacyUI } from './ui_diplomacy.js';
-import { startMenuMusic } from '../core/assets.js';
+import { startMenuMusic, setMusicState, setMusicVolume } from '../core/assets.js';
 
 // Re-export for other modules to use
 export { showNotification };
@@ -462,6 +462,7 @@ async function returnToSystemViewFromPlanet() {
 
     // Phase 2: Do the scene swap while screen is black
     gameState.viewMode = 'SYSTEM';
+    setMusicState('SYSTEM');
     groups.planet.visible = false;
     groups.system.visible = true;
 
