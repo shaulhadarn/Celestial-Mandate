@@ -310,10 +310,10 @@ export function createPlanetVisuals(planetData, group) {
         planetState.sunLight.shadow.mapSize.set(4096, 4096);
         planetState.sunLight.shadow.camera.near = 10;
         planetState.sunLight.shadow.camera.far = 400;
-        planetState.sunLight.shadow.camera.left = -40;
-        planetState.sunLight.shadow.camera.right = 40;
-        planetState.sunLight.shadow.camera.top = 40;
-        planetState.sunLight.shadow.camera.bottom = -40;
+        planetState.sunLight.shadow.camera.left = -120;
+        planetState.sunLight.shadow.camera.right = 120;
+        planetState.sunLight.shadow.camera.top = 120;
+        planetState.sunLight.shadow.camera.bottom = -120;
         planetState.sunLight.shadow.bias = -0.0003;
         planetState.sunLight.shadow.normalBias = 0.02;
     }

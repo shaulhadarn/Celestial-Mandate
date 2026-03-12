@@ -83,6 +83,7 @@ export function createGrassMesh(planetType) {
     const stretches          = new Float32Array(instances);
     const halfRootAngleSins  = new Float32Array(instances);
     const halfRootAngleCoses = new Float32Array(instances);
+    const phases             = new Float32Array(instances); // per-blade random phase to break wind sync
 
     const minTilt = -0.25;
     const maxTilt =  0.25;
@@ -129,6 +130,9 @@ export function createGrassMesh(planetType) {
 
         // Height variety — 1/3 are taller
         stretches[i] = i < instances / 3 ? Math.random() * 1.8 : Math.random();
+
+        // Random phase offset so each blade sways independently
+        phases[i] = Math.random() * Math.PI * 2;
     }
 
     // Build InstancedBufferGeometry
@@ -141,6 +145,7 @@ export function createGrassMesh(planetType) {
     geo.setAttribute('stretch',           new THREE.InstancedBufferAttribute(stretches, 1));
     geo.setAttribute('halfRootAngleSin',  new THREE.InstancedBufferAttribute(halfRootAngleSins, 1));
     geo.setAttribute('halfRootAngleCos',  new THREE.InstancedBufferAttribute(halfRootAngleCoses, 1));
+    geo.setAttribute('phase',             new THREE.InstancedBufferAttribute(phases, 1));
     geo.instanceCount = instances;
 
     // Shader material — wind + color gradient
@@ -158,10 +163,12 @@ export function createGrassMesh(planetType) {
             attribute float halfRootAngleSin;
             attribute float halfRootAngleCos;
             attribute float stretch;
+            attribute float phase;
             uniform float time;
             uniform float bladeHeight;
             varying vec2 vUv;
             varying float frc;
+            varying float vPhase;
 
             // Simplex 2D noise (Ashima Arts)
             vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
@@ -213,14 +220,24 @@ export function createGrassMesh(planetType) {
 
             void main(){
                 frc=position.y/bladeHeight;
-                float noise=1.0-(snoise(vec2((time-offset.x/50.0),(time-offset.z/50.0))));
+                vPhase=phase;
+                // Multi-octave wind noise + per-blade phase to break up strips
+                float t1=time+phase;
+                float n1=snoise(vec2(t1*0.8-offset.x/80.0, t1*0.6-offset.z/80.0));
+                float n2=snoise(vec2(t1*1.4+offset.z/40.0+7.3, t1*1.1-offset.x/40.0+3.1))*0.5;
+                float n3=sin(t1*2.0+offset.x*0.03+offset.z*0.05)*0.25;
+                float noise=0.5+0.5*(n1+n2+n3);
+
                 vec4 direction=vec4(0.0,halfRootAngleSin,0.0,halfRootAngleCos);
                 direction=slerp(direction,orientation,frc);
                 vec3 vPosition=vec3(position.x,position.y+position.y*stretch,position.z);
                 vPosition=rotateVectorByQuaternion(vPosition,direction);
-                // Wind
-                float halfAngle=noise*0.15;
-                vPosition=rotateVectorByQuaternion(vPosition,normalize(vec4(sin(halfAngle),0.0,-sin(halfAngle),cos(halfAngle))));
+                // Wind — two axes for more organic sway
+                float windStrength=noise*0.12;
+                float windAngle=phase+time*0.5;
+                float wx=sin(windAngle)*windStrength;
+                float wz=cos(windAngle*0.7)*windStrength*0.6;
+                vPosition=rotateVectorByQuaternion(vPosition,normalize(vec4(wx,0.0,wz,1.0)));
                 vUv=uv;
                 gl_Position=projectionMatrix*modelViewMatrix*vec4(offset+vPosition,1.0);
             }
@@ -231,10 +248,14 @@ export function createGrassMesh(planetType) {
             uniform vec3 bottomColor;
             varying vec2 vUv;
             varying float frc;
+            varying float vPhase;
 
             void main(){
                 // Gradient from bottom color at root to tip color at top
                 vec3 col=mix(bottomColor,tipColor,frc);
+                // Per-blade hue/brightness jitter from phase
+                float jitter=sin(vPhase*5.7)*0.12;
+                col+=jitter;
                 // Fake ambient occlusion at root
                 float ao=smoothstep(0.0,0.3,frc)*0.6+0.4;
                 col*=ao;
