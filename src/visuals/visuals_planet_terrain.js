@@ -126,7 +126,26 @@ export function createTerrainMesh(planetType) {
     }
     const hRange = maxH - minH || 1;
 
-    for (let i = 0; i < pos.count; i++) {  
+    // Pseudo-random hash for non-repeating per-vertex jitter (no visible stripes)
+    function hash21(px, pz) {
+        let h = Math.sin(px * 127.1 + pz * 311.7) * 43758.5453;
+        return h - Math.floor(h); // fract → 0..1
+    }
+    // Value noise: bilinear interpolation of hashed grid for smooth variation
+    function valueNoise(px, pz) {
+        const ix = Math.floor(px), iz = Math.floor(pz);
+        const fx = px - ix, fz = pz - iz;
+        // smoothstep
+        const ux = fx * fx * (3 - 2 * fx);
+        const uz = fz * fz * (3 - 2 * fz);
+        const a = hash21(ix, iz);
+        const b = hash21(ix + 1, iz);
+        const c = hash21(ix, iz + 1);
+        const d = hash21(ix + 1, iz + 1);
+        return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
+    }
+
+    for (let i = 0; i < pos.count; i++) {
         const h  = pos.getZ(i);
         const t  = (h - minH) / hRange;          // 0 = valley, 1 = peak
         const x  = pos.getX(i);
@@ -141,11 +160,13 @@ export function createTerrainMesh(planetType) {
             : 0;
         blended.lerp(accentCol, accentStrength);
 
-        // Tiny per-vertex jitter so flat-shaded faces look distinct
-        const jitter = (Math.sin(x * 0.3 + z * 0.17) * 0.5 + 0.5) * typeConf.jitter;
-        blended.r = Math.min(1, blended.r + jitter);
-        blended.g = Math.min(1, blended.g + jitter);
-        blended.b = Math.min(1, blended.b + jitter);
+        // Multi-scale value noise jitter — smooth but non-repeating
+        const n1 = valueNoise(x * 0.05, z * 0.05);         // large patches
+        const n2 = valueNoise(x * 0.15 + 50, z * 0.15 + 50); // medium detail
+        const jitter = ((n1 * 0.6 + n2 * 0.4) - 0.3) * typeConf.jitter;
+        blended.r = Math.min(1, Math.max(0, blended.r + jitter));
+        blended.g = Math.min(1, Math.max(0, blended.g + jitter));
+        blended.b = Math.min(1, Math.max(0, blended.b + jitter));
 
         colorAttr[i * 3]     = blended.r;
         colorAttr[i * 3 + 1] = blended.g;

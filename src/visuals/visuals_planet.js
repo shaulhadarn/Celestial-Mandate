@@ -224,20 +224,23 @@ export function createPlanetVisuals(planetData, group) {
     // 4. Props
     planetState.planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
 
-    // 5. Particles — GPU-animated dust with wind drift
+    // 5. Atmospheric particles — floating motes, pollen, spores
     {
         const particleGeo = new THREE.BufferGeometry();
-        const pCount = isMobileDevice ? 80 : 300;
+        const pCount = isMobileDevice ? 120 : 400;
         const pPos = new Float32Array(pCount * 3);
-        const pOffset = new Float32Array(pCount);
+        const pOffset = new Float32Array(pCount);   // unique phase per particle
+        const pSpeed = new Float32Array(pCount);    // unique drift speed
         for (let i = 0; i < pCount; i++) {
-            pPos[i * 3]     = (Math.random() - 0.5) * 250;
-            pPos[i * 3 + 1] = Math.random() * 60 + 1;  // near ground to mid-air
-            pPos[i * 3 + 2] = (Math.random() - 0.5) * 250;
+            pPos[i * 3]     = (Math.random() - 0.5) * 300;
+            pPos[i * 3 + 1] = Math.random() * 50 + 0.5;
+            pPos[i * 3 + 2] = (Math.random() - 0.5) * 300;
             pOffset[i] = Math.random() * Math.PI * 2;
+            pSpeed[i]  = 0.3 + Math.random() * 0.7; // varied individual speed
         }
         particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
         particleGeo.setAttribute('aOffset', new THREE.BufferAttribute(pOffset, 1));
+        particleGeo.setAttribute('aSpeed', new THREE.BufferAttribute(pSpeed, 1));
 
         const dustShaderMat = new THREE.ShaderMaterial({
             uniforms: {
@@ -246,31 +249,43 @@ export function createPlanetVisuals(planetData, group) {
             },
             vertexShader: /* glsl */`
                 attribute float aOffset;
+                attribute float aSpeed;
                 uniform float uTime;
                 varying float vTwinkle;
+                varying float vSize;
                 void main() {
                     vec3 pos = position;
-                    // Persistent wind drift (slow, directional)
-                    float t = uTime * 0.15 + aOffset * 0.5;
-                    pos.x += sin(t * 0.7 + aOffset * 1.3) * 3.0 + uTime * 0.4;
-                    pos.z += cos(t * 0.5 + aOffset * 1.9) * 2.5 + uTime * 0.15;
-                    // Gentle bobbing
-                    pos.y += sin(uTime * 0.35 + aOffset * 2.1) * 3.0;
-                    // Wrap particles back (mod-like behavior via fract)
-                    pos.x = mod(pos.x + 125.0, 250.0) - 125.0;
-                    pos.z = mod(pos.z + 125.0, 250.0) - 125.0;
-                    vTwinkle = 0.2 + 0.8 * (0.5 + 0.5 * sin(uTime * 1.5 + aOffset * 3.0));
+                    float t = uTime * 0.1 * aSpeed;
+                    // Each particle drifts on its own Lissajous-like path (no shared direction)
+                    float px = aOffset;
+                    float py = aOffset * 1.7 + 3.14;
+                    float pz = aOffset * 2.3 + 1.57;
+                    pos.x += sin(t * 0.7 + px) * 8.0 + cos(t * 0.3 + px * 2.1) * 4.0;
+                    pos.z += cos(t * 0.6 + pz) * 7.0 + sin(t * 0.25 + pz * 1.8) * 5.0;
+                    // Gentle rise and fall
+                    pos.y += sin(t * 0.4 + py) * 4.0 + cos(t * 0.15 + py * 0.7) * 2.0;
+                    pos.y = max(pos.y, 0.5); // stay above ground
+                    // Wrap in a large cube so particles always surround camera
+                    pos.x = mod(pos.x + 150.0, 300.0) - 150.0;
+                    pos.z = mod(pos.z + 150.0, 300.0) - 150.0;
+                    // Twinkle: slow fade in/out per particle
+                    vTwinkle = 0.15 + 0.85 * pow(0.5 + 0.5 * sin(uTime * 0.8 + aOffset * 4.0), 2.0);
+                    // Size varies per particle
+                    vSize = (1.5 + sin(aOffset * 3.0) * 1.0) * aSpeed;
                     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                    gl_PointSize = 3.5 / -mvPosition.z * 100.0;
+                    gl_PointSize = vSize / -mvPosition.z * 120.0;
                     gl_Position = projectionMatrix * mvPosition;
                 }
             `,
             fragmentShader: /* glsl */`
                 uniform sampler2D uMap;
                 varying float vTwinkle;
+                varying float vSize;
                 void main() {
                     vec4 tex = texture2D(uMap, gl_PointCoord);
-                    gl_FragColor = vec4(1.0, 1.0, 1.0, tex.a * 0.35 * vTwinkle);
+                    // Soft warm-white glow
+                    vec3 col = vec3(1.0, 0.97, 0.9);
+                    gl_FragColor = vec4(col, tex.a * 0.3 * vTwinkle);
                 }
             `,
             transparent: true,

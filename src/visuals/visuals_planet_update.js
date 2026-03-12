@@ -349,9 +349,12 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         sunLight.shadow.camera.updateProjectionMatrix();
     }
 
-    // --- 8. Dust & Creatures ---
+    // --- 8. Atmospheric particles & Creatures ---
     if (dustMesh && dustMesh.material.uniforms) {
         dustMesh.material.uniforms.uTime.value = time;
+        // Keep particle cloud centered on player so motes always surround camera
+        dustMesh.position.x = followTarget.position.x;
+        dustMesh.position.z = followTarget.position.z;
     }
 
     creatures.forEach(c => {
