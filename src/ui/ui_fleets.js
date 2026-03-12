@@ -129,6 +129,7 @@ export function initFleetsUI() {
     const btn = document.getElementById('btn-fleets');
     const panel = document.getElementById('fleets-panel');
     const closeBtn = document.getElementById('btn-close-fleets');
+    const content = document.getElementById('fleets-panel-content');
 
     if (btn) btn.addEventListener('click', () => {
         panel.classList.toggle('hidden');
@@ -136,6 +137,103 @@ export function initFleetsUI() {
     });
 
     if (closeBtn) closeBtn.addEventListener('click', () => panel.classList.add('hidden'));
+
+    // ── Single delegated click handler on stable content element ──
+    // Buttons inside are destroyed/recreated every tick by renderFleetsPanel(),
+    // so attaching handlers to individual buttons is unreliable.
+    // Event delegation on the persistent parent catches clicks regardless.
+    if (content) content.addEventListener('click', (e) => {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        // View ship details
+        if (target.classList.contains('fsc-view-btn')) {
+            const shipId = target.dataset.ship;
+            const race = gameState.playerCivilization?.bodyType || 'humanoid';
+            const ship = (RACE_SHIPS[race] || []).find(s => s.id === shipId);
+            if (ship) openShipModal(ship);
+            return;
+        }
+
+        // Build ship
+        if (target.classList.contains('fsc-build-btn')) {
+            const planetId = target.dataset.planet;
+            const shipId = target.dataset.ship;
+            if (buildShip(planetId, shipId)) {
+                const race = gameState.playerCivilization?.bodyType || 'humanoid';
+                const ship = (RACE_SHIPS[race] || []).find(s => s.id === shipId);
+                showNotification(`🛸 ${ship?.name || shipId} construction started!`, 'info');
+                renderFleetsPanel();
+            } else {
+                showNotification('Insufficient resources or no Shipyard!', 'alert');
+            }
+            return;
+        }
+
+        // Cancel build queue item
+        if (target.classList.contains('fq-cancel')) {
+            cancelShipBuild(target.dataset.planet, parseInt(target.dataset.idx));
+            renderFleetsPanel();
+            return;
+        }
+
+        // Move fleet — show dropdown
+        if (target.classList.contains('fsr-move-btn')) {
+            const fleetIdx = parseInt(target.dataset.fleetIdx);
+            const fleet = gameState.fleets[fleetIdx];
+            if (!fleet) return;
+            const existing = target.parentElement.querySelector('.fsr-dest-picker');
+            if (existing) { existing.remove(); return; }
+            const connected = getConnectedSystems(fleet.systemId);
+            if (connected.length === 0) {
+                showNotification('No connected systems to move to!', 'alert');
+                return;
+            }
+            const picker = document.createElement('div');
+            picker.className = 'fsr-dest-picker';
+            picker.innerHTML = connected.map(sys =>
+                `<button class="fsr-dest-btn" data-dest="${sys.id}" data-fleet-idx="${fleetIdx}">${sys.name}</button>`
+            ).join('');
+            target.parentElement.appendChild(picker);
+            return;
+        }
+
+        // Move fleet — destination chosen
+        if (target.classList.contains('fsr-dest-btn')) {
+            const destId = parseInt(target.dataset.dest);
+            const fleetIdx = parseInt(target.dataset.fleetIdx);
+            const fleet = gameState.fleets[fleetIdx];
+            if (fleet && moveFleet(fleetIdx, destId)) {
+                const connected = getConnectedSystems(fleet.systemId);
+                const destSys = connected.find(s => s.id === destId);
+                showNotification(`${fleet.name} departing for ${destSys?.name || 'unknown'}`, 'info');
+                renderFleetsPanel();
+            } else {
+                showNotification('Cannot move to that system!', 'alert');
+            }
+            return;
+        }
+
+        // Fly ship — enter 3D ship control
+        if (target.classList.contains('fsr-fly-btn')) {
+            e.stopPropagation();
+            const fleetId = target.dataset.fleetId;
+            // Ensure ships are spawned in the scene
+            let shipMeshes = getPlayerShipMeshes();
+            if (shipMeshes.length === 0) {
+                refreshSystemShips();
+                shipMeshes = getPlayerShipMeshes();
+            }
+            const entry = shipMeshes.find(s => String(s.fleetData.id) === String(fleetId));
+            if (entry) {
+                enterShipControl(entry, controls);
+                if (panel) panel.classList.add('hidden');
+            } else {
+                showNotification('Ship not found in current system view', 'alert');
+            }
+            return;
+        }
+    });
 
     events.addEventListener('ship-built', (e) => {
         showNotification(`⚓ ${e.detail.fleet.name} has been commissioned!`, 'success');
@@ -304,99 +402,7 @@ export function renderFleetsPanel() {
         });
     }
     content.appendChild(fleetSection);
-
-    // Wire View buttons
-    content.querySelectorAll('.fsc-view-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const shipId = btn.dataset.ship;
-            const ship = raceShips.find(s => s.id === shipId);
-            if (ship) openShipModal(ship);
-        });
-    });
-
-    // Wire Build buttons
-    content.querySelectorAll('.fsc-build-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const planetId = btn.dataset.planet;
-            const shipId   = btn.dataset.ship;
-            if (buildShip(planetId, shipId)) {
-                const ship = (RACE_SHIPS[gameState.playerCivilization?.bodyType || 'humanoid'] || []).find(s => s.id === shipId);
-                showNotification(`🛸 ${ship?.name || shipId} construction started!`, 'info');
-                renderFleetsPanel();
-            } else {
-                showNotification('Insufficient resources or no Shipyard!', 'alert');
-            }
-        });
-    });
-
-    content.querySelectorAll('.fq-cancel').forEach(btn => {
-        btn.addEventListener('click', () => {
-            cancelShipBuild(btn.dataset.planet, parseInt(btn.dataset.idx));
-            renderFleetsPanel();
-        });
-    });
-
-    // Wire Move buttons — show dropdown of connected systems
-    content.querySelectorAll('.fsr-move-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const fleetIdx = parseInt(btn.dataset.fleetIdx);
-            const fleet = gameState.fleets[fleetIdx];
-            if (!fleet) return;
-
-            // If a dropdown already exists, remove it
-            const existing = btn.parentElement.querySelector('.fsr-dest-picker');
-            if (existing) { existing.remove(); return; }
-
-            const connected = getConnectedSystems(fleet.systemId);
-            if (connected.length === 0) {
-                showNotification('No connected systems to move to!', 'alert');
-                return;
-            }
-
-            const picker = document.createElement('div');
-            picker.className = 'fsr-dest-picker';
-            picker.innerHTML = connected.map(sys =>
-                `<button class="fsr-dest-btn" data-dest="${sys.id}">${sys.name}</button>`
-            ).join('');
-
-            picker.querySelectorAll('.fsr-dest-btn').forEach(destBtn => {
-                destBtn.addEventListener('click', () => {
-                    const destId = parseInt(destBtn.dataset.dest);
-                    if (moveFleet(fleetIdx, destId)) {
-                        const destSys = connected.find(s => s.id === destId);
-                        showNotification(`${fleet.name} departing for ${destSys?.name || 'unknown'}`, 'info');
-                        renderFleetsPanel();
-                    } else {
-                        showNotification('Cannot move to that system!', 'alert');
-                    }
-                });
-            });
-
-            btn.parentElement.appendChild(picker);
-        });
-    });
-
-    // Wire Fly buttons — enter 3D ship control
-    content.querySelectorAll('.fsr-fly-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const fleetId = btn.dataset.fleetId;
-            // Ensure ships are spawned in the scene
-            let shipMeshes = getPlayerShipMeshes();
-            if (shipMeshes.length === 0) {
-                refreshSystemShips();
-                shipMeshes = getPlayerShipMeshes();
-            }
-            const entry = shipMeshes.find(s => String(s.fleetData.id) === String(fleetId));
-            if (entry) {
-                enterShipControl(entry, controls);
-                // Close fleets panel
-                const panel = document.getElementById('fleets-panel');
-                if (panel) panel.classList.add('hidden');
-            } else {
-                showNotification('Ship not found in current system view', 'alert');
-            }
-        });
-    });
+    // All button clicks are handled via event delegation in initFleetsUI()
 }
 
 function _getShipyardPlanets() {

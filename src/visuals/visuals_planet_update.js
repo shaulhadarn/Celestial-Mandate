@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { gameState, HARVESTER_YIELDS, HARVESTER_YIELD_DEFAULT } from '../core/state.js';
 import { getTerrainHeight, getTerrainHeightFast } from './visuals_planet_terrain.js';
-import { harvesterGroups, soldierMeshes, hubGroup, renderColonyGroundBuildings } from './visuals_planet_colony.js';
+import { harvesterGroups, soldierMeshes, hubGroup, buildingAnims, renderColonyGroundBuildings } from './visuals_planet_colony.js';
 import { getOrCreateHarvesterHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 import { updateGrass } from './visuals_planet_grass.js';
@@ -921,6 +921,86 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 }
             }
         });
+    }
+
+    // --- 9c. Animate building parts ---
+    const _t = performance.now() * 0.001;
+    for (let bi = 0; bi < buildingAnims.length; bi++) {
+        const a = buildingAnims[bi];
+        switch (a.type) {
+            case 'power_plant': {
+                // Core ring pulses (scale Y oscillation + emissive glow)
+                const pulse = 0.8 + Math.sin(_t * 2.5) * 0.25;
+                a.coreRing.scale.y = pulse;
+                a.coreRingMat.emissiveIntensity = 0.15 + Math.sin(_t * 3) * 0.15;
+                // Energy arc flicker (randomized opacity for electric effect)
+                a.arcMat.opacity = 0.35 + Math.random() * 0.35;
+                a.arcMat.emissiveIntensity = 0.3 + Math.random() * 0.5;
+                // Reactor glow breathe
+                const gs = 6 + Math.sin(_t * 1.5) * 1.5;
+                a.reactorGlow.scale.set(gs, gs, 1);
+                // Light intensity pulses
+                a.light.intensity = 5 + Math.sin(_t * 2) * 2;
+                break;
+            }
+            case 'mining_network': {
+                // Crusher spins
+                a.crusherPivot.rotation.y += dt * 1.5;
+                // Crane arm rotates slowly
+                a.cranePivot.rotation.y += dt * 0.4;
+                break;
+            }
+            case 'hydroponics': {
+                // Vegetation breathes
+                a.veg.scale.y = a.vegBaseScaleY + Math.sin(_t * 0.8) * 0.04;
+                a.veg.scale.x = 1 + Math.sin(_t * 0.6 + 1) * 0.02;
+                a.veg.scale.z = 1 + Math.sin(_t * 0.7 + 2) * 0.02;
+                a.vegMat.emissiveIntensity = 0.2 + Math.sin(_t * 1.2) * 0.12;
+                // Growth lights cycle (staggered)
+                for (let li = 0; li < a.growthLights.length; li++) {
+                    a.growthLights[li].emissiveIntensity = 0.25 + Math.sin(_t * 2 + li * 2.1) * 0.2;
+                }
+                // Glow sprites pulse with lights
+                for (let li = 0; li < a.glowSprites.length; li++) {
+                    a.glowSprites[li].material.opacity = 0.15 + Math.sin(_t * 2 + li * 2.1) * 0.12;
+                }
+                // Dome glow breathe
+                const dgs = 7 + Math.sin(_t * 0.8) * 1;
+                a.domeGlow.scale.set(dgs, dgs, 1);
+                // Interior light intensity
+                a.light.intensity = 3.5 + Math.sin(_t * 1.2) * 1;
+                break;
+            }
+            case 'research_lab': {
+                // Satellite dish rotates
+                a.dishPivot.rotation.y += dt * 0.5;
+                // Hologram beam pulses (opacity + scale)
+                a.beamMat.opacity = 0.12 + Math.sin(_t * 3) * 0.1;
+                a.beam.scale.x = 1 + Math.sin(_t * 4) * 0.15;
+                a.beam.scale.z = 1 + Math.sin(_t * 4) * 0.15;
+                const bgs = 3 + Math.sin(_t * 3) * 1;
+                a.beamGlow.scale.set(bgs, bgs, 1);
+                // Antenna tip blinks
+                const blink = Math.sin(_t * 4) > 0.2 ? 1.0 : 0.1;
+                a.tipMat.emissiveIntensity = blink * 0.8;
+                a.antennaTipGlow.material.opacity = blink * 0.5;
+                // Window band subtle shimmer
+                a.windowMat.emissiveIntensity = 0.4 + Math.sin(_t * 1.5) * 0.12;
+                break;
+            }
+            case 'shipyard': {
+                // Crane trolley oscillates along crossbeam
+                a.trolleyPivot.position.x = Math.sin(_t * 0.6) * 2.5;
+                // Launch pad ring glow pulses
+                const padScale = 6 + Math.sin(_t * 1.8) * 1.5;
+                a.padGlow.scale.set(padScale, padScale, 1);
+                // Inner ship silhouette subtle glow
+                if (a.innerShip.material.emissive) {
+                    a.innerShip.material.emissiveIntensity = 0.1 + Math.sin(_t * 2) * 0.08;
+                }
+                break;
+            }
+        }
     }
 
     // --- 10. Drone proximity to harvesters ---

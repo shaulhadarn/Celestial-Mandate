@@ -7,6 +7,7 @@ import { createShadowSprite } from './visuals_planet_drone.js';
 export let harvesterGroups = [];
 export let soldierMeshes = [];
 export let hubGroup = null;
+export let buildingAnims = [];
 
 // Procedural smoke/steam sprite texture (cached)
 let _smokeTextureCache = null;
@@ -418,9 +419,13 @@ function _buildPowerPlant(g, borderColor) {
     reactor.castShadow = true;
     g.add(reactor);
 
-    // Reactor core glow ring
+    // Reactor core glow ring (animated: pulses)
+    const coreRingMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.25,
+        roughness: 0.3, metalness: 0.7
+    });
     const coreRing = new THREE.Mesh(
-        new THREE.TorusGeometry(2.7, 0.25, 8, 16), accentMat
+        new THREE.TorusGeometry(2.7, 0.25, 8, 16), coreRingMat
     );
     coreRing.rotation.x = Math.PI / 2;
     coreRing.position.y = 4;
@@ -463,7 +468,7 @@ function _buildPowerPlant(g, borderColor) {
         g.add(tip);
     });
 
-    // ── Energy arc between pylons (glowing wire) ──
+    // ── Energy arc between pylons (glowing wire — animated flicker) ──
     const arcMat = new THREE.MeshStandardMaterial({
         color: borderColor, emissive: borderColor, emissiveIntensity: 0.6,
         transparent: true, opacity: 0.6
@@ -480,10 +485,13 @@ function _buildPowerPlant(g, borderColor) {
     g.add(light);
 
     // Glow effects
-    _addGlowSprite(g, 0, 4, 0, borderColor, 6, 0.25);    // reactor core glow
-    _addGlowSprite(g, -3, 6.2, 2.5, borderColor, 2, 0.3); // pylon glow left
-    _addGlowSprite(g, 3, 6.2, 2.5, borderColor, 2, 0.3);  // pylon glow right
-    _addGlowSprite(g, 0, 6.2, 2.5, borderColor, 3, 0.2);  // arc glow
+    const reactorGlow = _addGlowSprite(g, 0, 4, 0, borderColor, 6, 0.25);
+    _addGlowSprite(g, -3, 6.2, 2.5, borderColor, 2, 0.3);
+    _addGlowSprite(g, 3, 6.2, 2.5, borderColor, 2, 0.3);
+    _addGlowSprite(g, 0, 6.2, 2.5, borderColor, 3, 0.2);
+
+    // Store animation references
+    g.userData.animParts = { type: 'power_plant', coreRing, coreRingMat, arc, arcMat, reactorGlow, light };
 }
 
 function _buildMiningNetwork(g, borderColor) {
@@ -523,14 +531,16 @@ function _buildMiningNetwork(g, borderColor) {
         g.add(s);
     }
 
-    // ── Ore crusher cone ──
+    // ── Ore crusher cone (animated: spins) ──
+    const crusherPivot = new THREE.Group();
+    crusherPivot.position.set(0, 7.5, 0);
     const crusherGeo = new THREE.ConeGeometry(1.5, 3, 6);
     const crusher = new THREE.Mesh(crusherGeo, new THREE.MeshStandardMaterial({
         color: 0x555544, roughness: 0.5, metalness: 0.7
     }));
-    crusher.position.set(0, 7.5, 0);
     crusher.rotation.x = Math.PI;
-    g.add(crusher);
+    crusherPivot.add(crusher);
+    g.add(crusherPivot);
 
     // ── Sorting silos ──
     const siloGeo = new THREE.CylinderGeometry(0.8, 0.8, 4, 8);
@@ -545,13 +555,16 @@ function _buildMiningNetwork(g, borderColor) {
         g.add(cap);
     });
 
-    // ── Crane arm ──
+    // ── Crane arm (animated: rotates around base) ──
     const craneBase = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 8, 6), _frameMat());
     craneBase.position.set(-2, 5, -1.5);
     g.add(craneBase);
+    const cranePivot = new THREE.Group();
+    cranePivot.position.set(-2, 9.2, -1.5);
     const craneArm = new THREE.Mesh(new THREE.BoxGeometry(6, 0.3, 0.3), _frameMat());
-    craneArm.position.set(0.5, 9.2, -1.5);
-    g.add(craneArm);
+    craneArm.position.set(2.5, 0, 0);
+    cranePivot.add(craneArm);
+    g.add(cranePivot);
 
     // ── Accent light ──
     const light = new THREE.PointLight(new THREE.Color(borderColor), 5, 20);
@@ -559,8 +572,11 @@ function _buildMiningNetwork(g, borderColor) {
     g.add(light);
 
     // Glow effects
-    _addGlowSprite(g, 0, 4.5, 0, borderColor, 5, 0.2);    // processor accent glow
-    _addGlowSprite(g, 0, 9.2, -1.5, borderColor, 2, 0.15); // crane tip glow
+    _addGlowSprite(g, 0, 4.5, 0, borderColor, 5, 0.2);
+    _addGlowSprite(g, 0, 9.2, -1.5, borderColor, 2, 0.15);
+
+    // Store animation references
+    g.userData.animParts = { type: 'mining_network', crusherPivot, cranePivot };
 }
 
 function _buildHydroponics(g, borderColor) {
@@ -609,7 +625,7 @@ function _buildHydroponics(g, borderColor) {
         g.add(tunnel);
     });
 
-    // ── Internal vegetation hint (green blob inside dome) ──
+    // ── Internal vegetation hint (animated: gentle breathing) ──
     const vegGeo = new THREE.SphereGeometry(2.2, 8, 6);
     const vegMat = new THREE.MeshStandardMaterial({
         color: 0x226633, emissive: 0x114422, emissiveIntensity: 0.3,
@@ -619,6 +635,7 @@ function _buildHydroponics(g, borderColor) {
     veg.position.y = 1.8;
     veg.scale.y = 0.6;
     g.add(veg);
+    const vegBaseScaleY = 0.6;
 
     // ── Water tanks ──
     const tankGeo = new THREE.CylinderGeometry(0.6, 0.6, 2.5, 8);
@@ -629,11 +646,17 @@ function _buildHydroponics(g, borderColor) {
         g.add(tank);
     });
 
-    // ── Growth light strips inside ──
+    // ── Growth light strips inside (animated: pulse) ──
+    const growthLights = [];
     for (let i = 0; i < 3; i++) {
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 4), accentMat);
+        const stripMat = new THREE.MeshStandardMaterial({
+            color: borderColor, emissive: borderColor, emissiveIntensity: 0.4,
+            roughness: 0.3, metalness: 0.5
+        });
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 4), stripMat);
         strip.position.set(-1.5 + i * 1.5, 3.5, 0);
         g.add(strip);
+        growthLights.push(stripMat);
     }
 
     // ── Interior glow ──
@@ -642,11 +665,15 @@ function _buildHydroponics(g, borderColor) {
     g.add(light);
 
     // Dome interior glow (visible through glass)
-    _addGlowSprite(g, 0, 2.5, 0, 0x44ff88, 7, 0.2);
+    const domeGlow = _addGlowSprite(g, 0, 2.5, 0, 0x44ff88, 7, 0.2);
     // Growth light glow strips
+    const glowSprites = [];
     for (let i = 0; i < 3; i++) {
-        _addGlowSprite(g, -1.5 + i * 1.5, 3.5, 0, borderColor, 2, 0.25);
+        glowSprites.push(_addGlowSprite(g, -1.5 + i * 1.5, 3.5, 0, borderColor, 2, 0.25));
     }
+
+    // Store animation references
+    g.userData.animParts = { type: 'hydroponics', veg, vegMat, vegBaseScaleY, growthLights, glowSprites, domeGlow, light };
 }
 
 function _buildResearchLab(g, borderColor) {
@@ -675,19 +702,19 @@ function _buildResearchLab(g, borderColor) {
     windowBand.position.y = 3.8;
     g.add(windowBand);
 
-    // ── Satellite dish on roof ──
+    // ── Satellite dish on roof (animated: rotates) ──
+    const dishPivot = new THREE.Group();
+    dishPivot.position.set(1.5, 5.5, 0);
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.5, 6), _frameMat());
+    dishPivot.add(pedestal);
     const dishGeo = new THREE.SphereGeometry(1.5, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2);
     const dishMat = new THREE.MeshStandardMaterial({ color: 0xccccdd, roughness: 0.15, metalness: 0.9 });
     const dish = new THREE.Mesh(dishGeo, dishMat);
     dish.rotation.x = Math.PI;
     dish.rotation.z = 0.3;
-    dish.position.set(1.5, 6, 0);
-    g.add(dish);
-
-    // Dish pedestal
-    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.5, 6), _frameMat());
-    pedestal.position.set(1.5, 5.5, 0);
-    g.add(pedestal);
+    dish.position.y = 0.5;
+    dishPivot.add(dish);
+    g.add(dishPivot);
 
     // ── Antenna tower ──
     const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.15, 5, 4), _frameMat());
@@ -701,8 +728,12 @@ function _buildResearchLab(g, borderColor) {
         g.add(bar);
     }
 
-    // Antenna tip blink
-    const tipGlow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 6), accentMat);
+    // Antenna tip blink material (animated)
+    const tipMat = new THREE.MeshStandardMaterial({
+        color: borderColor, emissive: borderColor, emissiveIntensity: 0.4,
+        roughness: 0.2, metalness: 0.6
+    });
+    const tipGlow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 6), tipMat);
     tipGlow.position.set(-1.5, 10.2, 0);
     g.add(tipGlow);
 
@@ -711,7 +742,7 @@ function _buildResearchLab(g, borderColor) {
     projBase.position.set(0, 5.3, 0);
     g.add(projBase);
 
-    // Hologram glow beam
+    // Hologram glow beam (animated: pulses)
     const beamMat = new THREE.MeshStandardMaterial({
         color: borderColor, emissive: borderColor, emissiveIntensity: 0.8,
         transparent: true, opacity: 0.2
@@ -735,9 +766,12 @@ function _buildResearchLab(g, borderColor) {
     g.add(light);
 
     // Glow effects
-    _addGlowSprite(g, 0, 3.8, 0, 0x4488ff, 5, 0.2);       // window band glow
-    _addGlowSprite(g, -1.5, 10.2, 0, borderColor, 1.5, 0.4); // antenna tip glow
-    _addGlowSprite(g, 0, 6.8, 0, borderColor, 3, 0.2);      // hologram beam glow
+    _addGlowSprite(g, 0, 3.8, 0, 0x4488ff, 5, 0.2);
+    const antennaTipGlow = _addGlowSprite(g, -1.5, 10.2, 0, borderColor, 1.5, 0.4);
+    const beamGlow = _addGlowSprite(g, 0, 6.8, 0, borderColor, 3, 0.2);
+
+    // Store animation references
+    g.userData.animParts = { type: 'research_lab', dishPivot, beam, beamMat, tipMat, antennaTipGlow, beamGlow, windowMat };
 }
 
 function _buildShipyard(g, borderColor) {
@@ -813,20 +847,19 @@ function _buildShipyard(g, borderColor) {
     crossbeam.position.set(0, 13.2, 0);
     g.add(crossbeam);
 
-    // Crane trolley
+    // Crane trolley group (animated: oscillates along crossbeam)
+    const trolleyPivot = new THREE.Group();
+    trolleyPivot.position.set(0, 0, 0);
     const trolley = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.6), accentMat);
-    trolley.position.set(0.5, 12.9, 0);
-    g.add(trolley);
-
-    // Crane cable
+    trolley.position.set(0, 12.9, 0);
+    trolleyPivot.add(trolley);
     const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 5, 4), _pipeMat());
-    cable.position.set(0.5, 10.2, 0);
-    g.add(cable);
-
-    // Crane hook
+    cable.position.set(0, 10.2, 0);
+    trolleyPivot.add(cable);
     const hook = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.04, 4, 8, Math.PI), accentMat);
-    hook.position.set(0.5, 7.7, 0);
-    g.add(hook);
+    hook.position.set(0, 7.7, 0);
+    trolleyPivot.add(hook);
+    g.add(trolleyPivot);
 
     // ── Launch pad markings (accent circle on ground) ──
     const padRing = new THREE.Mesh(new THREE.TorusGeometry(3, 0.15, 6, 20), accentMat);
@@ -862,9 +895,12 @@ function _buildShipyard(g, borderColor) {
     g.add(light);
 
     // Glow effects
-    _addGlowSprite(g, 0, 2.4, 2.6, borderColor, 3, 0.2);   // hangar door glow (subtle)
-    _addGlowSprite(g, 0.5, 12.9, 0, borderColor, 2, 0.25);  // crane trolley glow
-    _addGlowSprite(g, 0, 0.65, 0, borderColor, 6, 0.15);    // launch pad ring glow
+    _addGlowSprite(g, 0, 2.4, 2.6, borderColor, 3, 0.2);
+    _addGlowSprite(g, 0, 12.9, 0, borderColor, 2, 0.25);
+    const padGlow = _addGlowSprite(g, 0, 0.65, 0, borderColor, 6, 0.15);
+
+    // Store animation references
+    g.userData.animParts = { type: 'shipyard', trolleyPivot, padRing, padGlow, innerShip };
 }
 
 // ── Default building (fallback) ─────────────────────────────────────────────
@@ -1220,6 +1256,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
     harvesterGroups = [];
     soldierMeshes = [];
     hubGroup = null;
+    buildingAnims = [];
     const colony = gameState.colonies[planetId];
     if (!colony) return;
 
@@ -1255,6 +1292,9 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         else _buildDefault(bGroup, bc);
 
         group.add(bGroup);
+
+        // Collect animation parts
+        if (bGroup.userData.animParts) buildingAnims.push(bGroup.userData.animParts);
 
         // Connection tube from hub to this building
         _buildConnectionTube(group, angle, heightFn, bc);

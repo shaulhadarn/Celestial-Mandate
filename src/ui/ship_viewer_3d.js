@@ -143,24 +143,25 @@ function _initInner(shipId, accentColor, attempt) {
     _camera.position.set(0, 0.6, 4);
     _camera.lookAt(0, 0, 0);
 
-    /* ── Lighting ── */
-    _scene.add(new THREE.AmbientLight(0x445566, 1.0));
+    /* ── Lighting (neutral key/fill, subtle accent only) ── */
+    _scene.add(new THREE.AmbientLight(0x334455, 0.8));
 
-    const key = new THREE.DirectionalLight(0xddeeff, 2.5);
+    const key = new THREE.DirectionalLight(0xeef4ff, 3.0);
     key.position.set(3, 4, 2);
     _scene.add(key);
 
-    const fill = new THREE.DirectionalLight(new THREE.Color(accentColor), 1.0);
+    const fill = new THREE.DirectionalLight(0x88aacc, 1.2);
     fill.position.set(-3, -1, 3);
     _scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0x6688aa, 1.5);
+    const rim = new THREE.DirectionalLight(0x8899bb, 2.0);
     rim.position.set(0, 2, -4);
     _scene.add(rim);
 
-    const under = new THREE.PointLight(new THREE.Color(accentColor), 0.8, 10);
-    under.position.set(0, -2, 0);
-    _scene.add(under);
+    // Subtle accent bounce — just enough to tint shadows, not wash out
+    const accentBounce = new THREE.PointLight(new THREE.Color(accentColor), 0.35, 8);
+    accentBounce.position.set(0, -2, 1);
+    _scene.add(accentBounce);
 
     /* ── Ship mesh (built locally, no shared state) ── */
     const shipGroup = _buildViewerShip(shipId, accentColor);
@@ -281,30 +282,109 @@ function _buildViewerShip(shipId, accent) {
     }
 }
 
+// ── Environment cube for metallic reflections ────────────────────────────
+
+let _envMap = null;
+function _getEnvMap() {
+    if (_envMap) return _envMap;
+    // Simple gradient cubemap so metals have something to reflect
+    const size = 16;
+    const faces = [];
+    for (let f = 0; f < 6; f++) {
+        const data = new Uint8Array(size * size * 4);
+        for (let j = 0; j < size; j++) {
+            for (let i = 0; i < size; i++) {
+                const idx = (j * size + i) * 4;
+                const t = j / size;
+                // Top faces bright, bottom dark, sides gradient
+                const base = f < 2 ? (f === 2 ? 80 : 30) : 20 + t * 50;
+                data[idx]     = base * 0.6;  // R
+                data[idx + 1] = base * 0.7;  // G
+                data[idx + 2] = base;        // B
+                data[idx + 3] = 255;
+            }
+            faces.push ? 0 : 0; // no-op
+        }
+        faces.push(new THREE.DataTexture(data, size, size));
+        faces[f].needsUpdate = true;
+    }
+    // Use a simple equirect approach instead — a tiny gradient texture
+    const w = 64, h = 32;
+    const eqData = new Uint8Array(w * h * 4);
+    for (let j = 0; j < h; j++) {
+        for (let i = 0; i < w; i++) {
+            const idx = (j * w + i) * 4;
+            const v = j / h; // 0=top, 1=bottom
+            const topR = 50, topG = 65, topB = 90;
+            const midR = 25, midG = 35, midB = 55;
+            const botR = 8,  botG = 12, botB = 20;
+            const t = v < 0.5 ? v * 2 : (v - 0.5) * 2;
+            if (v < 0.5) {
+                eqData[idx]     = topR + (midR - topR) * t;
+                eqData[idx + 1] = topG + (midG - topG) * t;
+                eqData[idx + 2] = topB + (midB - topB) * t;
+            } else {
+                eqData[idx]     = midR + (botR - midR) * t;
+                eqData[idx + 1] = midG + (botG - midG) * t;
+                eqData[idx + 2] = midB + (botB - midB) * t;
+            }
+            eqData[idx + 3] = 255;
+        }
+    }
+    const eqTex = new THREE.DataTexture(eqData, w, h);
+    eqTex.mapping = THREE.EquirectangularReflectionMapping;
+    eqTex.needsUpdate = true;
+    _envMap = eqTex;
+    return _envMap;
+}
+
 // ── Material factory (all fresh, no cache) ──────────────────────────────
 
-function _hull()   { return new THREE.MeshStandardMaterial({ color: 0x3a4455, metalness: 0.9, roughness: 0.25 }); }
-function _dark()   { return new THREE.MeshStandardMaterial({ color: 0x222832, metalness: 0.92, roughness: 0.2 }); }
-function _mid()    { return new THREE.MeshStandardMaterial({ color: 0x556677, metalness: 0.85, roughness: 0.3 }); }
-function _canopy() { return new THREE.MeshStandardMaterial({ color: 0x0a1833, metalness: 0.95, roughness: 0.08, transparent: true, opacity: 0.85 }); }
-function _nozzle() { return new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.95, roughness: 0.15 }); }
-
-function _accent(c) {
+function _hull() {
     return new THREE.MeshStandardMaterial({
-        color: 0x556677, metalness: 0.85, roughness: 0.28,
-        emissive: new THREE.Color(c), emissiveIntensity: 0.18,
+        color: 0x5a6a7a, metalness: 0.85, roughness: 0.28,
+        envMap: _getEnvMap(), envMapIntensity: 0.6,
     });
 }
-function _accentPanel(c) {
+function _dark() {
     return new THREE.MeshStandardMaterial({
-        color: new THREE.Color(c).multiplyScalar(0.3), metalness: 0.8, roughness: 0.35,
-        emissive: new THREE.Color(c), emissiveIntensity: 0.4,
+        color: 0x1a2028, metalness: 0.9, roughness: 0.18,
+        envMap: _getEnvMap(), envMapIntensity: 0.4,
     });
 }
+function _mid() {
+    return new THREE.MeshStandardMaterial({
+        color: 0x4a5868, metalness: 0.82, roughness: 0.32,
+        envMap: _getEnvMap(), envMapIntensity: 0.5,
+    });
+}
+function _canopy() {
+    return new THREE.MeshStandardMaterial({
+        color: 0x0a1a33, metalness: 0.95, roughness: 0.05,
+        transparent: true, opacity: 0.8,
+        envMap: _getEnvMap(), envMapIntensity: 1.2,
+    });
+}
+function _nozzle() {
+    return new THREE.MeshStandardMaterial({
+        color: 0x080808, metalness: 0.95, roughness: 0.12,
+        envMap: _getEnvMap(), envMapIntensity: 0.3,
+    });
+}
+// Accent trim — colored emissive for stripes/panels only
+function _accentTrim(c) {
+    return new THREE.MeshStandardMaterial({
+        color: new THREE.Color(c).multiplyScalar(0.4),
+        metalness: 0.75, roughness: 0.35,
+        emissive: new THREE.Color(c), emissiveIntensity: 0.55,
+        envMap: _getEnvMap(), envMapIntensity: 0.3,
+    });
+}
+// Bright glow — engine exhaust, nav lights
 function _glow(c) {
     return new THREE.MeshStandardMaterial({
-        color: c, emissive: new THREE.Color(c), emissiveIntensity: 1.2,
-        transparent: true, opacity: 0.7,
+        color: c, emissive: new THREE.Color(c), emissiveIntensity: 1.5,
+        transparent: true, opacity: 0.8,
     });
 }
 
@@ -312,9 +392,10 @@ function _glow(c) {
 
 function _buildScout(accent) {
     const g = new THREE.Group();
-    const hullMat = _accent(accent);
-    const panelMat = _accentPanel(accent);
-    const darkMat = _hull();
+    const hullMat  = _hull();
+    const trimMat  = _accentTrim(accent);
+    const darkMat  = _dark();
+    const midMat   = _mid();
     const nozzleMat = _nozzle();
 
     // Main fuselage — tapered front, wider rear
@@ -322,7 +403,7 @@ function _buildScout(accent) {
     bodyFwd.position.z = -0.3;
     g.add(bodyFwd);
 
-    const bodyRear = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.9), darkMat);
+    const bodyRear = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.9), midMat);
     bodyRear.position.z = 0.4;
     g.add(bodyRear);
 
@@ -341,18 +422,31 @@ function _buildScout(accent) {
     cockpit.position.set(0, 0.12, -0.55);
     g.add(cockpit);
 
-    // Accent stripe
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.025, 1.6), panelMat);
+    // Accent stripe (this is where the accent color should pop)
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.025, 1.6), trimMat);
     stripe.position.set(0, 0.1, 0.05);
     g.add(stripe);
 
-    // Delta wings (flat boxes, rotated for sweep)
+    // Side accent lines along fuselage
+    for (const side of [1, -1]) {
+        const sideLine = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.08, 1.5), trimMat);
+        sideLine.position.set(side * 0.175, 0, 0.05);
+        g.add(sideLine);
+    }
+
+    // Delta wings
     for (const side of [1, -1]) {
         const wing = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.03, 0.55), hullMat);
         wing.position.set(side * 0.65, -0.03, 0.1);
         wing.rotation.z = side * -0.06;
         wing.rotation.y = side * 0.08;
         g.add(wing);
+
+        // Wing accent edge
+        const wingEdge = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.015, 0.02), trimMat);
+        wingEdge.position.set(side * 0.65, -0.01, -0.15);
+        wingEdge.rotation.z = side * -0.06;
+        g.add(wingEdge);
 
         // Winglet (vertical fin at tip)
         const fin = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.18, 0.2), darkMat);
@@ -376,12 +470,17 @@ function _buildScout(accent) {
         nacelle.position.set(side, -0.03, 0.65);
         g.add(nacelle);
 
+        // Nacelle accent ring
+        const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.04, 8), trimMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(side, -0.03, 0.45);
+        g.add(ring);
+
         const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.12, 8), nozzleMat);
         nozzle.rotation.x = Math.PI / 2;
         nozzle.position.set(side, -0.03, 0.95);
         g.add(nozzle);
 
-        // Engine glow disc
         const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(0.05, 8), _glow(accent));
         glowDisc.position.set(side, -0.03, 1.01);
         g.add(glowDisc);
@@ -392,7 +491,7 @@ function _buildScout(accent) {
     intake.position.set(0, -0.12, -0.2);
     g.add(intake);
 
-    // Nav lights (small emissive spheres)
+    // Nav lights
     _addNavLight(g, 0.95, 0.03, -0.15, 0x00ff00, 0.03);
     _addNavLight(g, -0.95, 0.03, -0.15, 0xff0000, 0.03);
     _addNavLight(g, 0, 0.15, 0.8, accent, 0.025);
@@ -404,17 +503,17 @@ function _buildScout(accent) {
 
 function _buildCorvette(accent) {
     const g = new THREE.Group();
-    const hullMat = _accent(accent);
-    const panelMat = _accentPanel(accent);
-    const darkMat = _hull();
-    const midMat = _mid();
+    const hullMat  = _hull();
+    const trimMat  = _accentTrim(accent);
+    const darkMat  = _dark();
+    const midMat   = _mid();
     const nozzleMat = _nozzle();
 
-    // Main hull — elongated box
+    // Main hull — elongated box (neutral metal)
     const hullMain = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 2.2), hullMat);
     g.add(hullMain);
 
-    // Forward section — tapered
+    // Forward section — tapered (slightly different tone)
     const fwd = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.25, 0.8), midMat);
     fwd.position.z = -1.3;
     g.add(fwd);
@@ -435,16 +534,28 @@ function _buildCorvette(accent) {
     bridgeWindow.position.set(0, 0.35, -0.35);
     g.add(bridgeWindow);
 
-    // Accent stripe
-    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.03, 2.6), panelMat);
+    // Accent dorsal stripe
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.03, 2.6), trimMat);
     stripe.position.set(0, 0.16, -0.2);
     g.add(stripe);
+
+    // Side accent lines
+    for (const side of [1, -1]) {
+        const sideLine = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.12, 2.0), trimMat);
+        sideLine.position.set(side * 0.35, 0.05, 0);
+        g.add(sideLine);
+    }
 
     // Side weapon pods
     for (const side of [1, -1]) {
         const pod = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.8), darkMat);
         pod.position.set(side * 0.52, -0.05, 0.3);
         g.add(pod);
+
+        // Pod accent band
+        const podBand = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.02, 0.1), trimMat);
+        podBand.position.set(side * 0.52, 0.04, 0.3);
+        g.add(podBand);
 
         // Turret barrel
         const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.4, 6), nozzleMat);
@@ -469,6 +580,12 @@ function _buildCorvette(accent) {
         nacelle.rotation.x = Math.PI / 2;
         nacelle.position.set(x, -0.05, 1.45);
         g.add(nacelle);
+
+        // Nacelle accent ring
+        const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.102, 0.102, 0.04, 8), trimMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(x, -0.05, 1.25);
+        g.add(ring);
 
         const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.12, 8), nozzleMat);
         nozzle.rotation.x = Math.PI / 2;
@@ -497,13 +614,13 @@ function _buildCorvette(accent) {
 
 function _buildCruiser(accent) {
     const g = new THREE.Group();
-    const hullMat = _accent(accent);
-    const panelMat = _accentPanel(accent);
-    const darkMat = _hull();
-    const midMat = _mid();
+    const hullMat  = _hull();
+    const trimMat  = _accentTrim(accent);
+    const darkMat  = _dark();
+    const midMat   = _mid();
     const nozzleMat = _nozzle();
 
-    // Main hull — massive elongated body
+    // Main hull — massive elongated body (neutral metal)
     const hullMain = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.45, 3.0), hullMat);
     g.add(hullMain);
 
@@ -537,12 +654,17 @@ function _buildCruiser(accent) {
     bridgeWindows.position.set(0, 0.48, -0.75);
     g.add(bridgeWindows);
 
-    // Accent racing stripes
+    // Accent racing stripes (this is where accent color pops)
     for (const yOff of [0.23, -0.23]) {
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.035, 3.5), panelMat);
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.035, 3.5), trimMat);
         stripe.position.set(0, yOff, -0.3);
         g.add(stripe);
     }
+
+    // Dorsal accent line
+    const dorsalLine = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 2.8), trimMat);
+    dorsalLine.position.set(0, 0.23, -0.3);
+    g.add(dorsalLine);
 
     // Side armor / weapon bays
     for (const side of [1, -1]) {
@@ -550,6 +672,11 @@ function _buildCruiser(accent) {
         const armor = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.35, 2.0), darkMat);
         armor.position.set(side * 0.6, 0, 0);
         g.add(armor);
+
+        // Armor accent strip
+        const armorTrim = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.2, 1.8), trimMat);
+        armorTrim.position.set(side * 0.71, 0, 0);
+        g.add(armorTrim);
 
         // Upper turret
         const turretBase = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.06, 8), midMat);
@@ -576,6 +703,11 @@ function _buildCruiser(accent) {
         wing.position.set(side * 0.9, 0, 0.5);
         g.add(wing);
 
+        // Wing edge accent
+        const wingEdge = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.015, 0.03), trimMat);
+        wingEdge.position.set(side * 0.9, 0.02, -0.1);
+        g.add(wingEdge);
+
         // Winglet
         const winglet = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.2, 0.3), darkMat);
         winglet.position.set(side * 1.2, 0.08, 0.8);
@@ -599,6 +731,12 @@ function _buildCruiser(accent) {
         nacelle.rotation.x = Math.PI / 2;
         nacelle.position.set(pos[0], pos[1], 2.0);
         g.add(nacelle);
+
+        // Nacelle accent ring
+        const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.122, 0.122, 0.04, 8), trimMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(pos[0], pos[1], 1.75);
+        g.add(ring);
 
         const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 0.14, 8), nozzleMat);
         nozzle.rotation.x = Math.PI / 2;
