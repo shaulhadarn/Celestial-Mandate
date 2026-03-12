@@ -57,7 +57,10 @@ function getVegetationConfig(type) {
             return {
                 hasVeg: true,
                 treeColor: 0x2d5a1b, trunkColor: 0x5c3a1e,
+                treeColor2: 0x3a6e28, trunkColor2: 0x6b4422,   // oak/round tree
+                treeColor3: 0x4a8832, trunkColor3: 0xd4c8a0,   // birch/tall tree
                 bushColor: 0x3a7a22, flowerColor: 0xffdd44,
+                wildflowerColors: [0xdd4466, 0xffaa22, 0xeedd55, 0xcc77dd],
                 alienPlantColor: 0x8b44cc, alienGlow: 0x6600ff,
             };
         case 'Ocean':
@@ -127,6 +130,120 @@ function makeBush(color, scale) {
         sphere.castShadow = true;
         g.add(sphere);
     });
+    return g;
+}
+
+// -- Build a round-canopy tree (oak / deciduous) -----------------------------
+function makeTreeRound(treeColor, trunkColor, scale) {
+    const g = new THREE.Group();
+    const trunkH = 2.5 * scale;
+    const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.3 * scale, 0.5 * scale, trunkH, 6),
+        mat(trunkColor, 0, 0, false, 1, 0.95)
+    );
+    trunk.position.y = trunkH * 0.5;
+    trunk.castShadow = true;
+    g.add(trunk);
+
+    // Round canopy — 3 overlapping spheres for organic shape
+    const canopyMat = mat(treeColor, 0, 0, false, 1, 0.85);
+    const offsets = [
+        [0, trunkH + 1.2 * scale, 0, 1.6],
+        [0.6 * scale, trunkH + 0.8 * scale, 0.4 * scale, 1.1],
+        [-0.5 * scale, trunkH + 0.6 * scale, -0.3 * scale, 1.2],
+    ];
+    offsets.forEach(([ox, oy, oz, r]) => {
+        const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(r * scale, 7, 6),
+            canopyMat
+        );
+        sphere.position.set(ox, oy, oz);
+        sphere.castShadow = true;
+        g.add(sphere);
+    });
+    return g;
+}
+
+// -- Build a tall thin tree (birch / poplar) ---------------------------------
+function makeTreeTall(treeColor, trunkColor, scale) {
+    const g = new THREE.Group();
+    const trunkH = 5 * scale;
+    const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12 * scale, 0.2 * scale, trunkH, 5),
+        mat(trunkColor, 0, 0, false, 1, 0.9)
+    );
+    trunk.position.y = trunkH * 0.5;
+    trunk.castShadow = true;
+    g.add(trunk);
+
+    // Small clustered leaf puffs along upper trunk
+    const leafMat = mat(treeColor, 0, 0, false, 1, 0.85);
+    for (let i = 0; i < 4; i++) {
+        const py = trunkH * 0.5 + (i * 1.1 + 0.5) * scale;
+        const pr = (0.5 + Math.random() * 0.3) * scale;
+        const leaf = new THREE.Mesh(
+            new THREE.SphereGeometry(pr, 6, 5),
+            leafMat
+        );
+        leaf.scale.set(1, 0.7, 1);
+        leaf.position.set(
+            (Math.random() - 0.5) * 0.4 * scale,
+            py,
+            (Math.random() - 0.5) * 0.4 * scale
+        );
+        leaf.castShadow = true;
+        g.add(leaf);
+    }
+    return g;
+}
+
+// -- Build a wildflower cluster (natural replacement for alien plants) --------
+function makeWildflower(colors, scale) {
+    const g = new THREE.Group();
+    const stemMat = mat(0x2a6618, 0, 0, false, 1, 0.85);
+    const flowerCount = 3 + Math.floor(Math.random() * 4);
+
+    for (let i = 0; i < flowerCount; i++) {
+        const h = (1.2 + Math.random() * 1.8) * scale;
+        // Stem
+        const stem = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03 * scale, 0.05 * scale, h, 4),
+            stemMat
+        );
+        const ox = (Math.random() - 0.5) * 1.0 * scale;
+        const oz = (Math.random() - 0.5) * 1.0 * scale;
+        stem.position.set(ox, h * 0.5, oz);
+        stem.rotation.x = (Math.random() - 0.5) * 0.2;
+        stem.rotation.z = (Math.random() - 0.5) * 0.2;
+        g.add(stem);
+
+        // Flower head
+        const col = colors[Math.floor(Math.random() * colors.length)];
+        const flower = new THREE.Mesh(
+            new THREE.SphereGeometry((0.15 + Math.random() * 0.15) * scale, 6, 5),
+            mat(col, col, 0.15, false, 1, 0.6)
+        );
+        flower.scale.set(1, 0.6, 1);
+        flower.position.set(ox, h + 0.1 * scale, oz);
+        g.add(flower);
+    }
+
+    // Low leaf cluster at base
+    const baseMat = mat(0x2d6a1a, 0, 0, false, 1, 0.85);
+    for (let i = 0; i < 3; i++) {
+        const leaf = new THREE.Mesh(
+            new THREE.SphereGeometry(0.35 * scale, 5, 4),
+            baseMat
+        );
+        leaf.scale.set(1.2, 0.4, 0.8);
+        leaf.position.set(
+            (Math.random() - 0.5) * 0.6 * scale,
+            0.15 * scale,
+            (Math.random() - 0.5) * 0.6 * scale
+        );
+        leaf.rotation.y = Math.random() * Math.PI;
+        g.add(leaf);
+    }
     return g;
 }
 
@@ -279,6 +396,7 @@ export function createPlanetProps(planetType, group, heightFn) {
     const vegCfg = getVegetationConfig(planetType);
     if (vegCfg.hasVeg) {
         const vegCount = isMobileDevice ? 30 : 70;
+        const hasNaturalVeg = !!vegCfg.wildflowerColors; // Terran/Continental
         for (let i = 0; i < vegCount; i++) {
             const r = 20 + Math.random() * 280;
             const theta = Math.random() * Math.PI * 2;
@@ -289,18 +407,33 @@ export function createPlanetProps(planetType, group, heightFn) {
             const scale = 0.5 + Math.random() * 0.8;
             let vegMesh;
 
-            if (roll < 0.35) {
-                vegMesh = makeTree(vegCfg.treeColor, vegCfg.trunkColor, scale);
-            } else if (roll < 0.65) {
-                vegMesh = makeBush(vegCfg.bushColor, scale);
+            if (hasNaturalVeg) {
+                // Terran/Continental: 3 tree types + bushes + wildflowers (no alien plants)
+                if (roll < 0.18) {
+                    vegMesh = makeTree(vegCfg.treeColor, vegCfg.trunkColor, scale);
+                } else if (roll < 0.36) {
+                    vegMesh = makeTreeRound(vegCfg.treeColor2, vegCfg.trunkColor2, scale);
+                } else if (roll < 0.50) {
+                    vegMesh = makeTreeTall(vegCfg.treeColor3, vegCfg.trunkColor3, scale);
+                } else if (roll < 0.72) {
+                    vegMesh = makeBush(vegCfg.bushColor, scale);
+                } else {
+                    vegMesh = makeWildflower(vegCfg.wildflowerColors, scale);
+                }
             } else {
-                vegMesh = makeAlienPlant(vegCfg.alienPlantColor, vegCfg.alienGlow, scale);
+                // Other planet types: original distribution with alien plants
+                if (roll < 0.35) {
+                    vegMesh = makeTree(vegCfg.treeColor, vegCfg.trunkColor, scale);
+                } else if (roll < 0.65) {
+                    vegMesh = makeBush(vegCfg.bushColor, scale);
+                } else {
+                    vegMesh = makeAlienPlant(vegCfg.alienPlantColor, vegCfg.alienGlow, scale);
+                }
             }
 
             vegMesh.position.set(x, yBase, z);
             vegMesh.rotation.y = Math.random() * Math.PI * 2;
             group.add(vegMesh);
-            // Add as collision prop (wide radius so drone doesn't clip through)
             props.push({ x, z, r: 1.5 * scale, topY: yBase + 4 * scale });
         }
     }
@@ -1096,6 +1229,7 @@ export function createLakes(planetType, group, heightFn) {
         // ── Shore vegetation (trees, bushes, reeds around the lake edge) ──
         if (conf.shoreVeg && vegCfg.hasVeg) {
             const shoreVegCount = isMobileDevice ? 8 : 18;
+            const hasNaturalVeg = !!vegCfg.wildflowerColors;
             for (let i = 0; i < shoreVegCount; i++) {
                 const angle = (i / shoreVegCount) * Math.PI * 2 + Math.random() * 0.3;
                 const dist = lake.radius + 2 + Math.random() * 6;
@@ -1106,18 +1240,30 @@ export function createLakes(planetType, group, heightFn) {
                 const roll = Math.random();
 
                 let vegMesh;
-                if (roll < 0.25) {
-                    // Willow-like tree (taller near water)
-                    vegMesh = makeTree(vegCfg.treeColor, vegCfg.trunkColor, scale * 1.2);
-                } else if (roll < 0.55) {
-                    // Dense bush cluster
-                    vegMesh = makeBush(vegCfg.bushColor, scale);
-                } else if (roll < 0.75) {
-                    // Alien plant (bioluminescent near water)
-                    vegMesh = makeAlienPlant(vegCfg.alienPlantColor, vegCfg.alienGlow, scale * 0.8);
+                if (hasNaturalVeg) {
+                    // Terran/Continental: mix of tree types, bushes, wildflowers, reeds
+                    if (roll < 0.15) {
+                        vegMesh = makeTree(vegCfg.treeColor, vegCfg.trunkColor, scale * 1.2);
+                    } else if (roll < 0.28) {
+                        vegMesh = makeTreeRound(vegCfg.treeColor2, vegCfg.trunkColor2, scale);
+                    } else if (roll < 0.50) {
+                        vegMesh = makeBush(vegCfg.bushColor, scale);
+                    } else if (roll < 0.70) {
+                        vegMesh = makeWildflower(vegCfg.wildflowerColors, scale * 0.8);
+                    } else {
+                        vegMesh = _makeReedCluster(vegCfg.bushColor, scale);
+                    }
                 } else {
-                    // Reed cluster (thin tall cylinders)
-                    vegMesh = _makeReedCluster(vegCfg.bushColor, scale);
+                    // Other planet types: original distribution with alien plants
+                    if (roll < 0.25) {
+                        vegMesh = makeTree(vegCfg.treeColor, vegCfg.trunkColor, scale * 1.2);
+                    } else if (roll < 0.55) {
+                        vegMesh = makeBush(vegCfg.bushColor, scale);
+                    } else if (roll < 0.75) {
+                        vegMesh = makeAlienPlant(vegCfg.alienPlantColor, vegCfg.alienGlow, scale * 0.8);
+                    } else {
+                        vegMesh = _makeReedCluster(vegCfg.bushColor, scale);
+                    }
                 }
 
                 vegMesh.position.set(vx, vy, vz);
