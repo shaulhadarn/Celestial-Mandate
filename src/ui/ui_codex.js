@@ -109,6 +109,22 @@ function _renderSidebar() {
     });
 }
 
+function _isMobile() {
+    return window.innerWidth <= 480;
+}
+
+function _openDetail() {
+    const body = document.querySelector('.codex-body');
+    if (body && _isMobile()) body.classList.add('codex-detail-open');
+}
+
+function _closeDetail() {
+    const body = document.querySelector('.codex-body');
+    if (body) body.classList.remove('codex-detail-open');
+    _selectedId = null;
+    _renderSidebar();
+}
+
 function _renderContent() {
     const content = document.getElementById('codex-content');
     if (!content || !_selectedId) return;
@@ -144,6 +160,10 @@ function _renderContent() {
         : '';
 
     content.innerHTML = `
+        <button class="codex-back-btn" id="codex-back-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            Back to list
+        </button>
         <div class="codex-article-fade" style="color:${cfg.color}">
             ${heroHtml}
             <div class="codex-article-header">
@@ -165,6 +185,11 @@ function _renderContent() {
     `;
 
     content.scrollTop = 0;
+
+    // Mobile: show detail view & wire back button
+    _openDetail();
+    const backBtn = document.getElementById('codex-back-btn');
+    if (backBtn) backBtn.addEventListener('click', _closeDetail);
 }
 
 /* ── Init ───────────────────────────────────────────────────────────────── */

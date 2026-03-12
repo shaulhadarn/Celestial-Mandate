@@ -59,7 +59,8 @@ export async function init() {
                target.closest('#race-intro-overlay') || target.closest('#event-modal') ||
                target.closest('#scene-transition-overlay') || target.closest('#settings-panel') ||
                target.closest('#exploration-header') || target.closest('#harvester-hud') ||
-               target.closest('#joystick-container') || target.closest('button');
+               target.closest('#joystick-container') || target.closest('#ship-mobile-controls') ||
+               target.closest('button');
     };
     window.addEventListener('touchmove', (e) => {
         // Only block default when touching the 3D canvas (not UI overlays)
@@ -226,6 +227,7 @@ function handleTap(event) {
     if (target && target.closest && target.closest('#unit-panel')) return;
     if (target && target.closest && target.closest('#system-unit-panel')) return;
     if (target && target.closest && target.closest('#system-ship-control-bar')) return;
+    if (target && target.closest && target.closest('#ship-mobile-controls')) return;
     // Block clicks when event modal (or any overlay) is open
     if (target && target.closest && target.closest('#event-modal')) return;
     // Also block if the event modal is visible (backdrop covers screen)

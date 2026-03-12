@@ -5,7 +5,7 @@ import { gameState } from '../core/state.js';
 import { disposeGroup } from '../core/dispose.js';
 import { createTextSprite } from '../core/text_sprite.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
-import { buildPlayerShips, updatePlayerShipOrbits, clearPlayerShips } from './visuals_system_ships.js';
+import { buildPlayerShips, updatePlayerShipOrbits, clearPlayerShips, getPlayerShipMeshes } from './visuals_system_ships.js';
 
 export let planetMeshes = [];
 export let planetLabels = [];
@@ -84,7 +84,7 @@ let _pirateRaiders = [];    // Same shape as _tradeShips but red themed
 let _battleAnim = null;     // Active battle animation state
 
 // ── Satellite engine trail particle pool ────────────────────────────────────
-const SAT_TRAIL_MAX = isMobileDevice ? 120 : 240;
+const SAT_TRAIL_MAX = isMobileDevice ? 160 : 350;
 let _trailGeo = null;
 let _trailMesh = null;
 let _trailPositions = null;
@@ -150,7 +150,7 @@ function _initSatTrailPool(group) {
     _trailInited = true;
 }
 
-function _spawnSatTrail(x, y, z, vx, vy, vz) {
+export function _spawnSatTrail(x, y, z, vx, vy, vz) {
     if (!_trailInited) return;
     if (isMobileDevice && _trailActive >= 60) return;
 
@@ -1755,7 +1755,7 @@ export function buildTradeRoutes(group) {
 
 export function updateSystemAnimations(time, dt, group) {
     // Init trail pool on first animation tick if satellites or trade ships exist
-    if (!_trailInited && (_colonySatellites.length > 0 || _tradeShips.length > 0 || _shipyardStations.length > 0 || _pirateStations.length > 0 || _pirateRaiders.length > 0) && group) {
+    if (!_trailInited && (_colonySatellites.length > 0 || _tradeShips.length > 0 || _shipyardStations.length > 0 || _pirateStations.length > 0 || _pirateRaiders.length > 0 || getPlayerShipMeshes().length > 0) && group) {
         _initSatTrailPool(group);
     }
 

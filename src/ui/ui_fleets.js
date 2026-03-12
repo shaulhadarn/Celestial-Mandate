@@ -136,7 +136,10 @@ export function initFleetsUI() {
     events.addEventListener('tick', () => {
         if (panel && !panel.classList.contains('hidden')) {
             _updateShipQueueProgress();
-            renderFleetsPanel();
+            // Don't re-render while a move destination picker is open
+            if (!panel.querySelector('.fsr-dest-picker')) {
+                renderFleetsPanel();
+            }
         }
     });
 }

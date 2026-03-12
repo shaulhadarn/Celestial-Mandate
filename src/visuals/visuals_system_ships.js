@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { gameState, RACE_SHIPS } from '../core/state.js';
 import { textures } from '../core/assets.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
+import { _spawnSatTrail } from './visuals_system.js';
 
 // ── Internal ship mesh tracking ─────────────────────────────────────────────
 
@@ -640,10 +641,15 @@ export function buildPlayerShips(group, planetMeshesArr) {
 // ── Idle orbit animation ────────────────────────────────────────────────────
 
 const _tmpLookAt = new THREE.Vector3();
+const _trailWP = new THREE.Vector3();
 
 export function updatePlayerShipOrbits(time, dt) {
     _playerShipMeshes.forEach(entry => {
-        if (entry === _controlledEntry) return;
+        // Controlled ship — only emit engine trails, skip orbit motion
+        if (entry === _controlledEntry) {
+            _emitShipTrail(entry, dt);
+            return;
+        }
 
         entry.orbitAngle += entry.orbitSpeed * dt * 0.3;
 
@@ -674,8 +680,39 @@ export function updatePlayerShipOrbits(time, dt) {
             entry.engineGlow.material.opacity = 0.4 + 0.2 * Math.sin(time * 4 + entry.orbitAngle);
         }
 
+        // Emit engine trail particles
+        _emitShipTrail(entry, dt);
+
         entry._prevPos.copy(entry.mesh.position);
     });
+}
+
+/**
+ * Emit trail particles from a ship's trail anchor.
+ * Uses velocity from position delta — same pattern as trade ships.
+ */
+function _emitShipTrail(entry, dt) {
+    if (!entry.trailAnchor) return;
+
+    entry.trailAnchor.getWorldPosition(_trailWP);
+
+    const dx = _trailWP.x - entry._prevPos.x;
+    const dy = _trailWP.y - entry._prevPos.y;
+    const dz = _trailWP.z - entry._prevPos.z;
+
+    const hasMoved = entry._prevPos.lengthSq() > 0.001;
+
+    // For controlled ship, always update prevPos from trail anchor
+    if (entry === _controlledEntry) {
+        entry._prevPos.copy(_trailWP);
+    }
+
+    if (hasMoved && Math.random() < 0.7) {
+        _spawnSatTrail(
+            _trailWP.x, _trailWP.y, _trailWP.z,
+            -dx * 2.0, -dy * 2.0, -dz * 2.0
+        );
+    }
 }
 
 // ── Cleanup ─────────────────────────────────────────────────────────────────

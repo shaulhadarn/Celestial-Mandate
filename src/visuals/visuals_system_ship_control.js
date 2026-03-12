@@ -1,9 +1,12 @@
 /**
  * Ship flight control system for the system view.
  * Handles input, 3D flight physics, camera follow, and banking animations.
+ * Mobile: touch joystick for movement, touch drag for camera orbit, vertical buttons.
  */
 import * as THREE from 'three';
 import { setControlledEntry, getControlledEntry } from './visuals_system_ships.js';
+import { isMobile as isMobileDevice } from '../core/device.js';
+import { events } from '../core/state.js';
 
 // ── Pre-allocated vectors ───────────────────────────────────────────────────
 
@@ -11,9 +14,11 @@ const _forward = new THREE.Vector3();
 const _right   = new THREE.Vector3();
 const _camPos  = new THREE.Vector3();
 const _camTarget = new THREE.Vector3();
-const _behindDir = new THREE.Vector3();
+const _euler   = new THREE.Euler();
 
 // ── Shared mutable state ────────────────────────────────────────────────────
+
+const JOYSTICK_ZONE = 0.42; // left 42% of screen reserved for joystick
 
 export const systemShipState = {
     keyState: {},
@@ -32,6 +37,9 @@ export const systemShipState = {
     drag: 0.94,
     // Banking visual
     bankAngle: 0,
+    // Mobile: joystick input + camera orbit offset
+    joystickInput: { x: 0, y: 0 },
+    cameraYawOffset: 0,
 };
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -58,6 +66,9 @@ export function enterShipControl(shipEntry, controls) {
     systemShipState.keyState = {};
     systemShipState.mouseDeltaX = 0;
     systemShipState.mouseDeltaY = 0;
+    systemShipState.joystickInput.x = 0;
+    systemShipState.joystickInput.y = 0;
+    systemShipState.cameraYawOffset = 0;
 
     // Show control bar
     const bar = document.getElementById('system-ship-control-bar');
@@ -70,6 +81,15 @@ export function enterShipControl(shipEntry, controls) {
     // Show unit panel
     const panel = document.getElementById('system-unit-panel');
     if (panel) panel.classList.remove('hidden');
+
+    // Show mobile vertical controls
+    if (isMobileDevice) {
+        const mobileCtrl = document.getElementById('ship-mobile-controls');
+        if (mobileCtrl) mobileCtrl.classList.remove('hidden');
+        _wireVerticalButtons();
+    }
+
+    events.dispatchEvent(new CustomEvent('ship-control-enter'));
 }
 
 /**
@@ -123,6 +143,16 @@ export function exitShipControl(controls, camera) {
     // Hide control bar
     const bar = document.getElementById('system-ship-control-bar');
     if (bar) bar.classList.add('hidden');
+
+    // Hide mobile vertical controls
+    const mobileCtrl = document.getElementById('ship-mobile-controls');
+    if (mobileCtrl) mobileCtrl.classList.add('hidden');
+
+    // Reset joystick
+    systemShipState.joystickInput.x = 0;
+    systemShipState.joystickInput.y = 0;
+
+    events.dispatchEvent(new CustomEvent('ship-control-exit'));
 }
 
 /**
@@ -167,6 +197,125 @@ export function handleShipWheel(e) {
     systemShipState.targetCameraDistance = Math.max(1.5, Math.min(20, systemShipState.targetCameraDistance));
 }
 
+// ── Mobile joystick input ────────────────────────────────────────────────────
+
+export function setSystemShipJoystick(x, y) {
+    systemShipState.joystickInput.x = x;
+    systemShipState.joystickInput.y = y;
+}
+
+// ── Mobile vertical buttons (ascend/descend) ─────────────────────────────────
+let _verticalWired = false;
+
+function _wireVerticalButtons() {
+    if (_verticalWired) return;
+    _verticalWired = true;
+
+    const ascend = document.getElementById('btn-ship-ascend');
+    const descend = document.getElementById('btn-ship-descend');
+
+    const setKey = (key, val) => { systemShipState.keyState[key] = val; };
+
+    if (ascend) {
+        ascend.addEventListener('touchstart', (e) => { e.preventDefault(); setKey(' ', true); }, { passive: false });
+        ascend.addEventListener('touchend', () => setKey(' ', false));
+        ascend.addEventListener('touchcancel', () => setKey(' ', false));
+    }
+    if (descend) {
+        descend.addEventListener('touchstart', (e) => { e.preventDefault(); setKey('shift', true); }, { passive: false });
+        descend.addEventListener('touchend', () => setKey('shift', false));
+        descend.addEventListener('touchcancel', () => setKey('shift', false));
+    }
+}
+
+// ── Mobile touch camera orbit ────────────────────────────────────────────────
+// Single touch on right side of screen → orbit camera around ship
+// Pinch → zoom in/out
+
+let _touchDragId = null;
+let _lastTouchX = 0;
+let _lastTouchY = 0;
+let _pinching = false;
+let _pinchStartDist = 0;
+
+function _getTouchDist(t1, t2) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function _isShipUITouch(e) {
+    const t = e.target || e.srcElement;
+    if (!t || !t.closest) return false;
+    return t.closest('#ship-mobile-controls') || t.closest('#system-ship-control-bar') ||
+           t.closest('#system-unit-panel') || t.closest('#joystick-container') ||
+           t.closest('#ui-layer') || t.closest('button');
+}
+
+function _initShipTouchControls() {
+    window.addEventListener('touchstart', (e) => {
+        if (!isShipControlActive()) return;
+        if (_isShipUITouch(e)) return;
+
+        if (e.touches.length >= 2) {
+            _pinching = true;
+            _pinchStartDist = _getTouchDist(e.touches[0], e.touches[1]);
+            return;
+        }
+
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            // Right side of screen → camera orbit
+            if (touch.clientX > window.innerWidth * JOYSTICK_ZONE) {
+                _touchDragId = touch.identifier;
+                _lastTouchX = touch.clientX;
+                _lastTouchY = touch.clientY;
+            }
+        }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+        if (!isShipControlActive()) return;
+
+        // Pinch to zoom
+        if (_pinching && e.touches.length >= 2) {
+            const dist = _getTouchDist(e.touches[0], e.touches[1]);
+            const delta = _pinchStartDist - dist;
+            systemShipState.targetCameraDistance += delta * 0.01;
+            systemShipState.targetCameraDistance = Math.max(1.5, Math.min(20, systemShipState.targetCameraDistance));
+            _pinchStartDist = dist;
+            return;
+        }
+
+        // Camera orbit drag
+        if (_touchDragId !== null) {
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === _touchDragId) {
+                    const dx = e.touches[i].clientX - _lastTouchX;
+                    const dy = e.touches[i].clientY - _lastTouchY;
+                    systemShipState.cameraYawOffset -= dx * 0.006;
+                    systemShipState.cameraPitch = Math.max(0.05, Math.min(1.4, systemShipState.cameraPitch + dy * 0.005));
+                    _lastTouchX = e.touches[i].clientX;
+                    _lastTouchY = e.touches[i].clientY;
+                    break;
+                }
+            }
+        }
+    }, { passive: true });
+
+    window.addEventListener('touchend', (e) => {
+        if (!isShipControlActive()) return;
+        if (e.touches.length < 2) _pinching = false;
+        let found = false;
+        for (let i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].identifier === _touchDragId) { found = true; break; }
+        }
+        if (!found) _touchDragId = null;
+    }, { passive: true });
+}
+
+_initShipTouchControls();
+
 // ── Per-frame flight physics + camera ───────────────────────────────────────
 
 /**
@@ -177,26 +326,33 @@ export function updateShipFlight(dt, camera) {
     if (!entry) return;
 
     const mesh = entry.mesh;
-    const { keyState, velocity } = systemShipState;
+    const { keyState, velocity, joystickInput } = systemShipState;
 
     // Get ship's local axes
     _forward.set(0, 0, -1).applyQuaternion(mesh.quaternion);
     _right.set(1, 0, 0).applyQuaternion(mesh.quaternion);
 
-    // Throttle (W/S)
+    // Throttle (W/S + joystick Y)
     const accel = systemShipState.acceleration;
     if (keyState.w) velocity.addScaledVector(_forward, accel * dt);
     if (keyState.s) velocity.addScaledVector(_forward, -accel * 0.4 * dt);
+    // Joystick Y: positive = push forward on stick = forward
+    if (Math.abs(joystickInput.y) > 0.1) {
+        velocity.addScaledVector(_forward, accel * joystickInput.y * dt);
+    }
 
     // Vertical (Space/Shift)
     if (keyState[' ']) velocity.y += accel * 0.6 * dt;
     if (keyState.shift) velocity.y -= accel * 0.6 * dt;
 
-    // Yaw from A/D keys
-    const yawInput = (keyState.a ? 1 : 0) - (keyState.d ? 1 : 0);
+    // Yaw from A/D keys + joystick X
+    let yawInput = (keyState.a ? 1 : 0) - (keyState.d ? 1 : 0);
+    if (Math.abs(joystickInput.x) > 0.1) {
+        yawInput -= joystickInput.x; // left stick = yaw left
+    }
     mesh.rotateY(yawInput * 2.5 * dt);
 
-    // Yaw/pitch from mouse drag
+    // Yaw/pitch from mouse drag (desktop)
     if (Math.abs(systemShipState.mouseDeltaX) > 0.001) {
         mesh.rotateY(-systemShipState.mouseDeltaX * 1.5);
         systemShipState.mouseDeltaX *= 0.5; // decay
@@ -223,9 +379,9 @@ export function updateShipFlight(dt, camera) {
     systemShipState.bankAngle = THREE.MathUtils.lerp(systemShipState.bankAngle, targetBank, 5 * dt);
 
     // Apply bank as local Z rotation (preserve quaternion yaw/pitch)
-    const euler = new THREE.Euler().setFromQuaternion(mesh.quaternion, 'YXZ');
-    euler.z = systemShipState.bankAngle;
-    mesh.quaternion.setFromEuler(euler);
+    _euler.setFromQuaternion(mesh.quaternion, 'YXZ');
+    _euler.z = systemShipState.bankAngle;
+    mesh.quaternion.setFromEuler(_euler);
 
     // Engine glow intensity based on speed
     if (entry.engineGlow) {
@@ -233,23 +389,28 @@ export function updateShipFlight(dt, camera) {
         entry.engineGlow.material.opacity = 0.35 + speedFrac * 0.55;
     }
 
-    // ── Camera: third-person chase ──
+    // ── Camera: third-person orbit ──
     // Smooth camera distance lerp
     systemShipState.cameraDistance += (systemShipState.targetCameraDistance - systemShipState.cameraDistance) * 3 * dt;
 
     const camDist = systemShipState.cameraDistance;
     const camPitch = systemShipState.cameraPitch;
 
-    // Camera behind ship
-    _behindDir.set(0, 0, 1).applyQuaternion(mesh.quaternion); // behind ship = +Z local
-    _camPos.copy(mesh.position)
-        .addScaledVector(_behindDir, camDist * Math.cos(camPitch));
-    _camPos.y += camDist * Math.sin(camPitch);
+    // Camera position: orbit around ship using ship yaw + user offset
+    _euler.setFromQuaternion(mesh.quaternion, 'YXZ');
+    const camYaw = _euler.y + Math.PI + systemShipState.cameraYawOffset;
+
+    _camPos.set(
+        mesh.position.x + camDist * Math.sin(camYaw) * Math.cos(camPitch),
+        mesh.position.y + camDist * Math.sin(camPitch),
+        mesh.position.z + camDist * Math.cos(camYaw) * Math.cos(camPitch)
+    );
 
     // Smooth camera follow
     camera.position.lerp(_camPos, 6 * dt);
 
-    // Look slightly ahead of ship
-    _camTarget.copy(mesh.position).addScaledVector(_forward, 0.8);
+    // Look at ship
+    _camTarget.copy(mesh.position);
+    _camTarget.y += 0.3; // slightly above center
     camera.lookAt(_camTarget);
 }

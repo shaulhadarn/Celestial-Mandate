@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlanet, getPlanet, surveySystem, SURVEY_COST, loadGame, resolvePirateBattle } from '../core/state.js';
 import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet } from '../visuals/renderer.js';
 import { setJoystickInput } from '../visuals/visuals_planet.js';
+import { setSystemShipJoystick } from '../visuals/visuals_system_ship_control.js';
 import { disposeGroup } from '../core/dispose.js';
 import { groups, controls, scene } from '../core/scene_config.js';
 import { renderColonyView, updateColonyDynamicState } from './ui_colony.js';
@@ -23,6 +24,7 @@ import { startMenuMusic, setMusicState, setMusicVolume } from '../core/assets.js
 export { showNotification };
 
 let activeJoystick = null;
+let _shipJoystickMode = false; // true = joystick is wired to ship, false = planet
 
 // --- Scene Transition Helpers ---
 function getTransitionOverlay() {
@@ -65,6 +67,15 @@ export function initUI() {
 
     events.addEventListener('autosave', () => {
         showNotification('Game autosaved', 'info');
+    });
+
+    // Ship control joystick for mobile
+    events.addEventListener('ship-control-enter', () => {
+        if (window.innerWidth > 768) return;
+        _showShipJoystick();
+    });
+    events.addEventListener('ship-control-exit', () => {
+        _hideShipJoystick();
     });
 
     // Start music on first interaction with the splash screen
@@ -510,6 +521,55 @@ async function returnToSystemViewFromPlanet() {
 
     // Phase 3: Fade in the orbit view
     await hideTransition();
+}
+
+// ── Ship joystick for mobile system view ──────────────────────────────────────
+
+async function _showShipJoystick() {
+    _shipJoystickMode = true;
+
+    try {
+        const nipplejs = (await import('nipplejs')).default;
+        const container = document.getElementById('joystick-container');
+        if (!container) return;
+        container.classList.add('visible');
+
+        if (activeJoystick) {
+            activeJoystick.destroy();
+            activeJoystick = null;
+        }
+
+        activeJoystick = nipplejs.create({
+            zone: container,
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            color: 'rgba(0,242,255,0.8)',
+            size: Math.min(120, container.offsetWidth * 0.8)
+        });
+
+        activeJoystick.on('move', (evt, data) => {
+            if (data.vector) setSystemShipJoystick(data.vector.x, data.vector.y);
+        });
+
+        activeJoystick.on('end', () => {
+            setSystemShipJoystick(0, 0);
+        });
+    } catch (e) {
+        console.error("Failed to load ship joystick", e);
+    }
+}
+
+function _hideShipJoystick() {
+    if (!_shipJoystickMode) return;
+    _shipJoystickMode = false;
+
+    if (activeJoystick) {
+        activeJoystick.destroy();
+        activeJoystick = null;
+    }
+    const container = document.getElementById('joystick-container');
+    if (container) container.classList.remove('visible');
+    setSystemShipJoystick(0, 0);
 }
 
 // removed function updateSelectionPanel() {} (moved to ui_selection.js)
