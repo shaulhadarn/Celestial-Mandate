@@ -13,7 +13,7 @@ import { isMobile as isMobileDevice } from '../core/device.js';
 import planetState from './visuals_planet_state.js';
 import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
-import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers } from './visuals_planet_environment.js';
+import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers, createGroundMist, createAtmosphericHaze } from './visuals_planet_environment.js';
 import { renderColonyGroundBuildings, soldierMeshes } from './visuals_planet_colony.js';
 
 // Sub-modules — import also registers the mouse/touch listeners (self-invoking init)
@@ -150,6 +150,8 @@ export function createPlanetVisuals(planetData, group) {
     planetState.planetProps = [];
     planetState.creatures.length = 0;
     planetState.cloudLayers = [];
+    planetState.groundMist = null;
+    planetState.hazeMesh = null;
     planetState.dustMesh = null;
     planetState.currentPlanetData = planetData;
     planetState.explorationGroup = group;
@@ -220,16 +222,16 @@ export function createPlanetVisuals(planetData, group) {
     // 4. Props
     planetState.planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
 
-    // 5. Particles — GPU-animated dust
+    // 5. Particles — GPU-animated dust with wind drift
     {
         const particleGeo = new THREE.BufferGeometry();
-        const pCount = isMobileDevice ? 60 : 200;
+        const pCount = isMobileDevice ? 80 : 300;
         const pPos = new Float32Array(pCount * 3);
         const pOffset = new Float32Array(pCount);
         for (let i = 0; i < pCount; i++) {
-            pPos[i * 3]     = (Math.random() - 0.5) * 200;
-            pPos[i * 3 + 1] = (Math.random() - 0.5) * 200;
-            pPos[i * 3 + 2] = (Math.random() - 0.5) * 200;
+            pPos[i * 3]     = (Math.random() - 0.5) * 250;
+            pPos[i * 3 + 1] = Math.random() * 60 + 1;  // near ground to mid-air
+            pPos[i * 3 + 2] = (Math.random() - 0.5) * 250;
             pOffset[i] = Math.random() * Math.PI * 2;
         }
         particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
@@ -246,12 +248,18 @@ export function createPlanetVisuals(planetData, group) {
                 varying float vTwinkle;
                 void main() {
                     vec3 pos = position;
-                    pos.y += sin(uTime * 0.5 + aOffset) * 5.0;
-                    pos.x += sin(uTime * 0.3 + aOffset * 1.7) * 1.5;
-                    pos.z += cos(uTime * 0.25 + aOffset * 2.3) * 1.5;
-                    vTwinkle = 0.3 + 0.7 * (0.5 + 0.5 * sin(uTime * 2.0 + aOffset * 3.0));
+                    // Persistent wind drift (slow, directional)
+                    float t = uTime * 0.15 + aOffset * 0.5;
+                    pos.x += sin(t * 0.7 + aOffset * 1.3) * 3.0 + uTime * 0.4;
+                    pos.z += cos(t * 0.5 + aOffset * 1.9) * 2.5 + uTime * 0.15;
+                    // Gentle bobbing
+                    pos.y += sin(uTime * 0.35 + aOffset * 2.1) * 3.0;
+                    // Wrap particles back (mod-like behavior via fract)
+                    pos.x = mod(pos.x + 125.0, 250.0) - 125.0;
+                    pos.z = mod(pos.z + 125.0, 250.0) - 125.0;
+                    vTwinkle = 0.2 + 0.8 * (0.5 + 0.5 * sin(uTime * 1.5 + aOffset * 3.0));
                     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                    gl_PointSize = 4.0 / -mvPosition.z * 100.0;
+                    gl_PointSize = 3.5 / -mvPosition.z * 100.0;
                     gl_Position = projectionMatrix * mvPosition;
                 }
             `,
@@ -260,7 +268,7 @@ export function createPlanetVisuals(planetData, group) {
                 varying float vTwinkle;
                 void main() {
                     vec4 tex = texture2D(uMap, gl_PointCoord);
-                    gl_FragColor = vec4(1.0, 1.0, 1.0, tex.a * 0.4 * vTwinkle);
+                    gl_FragColor = vec4(1.0, 1.0, 1.0, tex.a * 0.35 * vTwinkle);
                 }
             `,
             transparent: true,
@@ -325,6 +333,14 @@ export function createPlanetVisuals(planetData, group) {
     // 9. Cloud layers (only for atmospheric planet types)
     planetState.cloudLayers = createCloudLayers(planetData.type);
     planetState.cloudLayers.forEach(cl => group.add(cl));
+
+    // 10. Ground mist (low-lying fog for atmosphere)
+    planetState.groundMist = createGroundMist(planetData.type);
+    if (planetState.groundMist) group.add(planetState.groundMist);
+
+    // 11. Atmospheric haze (horizon gradient cylinder)
+    planetState.hazeMesh = createAtmosphericHaze(skyColor, planetData.type);
+    if (planetState.hazeMesh) group.add(planetState.hazeMesh);
 
     return planetState.playerMesh;
 }

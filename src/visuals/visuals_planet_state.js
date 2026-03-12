@@ -16,6 +16,8 @@ const planetState = {
     dustMesh: null,
     creatures: [],
     cloudLayers: [],
+    groundMist: null,
+    hazeMesh: null,
 
     // Camera orbit parameters (written by input handlers, read by update loop)
     cameraYaw: Math.PI,

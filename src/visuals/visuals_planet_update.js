@@ -394,18 +394,40 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     });
 
-    // --- 8a. Cloud drift ---
+    // --- 8a. Cloud drift (UV scroll) + ground mist ---
     const followPos = controlTarget || playerMesh;
     planetState.cloudLayers.forEach(cl => {
-        // Drift clouds slowly
-        cl.position.x += cl.userData.cloudSpeed * cl.userData.cloudDir * dt;
-        cl.position.z += cl.userData.cloudSpeed * 0.3 * dt;
-        // Keep clouds centered above the player
-        const cx = followPos.position.x;
-        const cz = followPos.position.z;
-        cl.position.x = cx + (cl.position.x - cx) * 0.999;
-        cl.position.z = cz + (cl.position.z - cz) * 0.999;
+        // UV scroll for natural slow drift (no plane movement)
+        if (cl.material.map) {
+            cl.material.map.offset.x += cl.userData.uvDx * dt;
+            cl.material.map.offset.y += cl.userData.uvDz * dt;
+        }
+        // Subtle opacity breathing (wind gusts)
+        const breath = Math.sin(time * 0.4 + cl.userData.opacityPhase) * 0.04;
+        cl.material.opacity = cl.userData.baseOpacity + breath;
+        // Keep centered above player
+        cl.position.x = followPos.position.x;
+        cl.position.z = followPos.position.z;
     });
+    // Ground mist follows player
+    if (planetState.groundMist) {
+        const mist = planetState.groundMist;
+        mist.position.x = followPos.position.x;
+        mist.position.z = followPos.position.z;
+        // Slow UV scroll
+        if (mist.material.map) {
+            mist.material.map.offset.x += 0.001 * dt;
+            mist.material.map.offset.y += 0.0006 * dt;
+        }
+        // Subtle opacity pulse
+        const mp = Math.sin(time * 0.3) * 0.03;
+        mist.material.opacity = mist.userData.baseOpacity + mp;
+    }
+    // Atmospheric haze follows player horizontally
+    if (planetState.hazeMesh) {
+        planetState.hazeMesh.position.x = followPos.position.x;
+        planetState.hazeMesh.position.z = followPos.position.z;
+    }
 
     // --- 8b. Patrol soldiers (waypoint-based walk) ---
     const TRAIL_SPACING = 1.2;   // drop a footprint every N units

@@ -469,19 +469,18 @@ export function createCreatures(type, group, heightFn) {
 
 // ── Procedural cloud system ─────────────────────────────────────────────────
 
-// Planet types that get clouds and their opacity
+// Planet types that get clouds — opacity, tint, UV scroll speed multiplier
 const CLOUD_TYPES = {
-    'Terran':      { opacity: 0.35, color: 0xeef4ff, count: 30, puffCount: 55 },
-    'Continental': { opacity: 0.30, color: 0xe8f0ff, count: 25, puffCount: 45 },
-    'Ocean':       { opacity: 0.45, color: 0xd8eaff, count: 35, puffCount: 65 },
-    'Arctic':      { opacity: 0.25, color: 0xdae8f4, count: 20, puffCount: 35 },
-    'Ice':         { opacity: 0.20, color: 0xc8dce8, count: 18, puffCount: 30 },
+    'Terran':      { opacity: 0.32, color: 0xeef4ff, speed: 1.0 },
+    'Continental': { opacity: 0.28, color: 0xe8f0ff, speed: 0.9 },
+    'Ocean':       { opacity: 0.40, color: 0xd8eaff, speed: 1.2 },
+    'Arctic':      { opacity: 0.22, color: 0xdae8f4, speed: 0.6 },
+    'Ice':         { opacity: 0.18, color: 0xc8dce8, speed: 0.5 },
 };
 
 let _cloudTexCache = null;
 
-function _createCloudTexture(conf) {
-    // Cached — same texture reused across planet changes
+function _createCloudTexture() {
     if (_cloudTexCache) return _cloudTexCache;
 
     const W = 1024, H = 1024;
@@ -492,42 +491,56 @@ function _createCloudTexture(conf) {
     ctx.clearRect(0, 0, W, H);
 
     // Large wispy cloud bands
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 35; i++) {
         const x = Math.random() * W;
         const y = Math.random() * H;
-        const rx = 60 + Math.random() * 140;
-        const ry = 30 + Math.random() * 60;
-        const op = 0.06 + Math.random() * 0.12;
-        const rot = (Math.random() - 0.5) * 0.5;
+        const rx = 80 + Math.random() * 160;
+        const ry = 25 + Math.random() * 50;
+        const op = 0.06 + Math.random() * 0.14;
+        const rot = (Math.random() - 0.5) * 0.4;
 
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(rot);
         const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
         g.addColorStop(0, `rgba(255,255,255,${op})`);
-        g.addColorStop(0.4, `rgba(240,248,255,${op * 0.6})`);
+        g.addColorStop(0.35, `rgba(240,248,255,${op * 0.6})`);
         g.addColorStop(1, 'rgba(240,250,255,0)');
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+
+        // Wrap edges so the texture tiles seamlessly
+        for (const ox of [-W, W]) {
+            ctx.save();
+            ctx.translate(x + ox, y);
+            ctx.rotate(rot);
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
     }
 
-    // Smaller puffs
-    for (let i = 0; i < 55; i++) {
+    // Smaller puffs for detail
+    for (let i = 0; i < 60; i++) {
         const x = Math.random() * W;
         const y = Math.random() * H;
-        const r = 12 + Math.random() * 45;
-        const op = 0.04 + Math.random() * 0.14;
+        const r = 12 + Math.random() * 50;
+        const op = 0.04 + Math.random() * 0.15;
         const g = ctx.createRadialGradient(x, y, 0, x, y, r);
         g.addColorStop(0, `rgba(255,255,255,${op})`);
         g.addColorStop(0.5, `rgba(230,245,255,${op * 0.4})`);
         g.addColorStop(1, 'rgba(240,250,255,0)');
         ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
+        for (const ox of [0, -W, W]) {
+            ctx.beginPath();
+            ctx.arc(x + ox, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
 
     const tex = new THREE.CanvasTexture(canvas);
@@ -542,37 +555,163 @@ function _createCloudTexture(conf) {
 /**
  * Creates cloud layer(s) for the planet. Returns an array of cloud meshes
  * (may be empty if planet type has no clouds). Caller adds them to the group.
+ * Each layer has UV-scroll animation data in userData.
  */
 export function createCloudLayers(planetType) {
     const conf = CLOUD_TYPES[planetType];
     if (!conf) return [];
 
-    const tex = _createCloudTexture(conf);
+    const tex = _createCloudTexture();
     const layers = [];
 
-    // Two cloud planes at different heights, drifting in opposite directions
-    const heights = [80, 130];
-    const sizes   = [600, 800];
-    const opacities = [conf.opacity, conf.opacity * 0.6];
+    // Three layers at different heights — slow UV scroll for natural drift
+    const layerDefs = [
+        { height: 65,  size: 700, opMul: 1.0,  uvSpeed: 0.003,  uvAngle: 0.1  },
+        { height: 110, size: 900, opMul: 0.55, uvSpeed: 0.0018, uvAngle: -0.15 },
+        { height: 160, size: 1100, opMul: 0.3,  uvSpeed: 0.001,  uvAngle: 0.25 },
+    ];
 
-    for (let i = 0; i < 2; i++) {
-        const geo = new THREE.PlaneGeometry(sizes[i], sizes[i]);
+    for (const def of layerDefs) {
+        const geo = new THREE.PlaneGeometry(def.size, def.size);
         const mat = new THREE.MeshBasicMaterial({
-            map: tex,
+            map: tex.clone(),   // clone so each layer has independent UV offset
             transparent: true,
-            opacity: opacities[i],
+            opacity: conf.opacity * def.opMul,
             color: conf.color,
             depthWrite: false,
             side: THREE.DoubleSide,
         });
+        // Enable UV offset animation on the cloned texture
+        mat.map.wrapS = THREE.RepeatWrapping;
+        mat.map.wrapT = THREE.RepeatWrapping;
+
         const mesh = new THREE.Mesh(geo, mat);
         mesh.rotation.x = -Math.PI / 2;
-        mesh.position.y = heights[i];
+        mesh.position.y = def.height;
+        mesh.renderOrder = 5; // render after terrain
         mesh.userData.cloudLayer = true;
-        mesh.userData.cloudSpeed = (i === 0 ? 1.5 : -0.8); // units/s drift
-        mesh.userData.cloudDir = (i === 0 ? 1 : -0.7);
+        mesh.userData.baseOpacity = conf.opacity * def.opMul;
+        // UV scroll direction (dx, dz per second)
+        const a = def.uvAngle;
+        mesh.userData.uvDx = Math.cos(a) * def.uvSpeed * conf.speed;
+        mesh.userData.uvDz = Math.sin(a) * def.uvSpeed * conf.speed;
+        mesh.userData.opacityPhase = Math.random() * Math.PI * 2; // unique breathing offset
         layers.push(mesh);
     }
 
     return layers;
+}
+
+// ── Ground mist layer ───────────────────────────────────────────────────────
+
+const MIST_TYPES = {
+    'Terran':      { opacity: 0.12, color: 0xccddee },
+    'Continental': { opacity: 0.10, color: 0xbbccdd },
+    'Ocean':       { opacity: 0.18, color: 0x99bbdd },
+    'Arctic':      { opacity: 0.15, color: 0xaabbcc },
+    'Ice':         { opacity: 0.14, color: 0x99aacc },
+    'Molten':      { opacity: 0.20, color: 0x331100 },
+    'Tomb':        { opacity: 0.12, color: 0x112211 },
+};
+
+let _mistTexCache = null;
+
+function _createMistTexture() {
+    if (_mistTexCache) return _mistTexCache;
+    const S = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = S;
+    canvas.height = S;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, S, S);
+
+    // Soft radial patches
+    for (let i = 0; i < 40; i++) {
+        const x = Math.random() * S;
+        const y = Math.random() * S;
+        const r = 60 + Math.random() * 120;
+        const op = 0.04 + Math.random() * 0.08;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(255,255,255,${op})`);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.minFilter = THREE.LinearFilter;
+    _mistTexCache = tex;
+    return tex;
+}
+
+/**
+ * Creates a low-lying ground mist plane. Returns the mesh or null.
+ */
+export function createGroundMist(planetType) {
+    const conf = MIST_TYPES[planetType];
+    if (!conf) return null;
+
+    const tex = _createMistTexture();
+    const geo = new THREE.PlaneGeometry(500, 500);
+    const mat = new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        opacity: conf.opacity,
+        color: conf.color,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 2.5; // just above terrain surface
+    mesh.renderOrder = 4;
+    mesh.userData.groundMist = true;
+    mesh.userData.baseOpacity = conf.opacity;
+    return mesh;
+}
+
+// ── Atmospheric haze (horizon gradient ring) ────────────────────────────────
+
+/**
+ * Creates a vertical cylinder around the scene that fades from transparent
+ * at the bottom to the sky color at the top — simulates atmospheric haze.
+ */
+export function createAtmosphericHaze(skyColor, planetType) {
+    const darkTypes = ['Barren', 'Tomb', 'Molten'];
+    if (darkTypes.includes(planetType)) return null; // no haze on harsh worlds
+
+    const geo = new THREE.CylinderGeometry(450, 450, 200, 32, 1, true);
+    const col = new THREE.Color(skyColor);
+    const mat = new THREE.ShaderMaterial({
+        uniforms: {
+            uColor: { value: col },
+        },
+        vertexShader: /* glsl */`
+            varying float vHeight;
+            void main() {
+                vHeight = uv.y;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: /* glsl */`
+            uniform vec3 uColor;
+            varying float vHeight;
+            void main() {
+                // Fade from transparent at bottom to sky color at top
+                float alpha = smoothstep(0.0, 0.7, vHeight) * 0.45;
+                gl_FragColor = vec4(uColor, alpha);
+            }
+        `,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.BackSide,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = 40; // centered at mid-height
+    mesh.renderOrder = 3;
+    return mesh;
 }
