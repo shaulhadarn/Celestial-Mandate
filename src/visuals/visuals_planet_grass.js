@@ -69,9 +69,9 @@ export function createGrassMesh(planetType) {
     const joints = 4; // segments along the blade
 
     // Instance count — scaled by density and reduced on mobile
-    const baseCount = isMobileDevice ? 18000 : 55000;
+    const baseCount = isMobileDevice ? 25000 : 80000;
     const instances = Math.round(baseCount * conf.density);
-    const width = 200; // scatter area radius*2
+    const width = 800; // covers most of the 1000-unit terrain
 
     // Base blade geometry (a thin plane subdivided along Y)
     const baseGeom = new THREE.PlaneGeometry(bW, bH, 1, joints);
