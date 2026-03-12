@@ -42,8 +42,11 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
     if (!playerMesh || !camera) return;
 
-    // --- 1. Camera Position (before movement so direction vectors are correct) ---
-    _droneCenter.copy(playerMesh.position).add(_cameraOffset);
+    const controlTarget = planetState.controlTarget; // null = drone, mesh = soldier
+    const followTarget = controlTarget || playerMesh;
+
+    // --- 1. Camera Position (follows controlTarget or drone) ---
+    _droneCenter.copy(followTarget.position).add(_cameraOffset);
     const sinYaw = Math.sin(cameraYaw);
     const cosYaw = Math.cos(cameraYaw);
     const sinPitch = Math.sin(cameraPitch);
@@ -58,10 +61,6 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     camera.lookAt(_droneCenter);
 
     // --- 2. Movement Direction (derived from cameraYaw) ---
-    const speed = 100;
-    const drag = 0.92;
-    const velocity = playerMesh.userData.velocity;
-
     _forward.set(-sinYaw, 0, -cosYaw);
     _right.set(cosYaw, 0, -sinYaw);
     _inputDir.set(0, 0, 0);
@@ -76,14 +75,76 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         _inputDir.z += _forward.z * joystickInput.y + _right.z * joystickInput.x;
     }
 
-    if (_inputDir.lengthSq() > 0) {
-        _inputDir.normalize();
-        velocity.x += _inputDir.x * speed * dt;
-        velocity.y += _inputDir.y * speed * dt;
-        velocity.z += _inputDir.z * speed * dt;
+    if (controlTarget) {
+        // --- 2b/3b. Soldier ground movement ---
+        const soldierSpeed = 8;
+        const soldierDrag = 0.85;
+        const sVel = controlTarget.userData.velocity;
+
+        if (_inputDir.lengthSq() > 0) {
+            _inputDir.normalize();
+            sVel.x += _inputDir.x * soldierSpeed * dt;
+            sVel.z += _inputDir.z * soldierSpeed * dt;
+        }
+
+        controlTarget.position.x += sVel.x * dt;
+        controlTarget.position.z += sVel.z * dt;
+        controlTarget.position.y = getTerrainHeightFast(controlTarget.position.x, controlTarget.position.z);
+        sVel.x *= soldierDrag;
+        sVel.z *= soldierDrag;
+        sVel.y = 0;
+
+        const soldierSpd = Math.sqrt(sVel.x * sVel.x + sVel.z * sVel.z);
+
+        // --- 4b. Soldier rotation ---
+        if (soldierSpd > 0.05) {
+            const targetRot = Math.atan2(sVel.x, sVel.z);
+            let diff = targetRot - controlTarget.rotation.y;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            controlTarget.rotation.y += diff * 10 * dt;
+        }
+
+        // Walk cycle animation for controlled soldier
+        const ud = controlTarget.userData;
+        if (soldierSpd > 0.05) {
+            ud.walkPhase = (ud.walkPhase || 0) + soldierSpd * dt * 4;
+            const walkSin = Math.sin(ud.walkPhase);
+            const walkCos = Math.cos(ud.walkPhase);
+            controlTarget.position.y += Math.abs(walkSin) * 0.04;
+            controlTarget.rotation.z = walkCos * 0.02;
+            controlTarget.children.forEach(child => {
+                if (child.userData.isLeg) {
+                    child.rotation.x = walkSin * 0.5 * child.userData.side;
+                }
+                if (child.userData.isArm) {
+                    const amp = child.userData.side === 1 ? 0.2 : 0.35;
+                    child.rotation.x = Math.sin(ud.walkPhase + Math.PI) * amp * child.userData.side;
+                    child.rotation.z = 0;
+                }
+            });
+        } else {
+            // Idle animations for controlled soldier
+            controlTarget.rotation.z *= 0.9;
+        }
     }
 
-    // --- 3. Apply Movement with slope collision ---
+    // Drone physics always run (drone hovers in place when soldier is controlled)
+    const speed = 100;
+    const drag = 0.92;
+    const velocity = playerMesh.userData.velocity;
+
+    if (!controlTarget) {
+        // Only accept input when controlling drone
+        if (_inputDir.lengthSq() > 0) {
+            _inputDir.normalize();
+            velocity.x += _inputDir.x * speed * dt;
+            velocity.y += _inputDir.y * speed * dt;
+            velocity.z += _inputDir.z * speed * dt;
+        }
+    }
+
+    // --- 3. Apply drone movement with slope collision ---
     _nextPos.set(
         playerMesh.position.x + velocity.x * dt,
         playerMesh.position.y + velocity.y * dt,
@@ -315,6 +376,17 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     soldierMeshes.forEach(s => {
         const ud = s.userData;
         if (!ud.isSoldier) return;
+
+        // Skip patrol AI for player-controlled soldier (movement handled in section 2b/3b)
+        if (ud._playerControlled) {
+            // Still update shadow
+            if (ud.shadowMesh) {
+                const gH = getTerrainHeightFast(s.position.x, s.position.z) + 0.15;
+                ud.shadowMesh.position.set(s.position.x, gH, s.position.z);
+                ud.shadowMesh.material.opacity = 0.55;
+            }
+            return;
+        }
 
         // ── Shadow follows soldier ──
         if (ud.shadowMesh) {
@@ -621,11 +693,21 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     });
 
-    // --- 9b. Animate hub radar dish ---
+    // --- 9b. Animate hub radar dish + beacon ---
     if (hubGroup) {
         hubGroup.children.forEach(child => {
             if (child.userData.radarDish) {
                 child.rotation.y += 0.6 * dt;
+            }
+            // Blinking beacon on hub top
+            if (child.userData.hubBeacon) {
+                const blink = Math.sin(performance.now() * 0.004) > 0.3 ? 1 : 0.1;
+                if (child.isMesh) {
+                    child.material.opacity = blink * 0.9;
+                    child.material.emissiveIntensity = blink;
+                } else if (child.isSprite) {
+                    child.material.opacity = blink * 0.6;
+                }
             }
         });
     }
@@ -671,7 +753,8 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 11. Update exploration header coords (cached DOM ref) ---
     if (!_coordsEl) _coordsEl = document.getElementById('exploration-coords');
     if (_coordsEl) {
-        _coordsEl.textContent = `X:${Math.round(playerMesh.position.x)} Z:${Math.round(playerMesh.position.z)}`;
+        const coordsTarget = controlTarget || playerMesh;
+        _coordsEl.textContent = `X:${Math.round(coordsTarget.position.x)} Z:${Math.round(coordsTarget.position.z)}`;
     }
 
     // --- 12. Final Camera Update (reuse cached trig from step 1) ---

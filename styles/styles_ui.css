@@ -1454,6 +1454,66 @@
     border-color: #ffcc44;
 }
 
+/* ── Building Info Tooltip ──────────────────────────────────────────────────── */
+#building-info-tooltip {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(10, 12, 18, 0.92);
+    border: 1px solid rgba(0, 242, 255, 0.4);
+    border-radius: 8px;
+    padding: 14px 22px;
+    color: #e0e8ff;
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-main);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+#building-info-tooltip.hidden { display: none; }
+#building-info-icon { font-size: 22px; }
+#building-info-name { font-weight: 600; color: #00f2ff; }
+#building-info-production { color: #8899aa; font-size: 12px; margin-left: 6px; }
+
+/* ── Soldier Control Bar ────────────────────────────────────────────────────── */
+#soldier-control-bar {
+    position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 12, 18, 0.88);
+    border: 1px solid rgba(0, 242, 255, 0.4);
+    border-radius: 8px;
+    padding: 8px 18px;
+    color: #e0e8ff;
+    font-size: 13px;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--font-main);
+    pointer-events: auto;
+}
+#soldier-control-bar.hidden { display: none; }
+#btn-back-to-drone {
+    background: rgba(0, 242, 255, 0.12);
+    border: 1px solid rgba(0, 242, 255, 0.5);
+    color: #00f2ff;
+    padding: 5px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: var(--font-main);
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: rgba(0, 242, 255, 0.2);
+    touch-action: manipulation;
+}
+#btn-back-to-drone:hover { background: rgba(0, 242, 255, 0.25); }
+
 .bottom-actions {
     display: flex;
     gap: 8px;

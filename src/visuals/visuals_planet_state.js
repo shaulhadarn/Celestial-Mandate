@@ -36,6 +36,10 @@ const planetState = {
     // HUD/placement state (written by HUD buttons, read by update loop)
     placementMode: null,
     nearestHarvesterData: null,
+
+    // Control target (null = drone, soldier mesh = controlling that soldier)
+    controlTarget: null,
+    buildingInfoTarget: null,
 };
 
 // Constants

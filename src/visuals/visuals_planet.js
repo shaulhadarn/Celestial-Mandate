@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
-import { gameState, events } from '../core/state.js';
+import { gameState, events, BUILDINGS } from '../core/state.js';
 import { disposeGroup } from '../core/dispose.js';
 import { scene } from '../core/scene_config.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
@@ -14,7 +14,7 @@ import planetState from './visuals_planet_state.js';
 import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
 import { getSkyColor, createPlanetProps, createCreatures } from './visuals_planet_environment.js';
-import { renderColonyGroundBuildings } from './visuals_planet_colony.js';
+import { renderColonyGroundBuildings, soldierMeshes } from './visuals_planet_colony.js';
 
 // Sub-modules — import also registers the mouse/touch listeners (self-invoking init)
 import { handleInput, setJoystickInput } from './visuals_planet_input.js';
@@ -27,17 +27,129 @@ initHUD(updateColonyBuildings);
 // Re-export public API (unchanged for renderer.js and ui.js)
 export { handleInput, setJoystickInput, updatePlanetPhysics };
 
+// ── Building info tooltip auto-dismiss timer ────────────────────────────────
+let _buildingInfoTimer = null;
+
+function _showBuildingInfo(buildingKey) {
+    const tooltip = document.getElementById('building-info-tooltip');
+    if (!tooltip) return;
+    const data = buildingKey === '_hub'
+        ? { name: 'Colony Hub', icon: '🏛️', production: {} }
+        : BUILDINGS[buildingKey];
+    if (!data) return;
+
+    document.getElementById('building-info-icon').textContent = data.icon || '🏗️';
+    document.getElementById('building-info-name').textContent = data.name;
+
+    const prodParts = [];
+    if (data.production) {
+        for (const [res, amt] of Object.entries(data.production)) {
+            if (amt) prodParts.push(`+${amt} ${res}`);
+        }
+    }
+    document.getElementById('building-info-production').textContent = prodParts.length ? prodParts.join(', ') : '';
+
+    tooltip.classList.remove('hidden');
+    if (_buildingInfoTimer) clearTimeout(_buildingInfoTimer);
+    _buildingInfoTimer = setTimeout(() => { tooltip.classList.add('hidden'); }, 3000);
+}
+
+function _hideBuildingInfo() {
+    const tooltip = document.getElementById('building-info-tooltip');
+    if (tooltip) tooltip.classList.add('hidden');
+    if (_buildingInfoTimer) { clearTimeout(_buildingInfoTimer); _buildingInfoTimer = null; }
+}
+
+// ── Soldier control switching ───────────────────────────────────────────────
+
+function _switchToSoldier(soldier) {
+    // Release previous soldier if any
+    if (planetState.controlTarget && planetState.controlTarget.userData) {
+        planetState.controlTarget.userData._playerControlled = false;
+    }
+    planetState.controlTarget = soldier;
+    soldier.userData._playerControlled = true;
+    // Give soldier a velocity vector if it doesn't have one
+    if (!soldier.userData.velocity) soldier.userData.velocity = new THREE.Vector3();
+    else soldier.userData.velocity.set(0, 0, 0);
+
+    const bar = document.getElementById('soldier-control-bar');
+    if (bar) bar.classList.remove('hidden');
+}
+
+function _switchToDrone() {
+    if (planetState.controlTarget && planetState.controlTarget.userData) {
+        planetState.controlTarget.userData._playerControlled = false;
+    }
+    planetState.controlTarget = null;
+    const bar = document.getElementById('soldier-control-bar');
+    if (bar) bar.classList.add('hidden');
+}
+
+// ── Exploration tap handler (called from renderer.js) ───────────────────────
+
+export function handleExplorationTap(raycaster, mouse, camera) {
+    raycaster.setFromCamera(mouse, camera);
+
+    // Raycast against soldiers first (smaller targets, higher priority)
+    if (soldierMeshes.length > 0) {
+        const soldierHits = raycaster.intersectObjects(soldierMeshes, true);
+        if (soldierHits.length > 0) {
+            // Traverse up to find the soldier root with userData.isSoldier
+            let obj = soldierHits[0].object;
+            while (obj) {
+                if (obj.userData && obj.userData.isSoldier) {
+                    _switchToSoldier(obj);
+                    _hideBuildingInfo();
+                    return;
+                }
+                obj = obj.parent;
+            }
+        }
+    }
+
+    // Raycast against colony buildings
+    if (planetState.colonyBuildingsGroup && planetState.colonyBuildingsGroup.children.length > 0) {
+        const buildingHits = raycaster.intersectObjects(planetState.colonyBuildingsGroup.children, true);
+        if (buildingHits.length > 0) {
+            let obj = buildingHits[0].object;
+            while (obj) {
+                if (obj.userData && obj.userData.buildingKey) {
+                    _showBuildingInfo(obj.userData.buildingKey);
+                    return;
+                }
+                if (obj.userData && obj.userData.isHub) {
+                    _showBuildingInfo('_hub');
+                    return;
+                }
+                obj = obj.parent;
+            }
+        }
+    }
+
+    // Nothing relevant hit — dismiss tooltip
+    _hideBuildingInfo();
+}
+
 // ── Scene assembly ──────────────────────────────────────────────────────────
 
 export function createPlanetVisuals(planetData, group) {
     exitPlacementMode();
     resetCachedDOM();
+    _switchToDrone();                 // reset soldier control on planet change
+    _hideBuildingInfo();
     planetState.planetProps = [];
     planetState.creatures.length = 0;
     planetState.dustMesh = null;
     planetState.currentPlanetData = planetData;
     planetState.explorationGroup = group;
     disposeGroup(group);
+
+    // Wire "Back to Drone" button
+    const backBtn = document.getElementById('btn-back-to-drone');
+    if (backBtn) {
+        backBtn.onclick = () => _switchToDrone();
+    }
 
     const isDark = ['Barren', 'Tomb', 'Molten', 'Ice', 'Arctic'].includes(planetData.type);
     const skyColor = getSkyColor(planetData.type);

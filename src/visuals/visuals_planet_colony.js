@@ -34,6 +34,22 @@ function _mat(key, props) {
     return _matCache[key];
 }
 
+// ── Glow sprite helper ────────────────────────────────────────────────────────
+function _addGlowSprite(parent, x, y, z, color, size, opacity) {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glowSoft,
+        color,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: opacity || 0.3,
+    }));
+    sprite.position.set(x, y, z);
+    sprite.scale.set(size, size, 1);
+    parent.add(sprite);
+    return sprite;
+}
+
 function _basePlatformMat() { return _mat('basePlat', { color: 0x2a2a2a, roughness: 0.5, metalness: 0.7 }); }
 function _concreteMat() { return _mat('concrete', { color: 0x3a3a3a, roughness: 0.8, metalness: 0.2 }); }
 function _frameMat() { return _mat('frame', { color: 0x1a1a1a, roughness: 0.3, metalness: 0.9 }); }
@@ -116,6 +132,11 @@ function _buildConnectionTube(group, angle, heightFn, borderColor) {
             pillar.position.set(mx, my - pillarH / 2, mz);
             group.add(pillar);
         }
+
+        // Glow sprite at every other segment center (subtle tube lighting)
+        if (i % 2 === 1) {
+            _addGlowSprite(group, mx, my + 0.5, mz, borderColor, 2.5, 0.15);
+        }
     }
 }
 
@@ -133,12 +154,36 @@ function _buildBasePlatform(g) {
     deck.position.y = 0.45;
     g.add(deck);
 
-    // Corner bollards
+    // Corner bollards with glow tips
     const bollardGeo = new THREE.CylinderGeometry(0.25, 0.3, 1.2, 6);
     [[-3.5, 0, -3.5], [-3.5, 0, 3.5], [3.5, 0, -3.5], [3.5, 0, 3.5]].forEach(([bx, , bz]) => {
         const b = new THREE.Mesh(bollardGeo, _frameMat());
         b.position.set(bx, 0.9, bz);
         g.add(b);
+
+        // Bollard tip glow
+        const tipMat = new THREE.MeshStandardMaterial({
+            color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.8,
+            transparent: true, opacity: 0.8
+        });
+        const tip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 4, 4), tipMat);
+        tip.position.set(bx, 1.55, bz);
+        g.add(tip);
+        _addGlowSprite(g, bx, 1.55, bz, 0x00ccff, 1.5, 0.2);
+    });
+
+    // Platform edge glow strips (4 sides)
+    const edgeGlowMat = new THREE.MeshStandardMaterial({
+        color: 0x00aacc, emissive: 0x00aacc, emissiveIntensity: 0.5,
+        transparent: true, opacity: 0.5
+    });
+    [[-4, 0.32, 0, 0.08, 0.06, 8.2],
+     [4, 0.32, 0, 0.08, 0.06, 8.2],
+     [0, 0.32, -4, 8.2, 0.06, 0.08],
+     [0, 0.32, 4, 8.2, 0.06, 0.08]].forEach(([ex, ey, ez, ew, eh, ed]) => {
+        const edgeStrip = new THREE.Mesh(new THREE.BoxGeometry(ew, eh, ed), edgeGlowMat);
+        edgeStrip.position.set(ex, ey, ez);
+        g.add(edgeStrip);
     });
 }
 
@@ -168,36 +213,135 @@ function _buildHub(g) {
     found.receiveShadow = true;
     g.add(found);
 
-    // ── Central antenna spire ──
-    const spire = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.15, 0.4, 6, 6),
+    // ── Central antenna mast ──
+    // Thick lower mast section
+    const mastLower = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.35, 0.55, 4, 8),
         _frameMat()
     );
-    spire.position.y = 9;
-    g.add(spire);
+    mastLower.position.y = 8;
+    g.add(mastLower);
 
-    // Rotating radar dish on top of spire
+    // Thinner upper mast section
+    const mastUpper = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.35, 3, 8),
+        _frameMat()
+    );
+    mastUpper.position.y = 11.5;
+    g.add(mastUpper);
+
+    // Mast support braces (4 diagonal struts from dome to mast)
+    const braceMat = _mat('mastBrace', { color: 0x222233, roughness: 0.3, metalness: 0.85 });
+    for (let bi = 0; bi < 4; bi++) {
+        const ba = (bi / 4) * Math.PI * 2;
+        const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4.5, 4), braceMat);
+        brace.position.set(Math.cos(ba) * 2, 7.5, Math.sin(ba) * 2);
+        brace.lookAt(0, 10, 0);
+        // rotate to point toward top of mast
+        const dir = new THREE.Vector3(-Math.cos(ba) * 2, 2.5, -Math.sin(ba) * 2).normalize();
+        brace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+        brace.position.set(Math.cos(ba) * 1, 8, Math.sin(ba) * 1);
+        g.add(brace);
+    }
+
+    // ── Rotating radar assembly ──
     const dishPivot = new THREE.Group();
-    dishPivot.position.y = 12.5;
+    dishPivot.position.y = 13;
     dishPivot.userData.radarDish = true;
 
-    const dishGeo = new THREE.SphereGeometry(1.2, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2);
-    const dish = new THREE.Mesh(dishGeo, new THREE.MeshStandardMaterial({
-        color: 0xaabbcc, roughness: 0.2, metalness: 0.9
-    }));
-    dish.rotation.x = Math.PI;
-    dishPivot.add(dish);
-
-    // Small feed horn in front of dish
-    const feedHorn = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 1.0, 4),
+    // Dish mount hub (cylindrical base for the dish arm)
+    const mountHub = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.35, 0.35, 0.5, 8),
         _frameMat()
     );
-    feedHorn.position.set(0, 0.2, 0.7);
-    feedHorn.rotation.x = Math.PI / 2;
+    dishPivot.add(mountHub);
+
+    // Dish support arm (horizontal boom)
+    const dishArm = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.2, 2.8),
+        braceMat
+    );
+    dishArm.position.set(0, 0.15, 1.4);
+    dishPivot.add(dishArm);
+
+    // Main parabolic dish — larger and more visible
+    const dishMat = new THREE.MeshStandardMaterial({
+        color: 0xc0d0e0, roughness: 0.15, metalness: 0.9,
+        emissive: 0x1a2a3a, emissiveIntensity: 0.05,
+    });
+    const dishGeo = new THREE.SphereGeometry(1.8, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.45);
+    const dish = new THREE.Mesh(dishGeo, dishMat);
+    dish.rotation.x = Math.PI;
+    dish.position.set(0, 0.2, 2.8);
+    dishPivot.add(dish);
+
+    // Dish rim ring for definition
+    const dishRim = new THREE.Mesh(
+        new THREE.TorusGeometry(1.75, 0.08, 6, 16),
+        braceMat
+    );
+    dishRim.rotation.x = Math.PI / 2;
+    dishRim.position.set(0, 0.2, 2.8);
+    dishPivot.add(dishRim);
+
+    // Feed horn (receiver at focal point, with struts)
+    const feedHorn = new THREE.Mesh(
+        new THREE.ConeGeometry(0.15, 0.5, 6),
+        _mat('feedHorn', { color: 0x888899, roughness: 0.2, metalness: 0.9 })
+    );
+    feedHorn.position.set(0, -0.6, 2.8);
+    feedHorn.rotation.x = Math.PI;
     dishPivot.add(feedHorn);
 
+    // Feed support struts (3 thin rods from dish rim to feed)
+    for (let fi = 0; fi < 3; fi++) {
+        const fa = (fi / 3) * Math.PI * 2;
+        const strut = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.025, 0.025, 1.8, 3),
+            braceMat
+        );
+        const sx = Math.cos(fa) * 0.9;
+        const sz = 2.8 + Math.sin(fa) * 0.9;
+        strut.position.set(sx / 2, -0.15, (sz + 2.8) / 2);
+        const strutDir = new THREE.Vector3(-sx, -1.2, -(sz - 2.8)).normalize();
+        strut.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), strutDir);
+        strut.position.set(sx * 0.5, -0.2, 2.8 + Math.sin(fa) * 0.5);
+        dishPivot.add(strut);
+    }
+
+    // Counter-weight on opposite side of arm
+    const counterWeight = new THREE.Mesh(
+        new THREE.BoxGeometry(0.4, 0.3, 0.6),
+        _frameMat()
+    );
+    counterWeight.position.set(0, 0.15, -0.3);
+    dishPivot.add(counterWeight);
+
     g.add(dishPivot);
+
+    // ── Beacon light on very top ──
+    const beaconMat = new THREE.MeshStandardMaterial({
+        color: 0xff2200, emissive: 0xff2200, emissiveIntensity: 1.0,
+        transparent: true, opacity: 0.9
+    });
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), beaconMat);
+    beacon.position.y = 13.6;
+    beacon.userData.hubBeacon = true;
+    g.add(beacon);
+
+    // Beacon glow sprite
+    const beaconGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow,
+        color: 0xff3300,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0.6,
+    }));
+    beaconGlow.position.y = 13.6;
+    beaconGlow.scale.set(2.5, 2.5, 1);
+    beaconGlow.userData.hubBeacon = true;
+    g.add(beaconGlow);
 
     // ── Entrance tunnels (4 radial) ──
     const tunnelGeo = new THREE.BoxGeometry(3, 2.5, 8);
@@ -217,16 +361,44 @@ function _buildHub(g) {
     });
     for (let i = 0; i < 8; i++) {
         const angle = (i / 8) * Math.PI * 2;
+        const sx = Math.cos(angle) * 6.8;
+        const sz = Math.sin(angle) * 6.8;
         const strip = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.8, 2.5), stripMat);
-        strip.position.set(Math.cos(angle) * 6.8, 2.5, Math.sin(angle) * 6.8);
+        strip.position.set(sx, 2.5, sz);
         strip.rotation.y = -angle;
         g.add(strip);
+
+        // Glow sprite at each window strip
+        const wGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glowSoft,
+            color: 0x00f2ff,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            opacity: 0.25,
+        }));
+        wGlow.position.set(sx, 2.5, sz);
+        wGlow.scale.set(4, 3, 1);
+        g.add(wGlow);
     }
 
     // ── Main light ──
     const hubLight = new THREE.PointLight(0x00f2ff, 10, 40);
     hubLight.position.set(0, 8, 0);
     g.add(hubLight);
+
+    // Hub top glow sprite
+    const hubGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glowSoft,
+        color: 0x00f2ff,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0.3,
+    }));
+    hubGlow.position.set(0, 6, 0);
+    hubGlow.scale.set(12, 8, 1);
+    g.add(hubGlow);
 }
 
 function _buildPowerPlant(g, borderColor) {
@@ -306,6 +478,12 @@ function _buildPowerPlant(g, borderColor) {
     const light = new THREE.PointLight(new THREE.Color(borderColor), 6, 25);
     light.position.y = 8;
     g.add(light);
+
+    // Glow effects
+    _addGlowSprite(g, 0, 4, 0, borderColor, 6, 0.25);    // reactor core glow
+    _addGlowSprite(g, -3, 6.2, 2.5, borderColor, 2, 0.3); // pylon glow left
+    _addGlowSprite(g, 3, 6.2, 2.5, borderColor, 2, 0.3);  // pylon glow right
+    _addGlowSprite(g, 0, 6.2, 2.5, borderColor, 3, 0.2);  // arc glow
 }
 
 function _buildMiningNetwork(g, borderColor) {
@@ -379,6 +557,10 @@ function _buildMiningNetwork(g, borderColor) {
     const light = new THREE.PointLight(new THREE.Color(borderColor), 5, 20);
     light.position.y = 7;
     g.add(light);
+
+    // Glow effects
+    _addGlowSprite(g, 0, 4.5, 0, borderColor, 5, 0.2);    // processor accent glow
+    _addGlowSprite(g, 0, 9.2, -1.5, borderColor, 2, 0.15); // crane tip glow
 }
 
 function _buildHydroponics(g, borderColor) {
@@ -458,6 +640,13 @@ function _buildHydroponics(g, borderColor) {
     const light = new THREE.PointLight(new THREE.Color(borderColor), 4, 18);
     light.position.y = 3;
     g.add(light);
+
+    // Dome interior glow (visible through glass)
+    _addGlowSprite(g, 0, 2.5, 0, 0x44ff88, 7, 0.2);
+    // Growth light glow strips
+    for (let i = 0; i < 3; i++) {
+        _addGlowSprite(g, -1.5 + i * 1.5, 3.5, 0, borderColor, 2, 0.25);
+    }
 }
 
 function _buildResearchLab(g, borderColor) {
@@ -544,6 +733,11 @@ function _buildResearchLab(g, borderColor) {
     const light = new THREE.PointLight(new THREE.Color(borderColor), 5, 22);
     light.position.y = 7;
     g.add(light);
+
+    // Glow effects
+    _addGlowSprite(g, 0, 3.8, 0, 0x4488ff, 5, 0.2);       // window band glow
+    _addGlowSprite(g, -1.5, 10.2, 0, borderColor, 1.5, 0.4); // antenna tip glow
+    _addGlowSprite(g, 0, 6.8, 0, borderColor, 3, 0.2);      // hologram beam glow
 }
 
 function _buildShipyard(g, borderColor) {
@@ -626,6 +820,11 @@ function _buildShipyard(g, borderColor) {
     const light = new THREE.PointLight(new THREE.Color(borderColor), 6, 25);
     light.position.y = 10;
     g.add(light);
+
+    // Glow effects
+    _addGlowSprite(g, 0, 2.5, 2.6, borderColor, 4, 0.3);  // hangar door glow
+    _addGlowSprite(g, 0.5, 12.9, 0, borderColor, 2, 0.25); // crane trolley glow
+    _addGlowSprite(g, 0, 0.65, 0, borderColor, 6, 0.15);   // launch pad ring glow
 }
 
 // ── Default building (fallback) ─────────────────────────────────────────────
@@ -649,6 +848,8 @@ function _buildDefault(g, borderColor) {
     const light = new THREE.PointLight(new THREE.Color(borderColor || 0x00f2ff), 4, 18);
     light.position.y = 10;
     g.add(light);
+
+    _addGlowSprite(g, 0, 6, 0, borderColor || 0x00f2ff, 5, 0.25);
 }
 
 // ── Patrol soldiers ─────────────────────────────────────────────────────────
@@ -862,6 +1063,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         const bGroup = new THREE.Group();
         bGroup.position.set(x, y, z);
         bGroup.rotation.y = -angle;
+        bGroup.userData.buildingKey = bKey;
 
         const bc = buildingData.borderColor || '#00f2ff';
         if (bKey === 'power_plant') _buildPowerPlant(bGroup, bc);

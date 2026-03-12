@@ -6,7 +6,7 @@ import { disposeGroup } from '../core/dispose.js';
 import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
 import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
 import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, removePirateVisuals, planetMeshes, planetLabels } from './visuals_system.js';
-import { createPlanetVisuals, updatePlanetPhysics, handleInput } from './visuals_planet.js';
+import { createPlanetVisuals, updatePlanetPhysics, handleInput, handleExplorationTap } from './visuals_planet.js';
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -153,14 +153,15 @@ function onPointerUp(event) {
 }
 
 function handleTap(event) {
-    if (gameState.viewMode === 'EXPLORATION') return;
-    
     // Safety guard: Ensure raycaster, mouse, and camera are ready
     if (!raycaster || !mouse || !camera) return;
 
     // Ignore taps on UI elements — prevents buttons from triggering 3D raycasts
     const target = event.target || event.srcElement;
     if (target && target.closest && target.closest('#ui-layer')) return;
+    // Block taps on exploration UI controls (back-to-drone button, etc.)
+    if (target && target.closest && target.closest('#soldier-control-bar')) return;
+    if (target && target.closest && target.closest('#exploration-header')) return;
     // Block clicks when event modal (or any overlay) is open
     if (target && target.closest && target.closest('#event-modal')) return;
     // Also block if the event modal is visible (backdrop covers screen)
@@ -211,6 +212,8 @@ function handleTap(event) {
                 playSound('select');
             }
         }
+    } else if (gameState.viewMode === 'EXPLORATION') {
+        handleExplorationTap(raycaster, mouse, camera);
     }
 }
 
