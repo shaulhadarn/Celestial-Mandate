@@ -658,6 +658,360 @@
     background: rgba(0, 242, 255, 0.6);
 }
 
+/* ── Tier Lock Overlay ──────────────────────────────────────────────────────── */
+
+.research-tier-locked {
+    position: relative;
+}
+
+.research-tier-lock-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 6, 12, 0.82);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    z-index: 2;
+    border-radius: 4px;
+}
+
+.research-tier-lock-icon {
+    font-size: 2.2em;
+    opacity: 0.5;
+}
+
+.research-tier-lock-text {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+    padding: 0 20px;
+}
+
+.research-tier-lock-progress {
+    color: var(--color-primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.research-tier-section.tier-complete .research-tier-label {
+    border-bottom-color: rgba(255, 170, 0, 0.5);
+    color: #ffaa00;
+}
+
+.research-tier-section.tier-complete .research-tier-label::after {
+    content: ' ✓';
+    color: rgba(255, 170, 0, 0.7);
+}
+
+/* ── Tier Celebration Overlay ──────────────────────────────────────────────── */
+
+#tier-celebration-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: all;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+#tier-celebration-overlay.hidden {
+    display: none;
+}
+
+#tier-celebration-overlay.tier-cel-enter {
+    opacity: 1;
+}
+
+#tier-celebration-overlay.tier-cel-exit {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.tier-cel-backdrop {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.92) 100%);
+}
+
+/* Particles */
+.tier-cel-particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.tier-cel-particle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    background: var(--color);
+    box-shadow: 0 0 6px var(--color);
+    opacity: 0;
+    animation: tierCelParticle var(--dur) ease-out var(--delay) forwards;
+}
+
+@keyframes tierCelParticle {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0);
+    }
+    70% {
+        opacity: 0.8;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist));
+    }
+}
+
+/* Central content */
+.tier-cel-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 40px 50px;
+    max-width: 600px;
+}
+
+/* Badge */
+.tier-cel-badge {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: tierCelBadgeIn 0.6s ease-out 0.2s forwards;
+}
+
+.tier-cel-badge-ring {
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 20px var(--glow), inset 0 0 15px var(--glow);
+    animation: tierCelRingPulse 2s ease-in-out infinite 0.8s;
+}
+
+.tier-cel-badge-number {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--glow);
+    letter-spacing: 3px;
+}
+
+@keyframes tierCelBadgeIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    60% {
+        transform: scale(1.15);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes tierCelRingPulse {
+    0%, 100% {
+        box-shadow: 0 0 20px var(--glow), inset 0 0 15px var(--glow);
+    }
+    50% {
+        box-shadow: 0 0 35px var(--glow), inset 0 0 25px var(--glow);
+    }
+}
+
+/* Title */
+.tier-cel-title {
+    font-size: 28px;
+    font-weight: 900;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 8px;
+    text-shadow: 0 0 20px var(--glow);
+    opacity: 0;
+    animation: tierCelSlideUp 0.5s ease-out 0.4s forwards;
+}
+
+.tier-cel-subtitle {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    opacity: 0;
+    animation: tierCelSlideUp 0.5s ease-out 0.55s forwards;
+}
+
+.tier-cel-flavor {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+    font-style: italic;
+    text-align: center;
+    max-width: 400px;
+    line-height: 1.5;
+    opacity: 0;
+    animation: tierCelFadeIn 0.6s ease-out 0.7s forwards;
+}
+
+@keyframes tierCelSlideUp {
+    0% {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes tierCelFadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+/* Separator */
+.tier-cel-separator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 300px;
+    opacity: 0;
+    animation: tierCelFadeIn 0.5s ease-out 0.8s forwards;
+}
+
+.tier-cel-sep-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
+}
+
+.tier-cel-sep-diamond {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    transform: rotate(45deg);
+    box-shadow: 0 0 8px var(--glow);
+}
+
+/* Tech icons */
+.tier-cel-techs {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+.tier-cel-tech {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    animation: tierCelTechPop 0.4s ease-out calc(0.9s + var(--i) * 0.1s) forwards;
+}
+
+.tier-cel-tech-icon {
+    font-size: 1.8em;
+    filter: drop-shadow(0 0 6px var(--glow));
+}
+
+.tier-cel-tech-name {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes tierCelTechPop {
+    0% {
+        opacity: 0;
+        transform: scale(0.5) translateY(10px);
+    }
+    70% {
+        transform: scale(1.1) translateY(-2px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Unlock message */
+.tier-cel-unlock {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px 20px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 0;
+    animation: tierCelUnlockIn 0.6s ease-out 1.8s forwards;
+}
+
+.tier-cel-unlock-icon {
+    font-size: 1.2em;
+}
+
+@keyframes tierCelUnlockIn {
+    0% {
+        opacity: 0;
+        transform: translateY(8px) scale(0.95);
+    }
+    60% {
+        transform: translateY(-2px) scale(1.02);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Dismiss hint */
+.tier-cel-dismiss {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.25);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 16px;
+    opacity: 0;
+    animation: tierCelFadeIn 0.5s ease-out 2.5s forwards;
+}
+
 @media (max-width: 768px) {
     .research-tier-grid {
         grid-template-columns: 1fr;

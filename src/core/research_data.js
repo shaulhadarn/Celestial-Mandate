@@ -493,7 +493,30 @@ export function getAvailableTechs(archetypeId, completedTechIds) {
         if (tech.archetype.length > 0 && !tech.archetype.includes(archetypeId)) return false;
         // Already completed
         if (completedTechIds.includes(tech.id)) return false;
+        // Tier gate: previous tier must be fully complete
+        if (!isTierUnlocked(tech.tier, archetypeId, completedTechIds)) return false;
         // Prerequisites met
         return tech.requires.every(req => completedTechIds.includes(req));
     });
+}
+
+/** Get all techs in a tier visible to a given archetype */
+export function getTierTechs(tier, archetypeId) {
+    return TECH_TREE.filter(t => {
+        if (t.tier !== tier) return false;
+        if (t.archetype.length > 0 && !t.archetype.includes(archetypeId)) return false;
+        return true;
+    });
+}
+
+/** Check if ALL techs in a tier (for this archetype) are completed */
+export function isTierComplete(tier, archetypeId, completedTechs) {
+    const techs = getTierTechs(tier, archetypeId);
+    return techs.length > 0 && techs.every(t => completedTechs.includes(t.id));
+}
+
+/** Tier 1 always unlocked; tier N unlocked if tier N-1 fully complete */
+export function isTierUnlocked(tier, archetypeId, completedTechs) {
+    if (tier <= 1) return true;
+    return isTierComplete(tier - 1, archetypeId, completedTechs);
 }

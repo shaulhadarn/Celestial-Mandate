@@ -5,7 +5,7 @@ import { gameState } from '../core/state.js';
 import { disposeGroup } from '../core/dispose.js';
 import { createTextSprite } from '../core/text_sprite.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
-import { buildPlayerShips, updatePlayerShipOrbits, clearPlayerShips, getPlayerShipMeshes } from './visuals_system_ships.js';
+import { buildPlayerShips, updatePlayerShipOrbits, clearPlayerShips, getPlayerShipMeshes, createPlayerShipMesh } from './visuals_system_ships.js';
 
 export let planetMeshes = [];
 export let planetLabels = [];
@@ -1485,7 +1485,36 @@ export function buildPirateRaidRoutes(group) {
     }
 }
 
-// ── Pirate battle animation ─────────────────────────────────────────────────
+// ── Laser beam helper ───────────────────────────────────────────────────────
+
+function _createLaserBeam(color, group) {
+    const positions = new Float32Array(6); // 2 points × 3 components
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.LineBasicMaterial({
+        color, transparent: true, opacity: 0.9,
+        blending: THREE.AdditiveBlending, depthWrite: false, linewidth: 2
+    });
+    const line = new THREE.Line(geo, mat);
+    group.add(line);
+    return {
+        line, mat,
+        setEndpoints(from, to) {
+            const pos = line.geometry.attributes.position.array;
+            pos[0] = from.x; pos[1] = from.y; pos[2] = from.z;
+            pos[3] = to.x;   pos[4] = to.y;   pos[5] = to.z;
+            line.geometry.attributes.position.needsUpdate = true;
+        }
+    };
+}
+
+// ── Pirate battle animation — cinematic version ─────────────────────────────
+
+function _getHullScale(power) {
+    if (power <= 2) return 0.12;   // scout
+    if (power <= 5) return 0.18;   // corvette
+    return 0.25;                    // cruiser
+}
 
 export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
     if (!pirateMesh || !homeMesh) { onPhase('resolve'); return; }
@@ -1493,135 +1522,297 @@ export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
     const group = pirateMesh.parent; // system group
     const battleShips = [];
 
-    // Create temporary player ship meshes at homeworld position
+    // ── Create actual player ship meshes at homeworld ───────────────────────
     playerFleets.forEach((fleet, i) => {
-        const { shipGroup, engineGlow, trailAnchor } = _createTradeShipMesh();
-        // Blue tint for player ships
-        shipGroup.children.forEach(c => {
-            if (c.material && c.material.emissive) {
-                c.material.emissive.setHex(0x0044ff);
-                c.material.emissiveIntensity = 0.4;
-            }
-        });
-        const scale = 1.0 + (fleet.power || 1) * 0.2;
+        const accent = fleet.accentColor || '#00f2ff';
+        const { shipGroup, engineGlow, trailAnchor } = createPlayerShipMesh(fleet.shipId, accent);
+        const scale = _getHullScale(fleet.power || 1);
         shipGroup.scale.setScalar(scale);
         shipGroup.position.copy(homeMesh.position);
-        shipGroup.position.y += 1 + i * 0.8;
+        shipGroup.position.y += 1.5 + i * 1.0;
         group.add(shipGroup);
-        battleShips.push({ mesh: shipGroup, engineGlow, trailAnchor, fleet });
+        battleShips.push({ mesh: shipGroup, engineGlow, trailAnchor, fleet, dead: false });
     });
 
-    const startTime = performance.now();
-    const totalDuration = 5000; // 5 seconds total
-    let resolved = false;
+    // ── Get pirate station world position ───────────────────────────────────
+    const _pirateStationWorldPos = new THREE.Vector3();
+    function getPirateStationPos() {
+        if (_pirateStations.length > 0) {
+            _pirateStations[0].station.getWorldPosition(_pirateStationWorldPos);
+            return _pirateStationWorldPos;
+        }
+        return pirateMesh.position;
+    }
 
-    // Flash sprites for combat effects
+    const startTime = performance.now();
+    const TOTAL = 15000; // 15 seconds
+    let resolved = false;
+    let lastBeamTime = 0;
+    let lastPirateBeamTime = 0;
+
+    // Effect arrays
     const flashSprites = [];
+    const beams = [];
+
+    // Pre-compute formation offsets (V-shape)
+    const n = battleShips.length;
+    const formationOffsets = battleShips.map((_, i) => {
+        const row = Math.floor(i / 2);
+        const side = i % 2 === 0 ? -1 : 1;
+        return new THREE.Vector3(side * (1.5 + row * 1.0), 0.5 * row, row * 1.2);
+    });
+
+    // Easing: ease-in-out cubic
+    function easeInOutCubic(x) {
+        return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    }
+
+    // Spawn a flash at a position
+    function spawnFlash(pos, color, size, life) {
+        const flash = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: textures.glow, color,
+            transparent: true, opacity: 0.9,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        }));
+        flash.scale.set(size, size, 1);
+        flash.position.copy(pos);
+        group.add(flash);
+        flashSprites.push({ sprite: flash, life, maxLife: life });
+    }
+
+    // Spawn a laser beam from → to
+    function fireBeam(from, to, color, life) {
+        const beam = _createLaserBeam(color, group);
+        beam.setEndpoints(from, to);
+        beams.push({ beam, life, maxLife: life });
+        // Impact flash at target
+        spawnFlash(to.clone(), color, 1.5 + Math.random() * 1.5, 0.2);
+    }
 
     function animateBattle() {
         const elapsed = performance.now() - startTime;
-        const t = elapsed / totalDuration;
+        const t = elapsed / TOTAL;
+        const dt = 0.016; // ~60fps timestep for effect aging
 
-        const pirateWorldPos = pirateMesh.position.clone();
-        const homeWorldPos = homeMesh.position.clone();
+        const piratePos = getPirateStationPos();
+        const homePos = homeMesh.position;
 
+        // ═══════════════════════════════════════════════════════════════════
+        // Phase 1: Launch & Approach (0–0.4 = 0–6s)
+        // ═══════════════════════════════════════════════════════════════════
         if (t < 0.4) {
-            // Phase 1: Ships fly toward pirate planet
             const moveT = t / 0.4;
-            const eased = moveT < 0.5 ? 4 * moveT * moveT * moveT : 1 - Math.pow(-2 * moveT + 2, 3) / 2;
+            const eased = easeInOutCubic(moveT);
+
             battleShips.forEach((bs, i) => {
-                bs.mesh.position.lerpVectors(homeWorldPos, pirateWorldPos, eased);
-                bs.mesh.position.y += Math.sin(moveT * Math.PI) * (2 + i * 0.5);
-                bs.mesh.position.x += (i - battleShips.length / 2) * 1.5 * (1 - eased);
+                // Interpolate from home → pirate with formation offset that shrinks
+                const formScale = 1.0 - eased * 0.6; // formation tightens as they approach
+                bs.mesh.position.lerpVectors(homePos, piratePos, eased);
+                bs.mesh.position.x += formationOffsets[i].x * formScale;
+                bs.mesh.position.y += formationOffsets[i].y * formScale + Math.sin(moveT * Math.PI) * (2 + i * 0.4);
+                bs.mesh.position.z += formationOffsets[i].z * formScale;
+
                 // Face direction of travel
-                const dir = pirateWorldPos.clone().sub(homeWorldPos).normalize();
-                bs.mesh.lookAt(bs.mesh.position.clone().add(dir));
-            });
-        } else if (t < 0.8) {
-            // Phase 2: Combat flashes
-            const combatT = (t - 0.4) / 0.4;
+                const lookTarget = piratePos.clone();
+                lookTarget.y = bs.mesh.position.y;
+                bs.mesh.lookAt(lookTarget);
 
-            // Keep ships at pirate position with slight scatter
+                // Engine glow brightens during approach
+                if (bs.engineGlow) {
+                    bs.engineGlow.material.opacity = 0.4 + eased * 0.5;
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Phase 2: Combat (0.4–0.8 = 6–12s)
+        // ═══════════════════════════════════════════════════════════════════
+        else if (t < 0.8) {
+            const combatT = (t - 0.4) / 0.4; // 0→1 within combat phase
+
+            // Ships orbit/strafe around pirate station
             battleShips.forEach((bs, i) => {
-                bs.mesh.position.copy(pirateWorldPos);
-                bs.mesh.position.x += Math.sin(elapsed * 0.01 + i * 2) * 2;
-                bs.mesh.position.y += 1 + Math.cos(elapsed * 0.008 + i) * 1.5;
-                bs.mesh.position.z += Math.cos(elapsed * 0.012 + i * 3) * 2;
+                if (bs.dead) { bs.mesh.visible = false; return; }
+                const angle = elapsed * 0.001 * (0.8 + i * 0.15) + i * (Math.PI * 2 / n);
+                const orbitR = 3 + i * 0.8;
+                bs.mesh.position.set(
+                    piratePos.x + Math.cos(angle) * orbitR,
+                    piratePos.y + 1.0 + Math.sin(elapsed * 0.003 + i) * 0.8,
+                    piratePos.z + Math.sin(angle) * orbitR
+                );
+                // Face toward pirate station
+                bs.mesh.lookAt(piratePos);
+
+                // Engine glow pulse
+                if (bs.engineGlow) {
+                    bs.engineGlow.material.opacity = 0.5 + 0.3 * Math.sin(elapsed * 0.005 + i);
+                }
             });
 
-            // Spawn random flash sprites
-            if (Math.random() > 0.5) {
-                const flash = new THREE.Sprite(new THREE.SpriteMaterial({
-                    map: textures.glow,
-                    color: Math.random() > 0.5 ? 0xffaa00 : 0xffffff,
-                    transparent: true, opacity: 0.9,
-                    blending: THREE.AdditiveBlending, depthWrite: false
-                }));
-                const flashScale = 2 + Math.random() * 4;
-                flash.scale.set(flashScale, flashScale, 1);
-                flash.position.copy(pirateWorldPos);
-                flash.position.x += (Math.random() - 0.5) * 4;
-                flash.position.y += (Math.random() - 0.5) * 4 + 1;
-                flash.position.z += (Math.random() - 0.5) * 4;
-                group.add(flash);
-                flashSprites.push({ sprite: flash, life: 0.3 });
+            // Player ships fire cyan beams at pirate station
+            if (elapsed - lastBeamTime > 150) { // every ~150ms
+                lastBeamTime = elapsed;
+                const alive = battleShips.filter(bs => !bs.dead);
+                if (alive.length > 0) {
+                    const shooter = alive[Math.floor(Math.random() * alive.length)];
+                    const target = piratePos.clone();
+                    target.x += (Math.random() - 0.5) * 1.5;
+                    target.y += (Math.random() - 0.5) * 1.0;
+                    target.z += (Math.random() - 0.5) * 1.5;
+                    fireBeam(shooter.mesh.position.clone(), target, 0x00ccff, 0.25);
+                }
             }
 
-            // Resolve combat at midpoint of phase 2
+            // Pirate station fires red beams back
+            if (elapsed - lastPirateBeamTime > 500) { // every ~500ms
+                lastPirateBeamTime = elapsed;
+                const alive = battleShips.filter(bs => !bs.dead);
+                if (alive.length > 0) {
+                    const target = alive[Math.floor(Math.random() * alive.length)];
+                    const from = piratePos.clone();
+                    from.y += 0.5;
+                    fireBeam(from, target.mesh.position.clone(), 0xff3322, 0.3);
+                }
+            }
+
+            // Random explosion flashes in the combat zone
+            if (Math.random() > 0.85) {
+                const pos = piratePos.clone();
+                pos.x += (Math.random() - 0.5) * 6;
+                pos.y += (Math.random() - 0.5) * 4 + 1;
+                pos.z += (Math.random() - 0.5) * 6;
+                spawnFlash(pos, Math.random() > 0.5 ? 0xffaa00 : 0xffffff, 2 + Math.random() * 3, 0.3);
+            }
+
+            // Resolve battle at 60% through combat phase (t ≈ 0.64)
             if (!resolved && combatT > 0.5) {
                 resolved = true;
                 onPhase('resolve');
-            }
-        } else {
-            // Phase 3: Aftermath
-            const afterT = (t - 0.8) / 0.2;
 
-            if (gameState.pirateBase && gameState.pirateBase.defeated) {
-                // Victory: explosion + fade pirate station
-                _pirateStations.forEach(ps => {
-                    ps.station.scale.setScalar(ps.station.scale.x * (1 - afterT * 0.5));
-                    if (ps.dockGlow) ps.dockGlow.material.opacity = (1 - afterT) * 0.8;
-                });
-                // Ships fly back
+                // After resolve: mark dead ships (ships lost in result)
+                const lostIds = new Set();
+                if (gameState.pirateBase && !gameState.pirateBase.defeated) {
+                    // Loss: some ships were removed from gameState.fleets
+                    playerFleets.forEach(f => {
+                        if (!gameState.fleets.find(gf => gf.id === f.id)) {
+                            lostIds.add(f.id);
+                        }
+                    });
+                }
                 battleShips.forEach(bs => {
-                    bs.mesh.position.lerpVectors(pirateWorldPos, homeWorldPos, afterT);
-                    bs.mesh.position.y += Math.sin(afterT * Math.PI) * 2;
-                });
-            } else {
-                // Defeat: ships retreat
-                battleShips.forEach(bs => {
-                    bs.mesh.position.lerpVectors(pirateWorldPos, homeWorldPos, afterT);
-                    bs.mesh.position.y += Math.sin(afterT * Math.PI) * 2;
+                    if (lostIds.has(bs.fleet.id)) {
+                        bs.dead = true;
+                        // Death explosion
+                        spawnFlash(bs.mesh.position.clone(), 0xff6600, 4, 0.5);
+                        spawnFlash(bs.mesh.position.clone(), 0xffffff, 3, 0.3);
+                    }
                 });
             }
         }
 
-        // Update flash sprites
+        // ═══════════════════════════════════════════════════════════════════
+        // Phase 3: Aftermath (0.8–1.0 = 12–15s)
+        // ═══════════════════════════════════════════════════════════════════
+        else {
+            const afterT = (t - 0.8) / 0.2; // 0→1
+
+            if (gameState.pirateBase && gameState.pirateBase.defeated) {
+                // ── Victory: big explosion on station, ships fly home ────────
+                // Expanding explosion at pirate station
+                if (afterT < 0.3) {
+                    const explodeT = afterT / 0.3;
+                    if (Math.random() > 0.4) {
+                        const pos = piratePos.clone();
+                        pos.x += (Math.random() - 0.5) * 3 * explodeT;
+                        pos.y += (Math.random() - 0.5) * 3 * explodeT;
+                        pos.z += (Math.random() - 0.5) * 3 * explodeT;
+                        const colors = [0xff6600, 0xffaa00, 0xffffff, 0xff2200];
+                        spawnFlash(pos, colors[Math.floor(Math.random() * colors.length)], 3 + Math.random() * 5, 0.4);
+                    }
+                }
+
+                // Fade pirate station
+                _pirateStations.forEach(ps => {
+                    const fadeT = Math.min(1, afterT * 2); // fade in first half
+                    const s = ps.station.scale.x;
+                    if (s > 0.01) ps.station.scale.setScalar(s * (1 - fadeT * 0.03));
+                    if (ps.dockGlow) ps.dockGlow.material.opacity = Math.max(0, (1 - fadeT) * 0.8);
+                });
+
+                // Surviving ships fly back
+                const alive = battleShips.filter(bs => !bs.dead);
+                alive.forEach((bs, i) => {
+                    bs.mesh.position.lerpVectors(piratePos, homePos, afterT);
+                    bs.mesh.position.y += Math.sin(afterT * Math.PI) * (2 + i * 0.3);
+                    const lookTarget = homePos.clone();
+                    lookTarget.y = bs.mesh.position.y;
+                    bs.mesh.lookAt(lookTarget);
+                });
+            } else {
+                // ── Defeat: ships retreat ────────────────────────────────────
+                const alive = battleShips.filter(bs => !bs.dead);
+                alive.forEach((bs, i) => {
+                    bs.mesh.position.lerpVectors(piratePos, homePos, afterT);
+                    bs.mesh.position.y += Math.sin(afterT * Math.PI) * (2 + i * 0.3);
+                    const lookTarget = homePos.clone();
+                    lookTarget.y = bs.mesh.position.y;
+                    bs.mesh.lookAt(lookTarget);
+                });
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // Update effects (beams + flashes)
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Age and remove beams
+        for (let i = beams.length - 1; i >= 0; i--) {
+            const b = beams[i];
+            b.life -= dt;
+            if (b.life <= 0) {
+                group.remove(b.beam.line);
+                b.beam.mat.dispose();
+                b.beam.line.geometry.dispose();
+                beams.splice(i, 1);
+            } else {
+                b.beam.mat.opacity = (b.life / b.maxLife) * 0.9;
+            }
+        }
+
+        // Age and remove flashes
         for (let i = flashSprites.length - 1; i >= 0; i--) {
             const fs = flashSprites[i];
-            fs.life -= 0.016;
+            fs.life -= dt;
             if (fs.life <= 0) {
                 group.remove(fs.sprite);
                 fs.sprite.material.dispose();
                 flashSprites.splice(i, 1);
             } else {
-                fs.sprite.material.opacity = fs.life / 0.3;
+                fs.sprite.material.opacity = (fs.life / fs.maxLife) * 0.9;
+                // Expand slightly as they fade
+                const grow = 1 + (1 - fs.life / fs.maxLife) * 0.3;
+                fs.sprite.scale.multiplyScalar(1 + 0.01 * grow);
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // Continue or cleanup
+        // ═══════════════════════════════════════════════════════════════════
         if (t < 1.0) {
             requestAnimationFrame(animateBattle);
         } else {
-            // Cleanup
-            battleShips.forEach(bs => {
-                group.remove(bs.mesh);
+            // Cleanup all battle meshes
+            battleShips.forEach(bs => group.remove(bs.mesh));
+            beams.forEach(b => {
+                group.remove(b.beam.line);
+                b.beam.mat.dispose();
+                b.beam.line.geometry.dispose();
             });
             flashSprites.forEach(fs => {
                 group.remove(fs.sprite);
                 fs.sprite.material.dispose();
             });
 
-            // If victory, remove pirate visuals entirely
             if (gameState.pirateBase && gameState.pirateBase.defeated) {
                 removePirateVisuals();
             }

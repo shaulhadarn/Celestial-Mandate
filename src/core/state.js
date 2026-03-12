@@ -1,6 +1,6 @@
 /* Updated: Enriched RACE_SHIPS with story, shipClass, length, crew, weapons, special, accentColor for all 24 ships across 8 races */
 import { ARCHETYPES } from './civilization_data.js';
-import { TECH_TREE, RESEARCH_BUILDINGS, getTechById, getAvailableTechs } from './research_data.js';
+import { TECH_TREE, RESEARCH_BUILDINGS, getTechById, getAvailableTechs, getTierTechs, isTierComplete, isTierUnlocked } from './research_data.js';
 import { RANDOM_EVENTS, EVENT_CHAINS } from './events_data.js';
 
 // Index maps for O(1) lookups — rebuilt after galaxy generation or game load
@@ -628,6 +628,16 @@ function tickResearch() {
 
         events.dispatchEvent(new CustomEvent('research-complete', { detail: { techId } }));
         events.dispatchEvent(new CustomEvent('resources-updated'));
+
+        // Check if the completed tech's tier is now fully done
+        if (tech) {
+            const archetypeId = gameState.playerCivilization?.archetype || 'standard';
+            if (isTierComplete(tech.tier, archetypeId, r.completedTechs)) {
+                events.dispatchEvent(new CustomEvent('tier-complete', {
+                    detail: { tier: tech.tier, nextTier: tech.tier < 4 ? tech.tier + 1 : null }
+                }));
+            }
+        }
     }
 }
 
@@ -660,6 +670,10 @@ export function startResearch(techId) {
     const tech = getTechById(techId);
     if (!tech) return false;
 
+    // Tier gate: previous tier must be fully complete
+    const archetypeId = gameState.playerCivilization?.archetype || 'standard';
+    if (!isTierUnlocked(tech.tier, archetypeId, r.completedTechs)) return false;
+
     r.currentResearch = { techId, progress: 0, total: tech.cost };
     r.researchPoints = 0;
     events.dispatchEvent(new CustomEvent('research-started', { detail: { techId } }));
@@ -672,7 +686,7 @@ export function cancelResearch() {
     events.dispatchEvent(new CustomEvent('resources-updated'));
 }
 
-export { TECH_TREE, RESEARCH_BUILDINGS, getAvailableTechs, getTechById };
+export { TECH_TREE, RESEARCH_BUILDINGS, getAvailableTechs, getTechById, getTierTechs, isTierComplete, isTierUnlocked };
 
 export function selectSystem(systemId) {
     gameState.selectedSystemId = systemId;
