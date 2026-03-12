@@ -125,13 +125,28 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 5. Drone Visual Effects ---
     const time = Date.now() * 0.002;
     if (playerMesh.userData.flare) {
-        const flicker = 0.8 + Math.random() * 0.4;
+        const flicker = 0.85 + Math.random() * 0.3;
         const moving = cachedSpeed > 0.1;
-        const fSize = (moving ? 4 : 2.5) * flicker;
-        _flareTarget.set(fSize, fSize, 1);
+        // Core flare: compact, bright
+        const coreSize = (moving ? 2.4 : 1.6) * flicker;
+        _flareTarget.set(coreSize, coreSize, 1);
         playerMesh.userData.flare.scale.lerp(_flareTarget, 0.1);
-        playerMesh.userData.flare.material.opacity = 0.4 + (moving ? 0.4 : 0.1);
+        playerMesh.userData.flare.material.opacity = 0.6 + (moving ? 0.3 : 0.0);
+        // Halo flare: wide, soft — uses glowSoft texture (no square edge)
+        const halo = playerMesh.userData.haloFlare;
+        if (halo) {
+            const haloSize = (moving ? 5.5 : 3.5) * (0.9 + Math.random() * 0.2);
+            halo.scale.set(haloSize, haloSize, 1);
+            halo.material.opacity = moving ? 0.3 : 0.15;
+        }
     }
+
+    // Antenna blink (red tip)
+    playerMesh.children.forEach(child => {
+        if (child.userData.antennaBlink) {
+            child.material.opacity = Math.sin(time * 1.5) > 0.7 ? 1 : 0.1;
+        }
+    });
 
     // --- 5b. Engine Trails ---
     const trails = playerMesh.userData.engineTrails;
