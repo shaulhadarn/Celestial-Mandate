@@ -22,13 +22,13 @@ export const systemShipState = {
     mouseDeltaY: 0,
     lastMouseX: 0,
     lastMouseY: 0,
-    cameraDistance: 12,
-    targetCameraDistance: 12,
-    cameraPitch: 0.25,
-    // Physics
+    cameraDistance: 4,
+    targetCameraDistance: 4,
+    cameraPitch: 0.3,
+    // Physics — tuned for small ships in a vast system
     velocity: new THREE.Vector3(),
-    maxSpeed: 40,
-    acceleration: 60,
+    maxSpeed: 25,
+    acceleration: 35,
     drag: 0.94,
     // Banking visual
     bankAngle: 0,
@@ -52,9 +52,9 @@ export function enterShipControl(shipEntry, controls) {
     // Reset flight state
     systemShipState.velocity.set(0, 0, 0);
     systemShipState.bankAngle = 0;
-    systemShipState.cameraDistance = 12;
-    systemShipState.targetCameraDistance = 12;
-    systemShipState.cameraPitch = 0.25;
+    systemShipState.cameraDistance = 4;
+    systemShipState.targetCameraDistance = 4;
+    systemShipState.cameraPitch = 0.3;
     systemShipState.keyState = {};
     systemShipState.mouseDeltaX = 0;
     systemShipState.mouseDeltaY = 0;
@@ -104,8 +104,8 @@ export function exitShipControl(controls, camera) {
                 controls.target.copy(wasControlling.mesh.position);
                 camera.position.set(
                     wasControlling.mesh.position.x,
-                    wasControlling.mesh.position.y + 30,
-                    wasControlling.mesh.position.z + 35
+                    wasControlling.mesh.position.y + 15,
+                    wasControlling.mesh.position.z + 20
                 );
             } else {
                 controls.target.set(0, 0, 0);
@@ -163,8 +163,8 @@ export function handleShipMouseUp() {
 
 export function handleShipWheel(e) {
     if (!isShipControlActive()) return;
-    systemShipState.targetCameraDistance += e.deltaY * 0.01;
-    systemShipState.targetCameraDistance = Math.max(4, Math.min(40, systemShipState.targetCameraDistance));
+    systemShipState.targetCameraDistance += e.deltaY * 0.005;
+    systemShipState.targetCameraDistance = Math.max(1.5, Math.min(20, systemShipState.targetCameraDistance));
 }
 
 // ── Per-frame flight physics + camera ───────────────────────────────────────
@@ -230,9 +230,7 @@ export function updateShipFlight(dt, camera) {
     // Engine glow intensity based on speed
     if (entry.engineGlow) {
         const speedFrac = speed / systemShipState.maxSpeed;
-        entry.engineGlow.material.opacity = 0.3 + speedFrac * 0.6;
-        const gs = 0.6 + speedFrac * 1.2;
-        entry.engineGlow.scale.set(gs, gs * 0.8, 1);
+        entry.engineGlow.material.opacity = 0.35 + speedFrac * 0.55;
     }
 
     // ── Camera: third-person chase ──
@@ -252,6 +250,6 @@ export function updateShipFlight(dt, camera) {
     camera.position.lerp(_camPos, 6 * dt);
 
     // Look slightly ahead of ship
-    _camTarget.copy(mesh.position).addScaledVector(_forward, 2);
+    _camTarget.copy(mesh.position).addScaledVector(_forward, 0.8);
     camera.lookAt(_camTarget);
 }
