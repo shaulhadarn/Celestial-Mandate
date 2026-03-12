@@ -877,12 +877,19 @@ function _buildSoldierMesh() {
     const rifleMat = new THREE.MeshStandardMaterial({
         color: 0x2a2a2a, roughness: 0.25, metalness: 0.95
     });
+    const rifleAccentMat = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a, roughness: 0.3, metalness: 0.9
+    });
 
-    // ── Torso (chest plate + belly) ──
+    // ── Torso (chest plate + belly) — static on root ──
     const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.55, 0.38), armorMat);
     chestPlate.position.y = 1.35;
     chestPlate.castShadow = true;
     g.add(chestPlate);
+
+    const chestLine = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.39), armorTrimMat);
+    chestLine.position.y = 1.35;
+    g.add(chestLine);
 
     const belly = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.3, 0.32), underMat);
     belly.position.y = 0.95;
@@ -901,120 +908,6 @@ function _buildSoldierMesh() {
     collar.position.y = 1.65;
     g.add(collar);
 
-    // ── Head (helmet + visor) ──
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), armorMat);
-    helmet.position.y = 1.88;
-    helmet.castShadow = true;
-    helmet.userData.isHead = true;
-    g.add(helmet);
-
-    const visor = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
-        visorMat
-    );
-    visor.position.set(0, 1.84, 0.1);
-    visor.rotation.x = -0.3;
-    g.add(visor);
-
-    // Small antenna on helmet
-    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.25, 3), rifleMat);
-    antenna.position.set(-0.15, 2.08, -0.05);
-    antenna.rotation.z = 0.2;
-    g.add(antenna);
-
-    // ── Legs (upper + boot) ──
-    const upperLegGeo = new THREE.BoxGeometry(0.2, 0.4, 0.2);
-    const bootGeo = new THREE.BoxGeometry(0.22, 0.38, 0.25);
-
-    [-1, 1].forEach(side => {
-        // Upper leg
-        const uLeg = new THREE.Mesh(upperLegGeo, underMat);
-        uLeg.position.set(side * 0.16, 0.6, 0);
-        uLeg.userData.isLeg = true;
-        uLeg.userData.side = side;
-        g.add(uLeg);
-
-        // Boot
-        const boot = new THREE.Mesh(bootGeo, bootMat);
-        boot.position.set(side * 0.16, 0.25, 0.02);
-        boot.userData.isLeg = true;
-        boot.userData.side = side;
-        g.add(boot);
-    });
-
-    // Knee pads
-    [-1, 1].forEach(side => {
-        const kneePad = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.08), armorTrimMat);
-        kneePad.position.set(side * 0.16, 0.48, 0.14);
-        kneePad.userData.isLeg = true;
-        kneePad.userData.side = side;
-        g.add(kneePad);
-    });
-
-    // ── Arms (upper + forearm) ──
-    [-1, 1].forEach(side => {
-        const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.35, 0.14), underMat);
-        upperArm.position.set(side * 0.44, 1.3, 0);
-        upperArm.userData.isArm = true;
-        upperArm.userData.side = side;
-        g.add(upperArm);
-
-        const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.3, 0.13), armorMat);
-        forearm.position.set(side * 0.44, 1.0, 0.04);
-        forearm.userData.isArm = true;
-        forearm.userData.side = side;
-        g.add(forearm);
-
-        // Glove
-        const glove = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.12), bootMat);
-        glove.position.set(side * 0.44, 0.87, 0.06);
-        glove.userData.isArm = true;
-        glove.userData.side = side;
-        g.add(glove);
-    });
-
-    // ── Weapon (detailed rifle on right side) ──
-    // Barrel
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.65, 6), rifleMat);
-    barrel.position.set(0.44, 0.95, 0.38);
-    barrel.rotation.x = Math.PI / 2;
-    barrel.userData.isArm = true;
-    barrel.userData.side = 1;
-    g.add(barrel);
-
-    // Stock
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.25), rifleMat);
-    stock.position.set(0.44, 0.95, -0.05);
-    barrel.userData.isArm = true;
-    g.add(stock);
-
-    // Scope
-    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.15, 4), armorTrimMat);
-    scope.position.set(0.44, 1.02, 0.25);
-    scope.rotation.x = Math.PI / 2;
-    scope.userData.isArm = true;
-    scope.userData.side = 1;
-    g.add(scope);
-
-    // Muzzle flash point (tiny emissive dot at barrel tip)
-    const muzzle = new THREE.Mesh(
-        new THREE.SphereGeometry(0.025, 4, 4),
-        new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
-    );
-    muzzle.position.set(0.44, 0.95, 0.72);
-    muzzle.userData.muzzle = true;
-    g.add(muzzle);
-
-    // ── Backpack (equipment pack + canister) ──
-    const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.48, 0.2), armorMat);
-    backpack.position.set(0, 1.28, -0.28);
-    backpack.castShadow = true;
-    g.add(backpack);
-
-    const canister = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 6), armorTrimMat);
-    canister.position.set(0.12, 1.15, -0.38);
-    g.add(canister);
-
     // Belt / waist strap
     const belt = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.08, 0.36), bootMat);
     belt.position.y = 0.82;
@@ -1024,6 +917,254 @@ function _buildSoldierMesh() {
     const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.08), armorTrimMat);
     pouch.position.set(-0.28, 0.82, 0.18);
     g.add(pouch);
+
+    // ── Backpack ──
+    const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.48, 0.2), armorMat);
+    backpack.position.set(0, 1.28, -0.28);
+    backpack.castShadow = true;
+    g.add(backpack);
+
+    const canister = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 6), armorTrimMat);
+    canister.position.set(0.12, 1.15, -0.38);
+    g.add(canister);
+
+    // ── Head pivot (neck level) ──
+    const headGroup = new THREE.Group();
+    headGroup.position.y = 1.72;
+    headGroup.userData.isHead = true;
+    g.add(headGroup);
+
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), armorMat);
+    helmet.position.y = 0.16;
+    helmet.castShadow = true;
+    headGroup.add(helmet);
+
+    const helmetRidge = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.04, 0.16), armorTrimMat);
+    helmetRidge.position.set(0, 0.24, -0.06);
+    headGroup.add(helmetRidge);
+
+    const visor = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
+        visorMat
+    );
+    visor.position.set(0, 0.12, 0.1);
+    visor.rotation.x = -0.3;
+    headGroup.add(visor);
+
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.25, 3), rifleMat);
+    antenna.position.set(-0.15, 0.36, -0.05);
+    antenna.rotation.z = 0.2;
+    headGroup.add(antenna);
+
+    // ── Legs with hip + knee pivots ──
+    const joints = { head: headGroup };
+
+    [-1, 1].forEach(side => {
+        const sName = side === -1 ? 'left' : 'right';
+
+        // Hip pivot at belt level
+        const hipGroup = new THREE.Group();
+        hipGroup.position.set(side * 0.16, 0.82, 0);
+        hipGroup.userData.isLeg = true;
+        hipGroup.userData.side = side;
+        g.add(hipGroup);
+
+        // Upper thigh
+        const thigh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.38, 0.2), underMat);
+        thigh.position.y = -0.19;
+        hipGroup.add(thigh);
+
+        // Thigh armor plate (front)
+        const thighPlate = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.05), armorTrimMat);
+        thighPlate.position.set(0, -0.12, 0.12);
+        hipGroup.add(thighPlate);
+
+        // Knee pad
+        const kneePad = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.1), armorTrimMat);
+        kneePad.position.set(0, -0.36, 0.12);
+        hipGroup.add(kneePad);
+
+        // Knee pivot (inside hip group)
+        const kneeGroup = new THREE.Group();
+        kneeGroup.position.y = -0.40;
+        hipGroup.add(kneeGroup);
+
+        // Shin
+        const shin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.18), underMat);
+        shin.position.y = -0.12;
+        kneeGroup.add(shin);
+
+        // Shin guard (front armor)
+        const shinGuard = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.05), armorMat);
+        shinGuard.position.set(0, -0.10, 0.11);
+        kneeGroup.add(shinGuard);
+
+        // Boot ankle collar
+        const ankleCollar = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.24), armorTrimMat);
+        ankleCollar.position.y = -0.26;
+        kneeGroup.add(ankleCollar);
+
+        // Boot body
+        const bootBody = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.28), bootMat);
+        bootBody.position.set(0, -0.33, 0.02);
+        kneeGroup.add(bootBody);
+
+        // Boot sole (wider, extends forward)
+        const bootSole = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.04, 0.32), bootMat);
+        bootSole.position.set(0, -0.40, 0.04);
+        kneeGroup.add(bootSole);
+
+        // Boot toe cap
+        const toeCap = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 0.06), armorTrimMat);
+        toeCap.position.set(0, -0.36, 0.17);
+        kneeGroup.add(toeCap);
+
+        // Boot heel
+        const bootHeel = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.06), bootMat);
+        bootHeel.position.set(0, -0.38, -0.11);
+        kneeGroup.add(bootHeel);
+
+        joints[sName + 'Leg'] = hipGroup;
+        joints[sName + 'Knee'] = kneeGroup;
+    });
+
+    // ── Arms with shoulder + elbow pivots ──
+    [-1, 1].forEach(side => {
+        const sName = side === -1 ? 'left' : 'right';
+
+        // Shoulder pivot
+        const shoulderGroup = new THREE.Group();
+        shoulderGroup.position.set(side * 0.38, 1.5, 0);
+        shoulderGroup.userData.isArm = true;
+        shoulderGroup.userData.side = side;
+        g.add(shoulderGroup);
+
+        // Upper arm
+        const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.32, 0.14), underMat);
+        upperArm.position.y = -0.16;
+        shoulderGroup.add(upperArm);
+
+        // Upper arm armor band
+        const armBand = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.16), armorTrimMat);
+        armBand.position.y = -0.04;
+        shoulderGroup.add(armBand);
+
+        // Elbow pivot (inside shoulder group)
+        const elbowGroup = new THREE.Group();
+        elbowGroup.position.y = -0.32;
+        shoulderGroup.add(elbowGroup);
+
+        // Forearm
+        const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.28, 0.13), armorMat);
+        forearm.position.set(0, -0.14, 0.02);
+        elbowGroup.add(forearm);
+
+        // Wrist guard
+        const wristGuard = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 0.15), armorTrimMat);
+        wristGuard.position.set(0, -0.26, 0.02);
+        elbowGroup.add(wristGuard);
+
+        // Glove
+        const glove = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.12), bootMat);
+        glove.position.set(0, -0.33, 0.04);
+        elbowGroup.add(glove);
+
+        joints[sName + 'Arm'] = shoulderGroup;
+        joints[sName + 'Elbow'] = elbowGroup;
+    });
+
+    // ── Detailed rifle (attached to right elbow group) ──
+    const rifleGroup = new THREE.Group();
+    rifleGroup.position.set(0.02, -0.28, 0.18);
+    rifleGroup.rotation.x = -0.1;
+    joints.rightElbow.add(rifleGroup);
+
+    // Receiver body
+    const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.32), rifleMat);
+    rifleGroup.add(receiver);
+
+    // Barrel
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.4, 6), rifleMat);
+    barrel.position.set(0, 0.01, 0.35);
+    barrel.rotation.x = Math.PI / 2;
+    rifleGroup.add(barrel);
+
+    // Barrel shroud
+    const barrelShroud = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 6), rifleAccentMat);
+    barrelShroud.position.set(0, 0.01, 0.22);
+    barrelShroud.rotation.x = Math.PI / 2;
+    rifleGroup.add(barrelShroud);
+
+    // Muzzle brake
+    const muzzleBrake = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.025, 0.08, 6), rifleAccentMat);
+    muzzleBrake.position.set(0, 0.01, 0.56);
+    muzzleBrake.rotation.x = Math.PI / 2;
+    rifleGroup.add(muzzleBrake);
+
+    // Magazine
+    const magazine = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.06), rifleAccentMat);
+    magazine.position.set(0, -0.10, 0.02);
+    magazine.rotation.x = -0.15;
+    rifleGroup.add(magazine);
+
+    // Pistol grip
+    const pistolGrip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.05), bootMat);
+    pistolGrip.position.set(0, -0.08, -0.08);
+    pistolGrip.rotation.x = -0.3;
+    rifleGroup.add(pistolGrip);
+
+    // Trigger guard
+    const triggerGuard = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.1), rifleMat);
+    triggerGuard.position.set(0, -0.06, -0.01);
+    rifleGroup.add(triggerGuard);
+
+    // Foregrip
+    const foregrip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.06), bootMat);
+    foregrip.position.set(0, -0.06, 0.15);
+    rifleGroup.add(foregrip);
+
+    // Scope
+    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 4), armorTrimMat);
+    scope.position.set(0, 0.07, 0.08);
+    scope.rotation.x = Math.PI / 2;
+    rifleGroup.add(scope);
+
+    // Scope mount
+    const scopeMount = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.06), rifleMat);
+    scopeMount.position.set(0, 0.05, 0.08);
+    rifleGroup.add(scopeMount);
+
+    // Stock
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.18), rifleMat);
+    stock.position.set(0, 0, -0.24);
+    rifleGroup.add(stock);
+
+    // Stock butt pad
+    const stockPad = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.03), bootMat);
+    stockPad.position.set(0, 0, -0.34);
+    rifleGroup.add(stockPad);
+
+    // Tactical light (small glow on barrel)
+    const tacLight = new THREE.Mesh(
+        new THREE.SphereGeometry(0.015, 4, 4),
+        new THREE.MeshBasicMaterial({ color: 0x00ff44, transparent: true, opacity: 0.8 })
+    );
+    tacLight.position.set(0.04, 0.01, 0.15);
+    rifleGroup.add(tacLight);
+
+    // Muzzle flash point (at barrel tip)
+    const muzzle = new THREE.Mesh(
+        new THREE.SphereGeometry(0.025, 4, 4),
+        new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
+    );
+    muzzle.position.set(0, 0.01, 0.6);
+    rifleGroup.add(muzzle);
+
+    joints.rifle = rifleGroup;
+    joints.muzzle = muzzle;
+
+    // Store all joint references for animation
+    g.userData.joints = joints;
 
     g.scale.setScalar(1.2);
     return g;
@@ -1329,7 +1470,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
             trailMarks.push({ mesh: mark, age: 999 });
         }
 
-        soldier.userData = {
+        Object.assign(soldier.userData, {
             isSoldier: true,
             centerX, centerZ,
             patrolRadius: 4 + Math.random() * 4,
@@ -1342,7 +1483,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
             trailMarks,
             trailIndex: 0,
             trailDist: 0,
-        };
+        });
         group.add(soldier);
         soldierMeshes.push(soldier);
     }

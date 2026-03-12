@@ -80,6 +80,7 @@ function _switchToSoldier(soldier) {
 
     const bar = document.getElementById('soldier-control-bar');
     if (bar) bar.classList.remove('hidden');
+    _updateUnitPanelHighlight();
 }
 
 function _switchToDrone() {
@@ -94,6 +95,50 @@ function _switchToDrone() {
 
     const bar = document.getElementById('soldier-control-bar');
     if (bar) bar.classList.add('hidden');
+    _updateUnitPanelHighlight();
+}
+
+// ── Unit selection panel (right side quick-select) ──────────────────────────
+
+function _updateUnitPanelHighlight() {
+    const list = document.getElementById('unit-panel-list');
+    if (!list) return;
+    list.querySelectorAll('.unit-btn').forEach(btn => {
+        const idx = parseInt(btn.dataset.soldierIdx, 10);
+        const isDrone = btn.dataset.unitType === 'drone';
+        const isActive = isDrone
+            ? !planetState.controlTarget
+            : (planetState.controlTarget === soldierMeshes[idx]);
+        btn.classList.toggle('unit-active', isActive);
+    });
+}
+
+function _buildUnitPanel() {
+    const panel = document.getElementById('unit-panel');
+    const list = document.getElementById('unit-panel-list');
+    if (!panel || !list) return;
+    list.innerHTML = '';
+
+    // Drone button (always first)
+    const droneBtn = document.createElement('button');
+    droneBtn.className = 'unit-btn unit-active';
+    droneBtn.dataset.unitType = 'drone';
+    droneBtn.innerHTML = '<span class="unit-icon">🤖</span><span class="unit-label">Drone</span>';
+    droneBtn.onclick = () => _switchToDrone();
+    list.appendChild(droneBtn);
+
+    // Soldier buttons
+    soldierMeshes.forEach((s, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'unit-btn';
+        btn.dataset.soldierIdx = i;
+        btn.dataset.unitType = 'soldier';
+        btn.innerHTML = `<span class="unit-icon">🪖</span><span class="unit-label">S-${i + 1}</span>`;
+        btn.onclick = () => _switchToSoldier(soldierMeshes[i]);
+        list.appendChild(btn);
+    });
+
+    panel.classList.toggle('hidden', soldierMeshes.length === 0);
 }
 
 // ── Exploration tap handler (called from renderer.js) ───────────────────────
@@ -304,6 +349,7 @@ export function createPlanetVisuals(planetData, group) {
     planetState.colonyBuildingsGroup.visible = !!gameState.colonies[planetData.id];
     group.add(planetState.colonyBuildingsGroup);
     updateColonyBuildings();
+    _buildUnitPanel();
 
     // 7. Creatures (with blob shadows)
     const alienList = createCreatures(planetData.type, group, getTerrainHeight);
@@ -371,11 +417,15 @@ export function createPlanetVisuals(planetData, group) {
 // ── Colony event listeners ──────────────────────────────────────────────────
 
 events.addEventListener('building-complete', (e) => {
-    if (gameState.viewMode === 'EXPLORATION' && planetState.currentPlanetData && e.detail.planetId === planetState.currentPlanetData.id)
+    if (gameState.viewMode === 'EXPLORATION' && planetState.currentPlanetData && e.detail.planetId === planetState.currentPlanetData.id) {
         updateColonyBuildings();
+        _buildUnitPanel();
+    }
 });
 
 events.addEventListener('harvester-complete', (e) => {
-    if (gameState.viewMode === 'EXPLORATION' && planetState.currentPlanetData && e.detail.planetId === planetState.currentPlanetData.id)
+    if (gameState.viewMode === 'EXPLORATION' && planetState.currentPlanetData && e.detail.planetId === planetState.currentPlanetData.id) {
         updateColonyBuildings();
+        _buildUnitPanel();
+    }
 });

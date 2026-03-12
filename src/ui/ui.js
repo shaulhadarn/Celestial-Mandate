@@ -240,6 +240,8 @@ export function initUI() {
             document.getElementById('exploration-controls').classList.add('hidden');
             const exH = document.getElementById('exploration-header');
             if (exH) exH.classList.add('hidden');
+            const uP = document.getElementById('unit-panel');
+            if (uP) uP.classList.add('hidden');
         }
     });
 
@@ -485,9 +487,13 @@ async function returnToSystemViewFromPlanet() {
     const mdb = document.getElementById('mobile-date-badge');
     if (mdb) mdb.style.display = '';
 
-    // Hide exploration header
+    // Hide exploration header + unit panel
     const exHeader = document.getElementById('exploration-header');
     if (exHeader) exHeader.classList.add('hidden');
+    const unitPanel = document.getElementById('unit-panel');
+    if (unitPanel) unitPanel.classList.add('hidden');
+    const soldierBar = document.getElementById('soldier-control-bar');
+    if (soldierBar) soldierBar.classList.add('hidden');
 
     restoreControlsAfterPlanet();
     updateSelectionPanel();

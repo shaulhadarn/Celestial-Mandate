@@ -113,46 +113,58 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             controlTarget.rotation.y += diff * 12 * dt;
         }
 
-        // --- Walk cycle animation for controlled soldier ---
+        // --- Walk cycle animation for controlled soldier (joint-based) ---
         const ud = controlTarget.userData;
+        const j = ud.joints;
         if (soldierSpd > 0.1) {
             ud.walkPhase = (ud.walkPhase || 0) + soldierSpd * dt * 6;
-            const walkSin = Math.sin(ud.walkPhase);
-            const walkCos = Math.cos(ud.walkPhase);
+            const wp = ud.walkPhase;
+            const walkSin = Math.sin(wp);
+            const walkCos = Math.cos(wp);
+
             // Vertical bob
             controlTarget.position.y += Math.abs(walkSin) * 0.06;
             // Slight body lean
             controlTarget.rotation.z = walkCos * 0.03;
 
-            controlTarget.children.forEach(child => {
-                if (child.userData.isLeg) {
-                    // Strong leg swing
-                    child.rotation.x = walkSin * 0.7 * child.userData.side;
-                }
-                if (child.userData.isArm) {
-                    // Arms counter-swing, weapon arm less
-                    const amp = child.userData.side === 1 ? 0.3 : 0.5;
-                    child.rotation.x = Math.sin(ud.walkPhase + Math.PI) * amp * child.userData.side;
-                    child.rotation.z = 0;
-                }
-                if (child.userData.isHead) {
-                    // Subtle head bob with walk
-                    child.rotation.x = Math.sin(ud.walkPhase * 2) * 0.03;
-                }
-            });
+            if (j) {
+                // Hip swing (right leg forward when sin>0)
+                j.rightLeg.rotation.x = walkSin * 0.6;
+                j.leftLeg.rotation.x = -walkSin * 0.6;
+
+                // Knee bend: bends when leg swings backward (lifting foot)
+                j.rightKnee.rotation.x = Math.max(0, -walkSin) * 0.8;
+                j.leftKnee.rotation.x = Math.max(0, walkSin) * 0.8;
+
+                // Arms counter-swing (opposite to legs)
+                j.rightArm.rotation.x = -walkSin * 0.25;
+                j.leftArm.rotation.x = walkSin * 0.45;
+
+                // Elbow bend: slight bend when arm swings back
+                j.rightElbow.rotation.x = Math.max(0, walkSin) * 0.3 - 0.15;
+                j.leftElbow.rotation.x = Math.max(0, -walkSin) * 0.3 - 0.15;
+
+                // Head bob
+                j.head.rotation.x = Math.sin(wp * 2) * 0.03;
+            }
         } else {
-            // Idle — breathing + relax limbs
+            // Idle — breathing + relax joints
             const idleT = performance.now() * 0.001;
             controlTarget.rotation.z *= 0.9;
-            controlTarget.children.forEach(child => {
-                if (child.userData.isLeg) {
-                    child.rotation.x *= 0.85; // smoothly return to rest
-                }
-                if (child.userData.isArm) {
-                    child.rotation.x *= 0.85;
-                    child.rotation.z = Math.sin(idleT * 1.5 + (child.userData.side || 0)) * 0.02;
-                }
-            });
+
+            if (j) {
+                j.rightLeg.rotation.x *= 0.85;
+                j.leftLeg.rotation.x *= 0.85;
+                j.rightKnee.rotation.x *= 0.85;
+                j.leftKnee.rotation.x *= 0.85;
+                j.rightArm.rotation.x *= 0.85;
+                j.leftArm.rotation.x *= 0.85;
+                j.rightElbow.rotation.x = j.rightElbow.rotation.x * 0.85 - 0.05;
+                j.leftElbow.rotation.x = j.leftElbow.rotation.x * 0.85 - 0.05;
+                // Subtle arm sway
+                j.rightArm.rotation.z = Math.sin(idleT * 1.5 + 1) * 0.02;
+                j.leftArm.rotation.z = Math.sin(idleT * 1.5 - 1) * 0.02;
+            }
         }
     }
 
@@ -478,34 +490,38 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
         // ── Idle breathing + head scan (always active) ──
         const idlePhase = now + (ud.centerX || 0); // unique per soldier
-        s.children.forEach(child => {
-            if (child.userData.isHead) {
-                // Slow head scan left-right while idle, subtler while walking
-                const scanAmp = ud.waitTimer > 0 ? 0.35 : 0.1;
-                child.rotation.y = Math.sin(idlePhase * 0.7) * scanAmp;
-            }
-            if (child.userData.muzzle) {
-                // Occasional flicker when idle
-                child.material.opacity = ud.waitTimer > 0
-                    ? (Math.sin(idlePhase * 8) > 0.95 ? 0.6 : 0)
-                    : 0;
-            }
-        });
+        const pj = ud.joints; // joint references
+        if (pj && pj.head) {
+            const scanAmp = ud.waitTimer > 0 ? 0.35 : 0.1;
+            pj.head.rotation.y = Math.sin(idlePhase * 0.7) * scanAmp;
+        }
+        if (pj && pj.muzzle) {
+            pj.muzzle.material.opacity = ud.waitTimer > 0
+                ? (Math.sin(idlePhase * 8) > 0.95 ? 0.6 : 0)
+                : 0;
+        }
 
         // Waiting at waypoint — stand still, breathing + slight sway
         if (ud.waitTimer > 0) {
             ud.waitTimer -= dt;
-            const breathe = Math.sin(idlePhase * 2.5) * 0.015;
-            s.children.forEach(child => {
-                if (child.userData.isLeg) {
-                    child.rotation.x *= 0.9; // return to rest
-                } else if (child.userData.isArm) {
-                    // Subtle arm sway while idle
-                    child.rotation.x = child.rotation.x * 0.9
-                        + Math.sin(idlePhase * 1.3 + child.userData.side) * 0.04;
-                    child.rotation.z = breathe * child.userData.side;
-                }
-            });
+            if (pj) {
+                // Return legs to rest
+                pj.rightLeg.rotation.x *= 0.9;
+                pj.leftLeg.rotation.x *= 0.9;
+                pj.rightKnee.rotation.x *= 0.9;
+                pj.leftKnee.rotation.x *= 0.9;
+
+                // Subtle arm sway while idle
+                const breathe = Math.sin(idlePhase * 2.5) * 0.015;
+                pj.rightArm.rotation.x = pj.rightArm.rotation.x * 0.9
+                    + Math.sin(idlePhase * 1.3 + 1) * 0.04;
+                pj.leftArm.rotation.x = pj.leftArm.rotation.x * 0.9
+                    + Math.sin(idlePhase * 1.3 - 1) * 0.04;
+                pj.rightArm.rotation.z = breathe;
+                pj.leftArm.rotation.z = -breathe;
+                pj.rightElbow.rotation.x *= 0.9;
+                pj.leftElbow.rotation.x *= 0.9;
+            }
             // Slight body bob from breathing
             s.position.y = getTerrainHeightFast(s.position.x, s.position.z)
                 + Math.sin(idlePhase * 2.5) * 0.02;
@@ -538,26 +554,35 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         // Face walking direction
         s.rotation.y = Math.atan2(nx, nz);
 
-        // Walk cycle — legs and arms swing, body bob
+        // Walk cycle — joint-based animation
         ud.walkPhase += step * 4;
-        const walkSin = Math.sin(ud.walkPhase);
-        const walkCos = Math.cos(ud.walkPhase);
+        const wp = ud.walkPhase;
+        const walkSin = Math.sin(wp);
+        const walkCos = Math.cos(wp);
         // Subtle vertical bob while walking
         s.position.y += Math.abs(walkSin) * 0.04;
         // Slight body lean into movement
         s.rotation.z = walkCos * 0.02;
 
-        s.children.forEach(child => {
-            if (child.userData.isLeg) {
-                child.rotation.x = walkSin * 0.5 * child.userData.side;
-            }
-            if (child.userData.isArm) {
-                // Arms counter-swing, weapon arm less swing
-                const amp = child.userData.side === 1 ? 0.2 : 0.35;
-                child.rotation.x = Math.sin(ud.walkPhase + Math.PI) * amp * child.userData.side;
-                child.rotation.z = 0; // reset idle arm sway
-            }
-        });
+        if (pj) {
+            // Hip swing
+            pj.rightLeg.rotation.x = walkSin * 0.5;
+            pj.leftLeg.rotation.x = -walkSin * 0.5;
+
+            // Knee bend when leg swings back
+            pj.rightKnee.rotation.x = Math.max(0, -walkSin) * 0.7;
+            pj.leftKnee.rotation.x = Math.max(0, walkSin) * 0.7;
+
+            // Arms counter-swing (weapon arm less)
+            pj.rightArm.rotation.x = -walkSin * 0.2;
+            pj.leftArm.rotation.x = walkSin * 0.35;
+            pj.rightArm.rotation.z = 0;
+            pj.leftArm.rotation.z = 0;
+
+            // Elbow bend
+            pj.rightElbow.rotation.x = Math.max(0, walkSin) * 0.2 - 0.1;
+            pj.leftElbow.rotation.x = Math.max(0, -walkSin) * 0.2 - 0.1;
+        }
 
         // ── Drop track trail marks ──
         if (ud.trailMarks) {

@@ -162,6 +162,7 @@ function handleTap(event) {
     // Block taps on exploration UI controls (back-to-drone button, etc.)
     if (target && target.closest && target.closest('#soldier-control-bar')) return;
     if (target && target.closest && target.closest('#exploration-header')) return;
+    if (target && target.closest && target.closest('#unit-panel')) return;
     // Block clicks when event modal (or any overlay) is open
     if (target && target.closest && target.closest('#event-modal')) return;
     // Also block if the event modal is visible (backdrop covers screen)
