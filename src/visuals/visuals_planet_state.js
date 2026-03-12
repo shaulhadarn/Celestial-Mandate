@@ -15,6 +15,7 @@ const planetState = {
     sunLight: null,
     dustMesh: null,
     creatures: [],
+    cloudLayers: [],
 
     // Camera orbit parameters (written by input handlers, read by update loop)
     cameraYaw: Math.PI,
@@ -40,6 +41,11 @@ const planetState = {
     // Control target (null = drone, soldier mesh = controlling that soldier)
     controlTarget: null,
     buildingInfoTarget: null,
+
+    // Camera transition targets (smoothly lerped in update loop)
+    targetCameraDistance: 18,
+    cameraHeightOffset: 2,     // dynamic, lerped toward target
+    targetCameraHeightOffset: 2,
 };
 
 // Constants

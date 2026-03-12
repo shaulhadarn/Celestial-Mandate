@@ -466,3 +466,113 @@ export function createCreatures(type, group, heightFn) {
 
     return creatures;
 }
+
+// ── Procedural cloud system ─────────────────────────────────────────────────
+
+// Planet types that get clouds and their opacity
+const CLOUD_TYPES = {
+    'Terran':      { opacity: 0.35, color: 0xeef4ff, count: 30, puffCount: 55 },
+    'Continental': { opacity: 0.30, color: 0xe8f0ff, count: 25, puffCount: 45 },
+    'Ocean':       { opacity: 0.45, color: 0xd8eaff, count: 35, puffCount: 65 },
+    'Arctic':      { opacity: 0.25, color: 0xdae8f4, count: 20, puffCount: 35 },
+    'Ice':         { opacity: 0.20, color: 0xc8dce8, count: 18, puffCount: 30 },
+};
+
+let _cloudTexCache = null;
+
+function _createCloudTexture(conf) {
+    // Cached — same texture reused across planet changes
+    if (_cloudTexCache) return _cloudTexCache;
+
+    const W = 1024, H = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    // Large wispy cloud bands
+    for (let i = 0; i < 30; i++) {
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        const rx = 60 + Math.random() * 140;
+        const ry = 30 + Math.random() * 60;
+        const op = 0.06 + Math.random() * 0.12;
+        const rot = (Math.random() - 0.5) * 0.5;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+        g.addColorStop(0, `rgba(255,255,255,${op})`);
+        g.addColorStop(0.4, `rgba(240,248,255,${op * 0.6})`);
+        g.addColorStop(1, 'rgba(240,250,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Smaller puffs
+    for (let i = 0; i < 55; i++) {
+        const x = Math.random() * W;
+        const y = Math.random() * H;
+        const r = 12 + Math.random() * 45;
+        const op = 0.04 + Math.random() * 0.14;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(255,255,255,${op})`);
+        g.addColorStop(0.5, `rgba(230,245,255,${op * 0.4})`);
+        g.addColorStop(1, 'rgba(240,250,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    _cloudTexCache = tex;
+    return tex;
+}
+
+/**
+ * Creates cloud layer(s) for the planet. Returns an array of cloud meshes
+ * (may be empty if planet type has no clouds). Caller adds them to the group.
+ */
+export function createCloudLayers(planetType) {
+    const conf = CLOUD_TYPES[planetType];
+    if (!conf) return [];
+
+    const tex = _createCloudTexture(conf);
+    const layers = [];
+
+    // Two cloud planes at different heights, drifting in opposite directions
+    const heights = [80, 130];
+    const sizes   = [600, 800];
+    const opacities = [conf.opacity, conf.opacity * 0.6];
+
+    for (let i = 0; i < 2; i++) {
+        const geo = new THREE.PlaneGeometry(sizes[i], sizes[i]);
+        const mat = new THREE.MeshBasicMaterial({
+            map: tex,
+            transparent: true,
+            opacity: opacities[i],
+            color: conf.color,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.y = heights[i];
+        mesh.userData.cloudLayer = true;
+        mesh.userData.cloudSpeed = (i === 0 ? 1.5 : -0.8); // units/s drift
+        mesh.userData.cloudDir = (i === 0 ? 1 : -0.7);
+        layers.push(mesh);
+    }
+
+    return layers;
+}

@@ -13,7 +13,7 @@ import { isMobile as isMobileDevice } from '../core/device.js';
 import planetState from './visuals_planet_state.js';
 import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
-import { getSkyColor, createPlanetProps, createCreatures } from './visuals_planet_environment.js';
+import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers } from './visuals_planet_environment.js';
 import { renderColonyGroundBuildings, soldierMeshes } from './visuals_planet_colony.js';
 
 // Sub-modules — import also registers the mouse/touch listeners (self-invoking init)
@@ -140,6 +140,7 @@ export function createPlanetVisuals(planetData, group) {
     _hideBuildingInfo();
     planetState.planetProps = [];
     planetState.creatures.length = 0;
+    planetState.cloudLayers = [];
     planetState.dustMesh = null;
     planetState.currentPlanetData = planetData;
     planetState.explorationGroup = group;
@@ -311,6 +312,10 @@ export function createPlanetVisuals(planetData, group) {
 
     const hemiIntensity = isDark ? 0.8 : 1.2;
     group.add(new THREE.HemisphereLight(skyColor, getGroundColor(planetData.type), hemiIntensity));
+
+    // 9. Cloud layers (only for atmospheric planet types)
+    planetState.cloudLayers = createCloudLayers(planetData.type);
+    planetState.cloudLayers.forEach(cl => group.add(cl));
 
     return planetState.playerMesh;
 }

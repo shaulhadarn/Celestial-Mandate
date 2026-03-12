@@ -62,39 +62,29 @@ export function getTerrainHeightFast(x, z) {
 
 /**
  * Procedural terrain height math.
- * Uses layered sine waves (pseudo-fBm) for more natural, rugged terrain.
+ * Smooth rolling hills — two gentle sine-wave octaves, no harsh detail.
  */
 export function getTerrainHeight(x, z) {
-    let h = 0;
-    let amplitude = 12;
-    let frequency = 0.015;
-    
-    // Layer 1: Large hills
-    h += Math.sin(x * frequency) * Math.cos(z * frequency) * amplitude;
-    
-    // Layer 2: Medium details
-    amplitude *= 0.5;
-    frequency *= 2.1;
-    h += Math.sin(x * frequency + 15) * Math.cos(z * frequency + 15) * amplitude;
+    // Layer 1: Broad rolling hills
+    let h = Math.sin(x * 0.012 + 0.3) * Math.cos(z * 0.012 + 0.7) * 14;
+    // Cross-pattern for less uniform ridgelines
+    h += Math.sin(x * 0.009 - z * 0.007) * 6;
 
-    // Layer 3: Small rugged details
-    amplitude *= 0.4;
-    frequency *= 2.3;
-    h += Math.sin(x * frequency + 30) * Math.cos(z * frequency + 30) * amplitude;
+    // Layer 2: Gentle medium undulation
+    h += Math.sin(x * 0.028 + 12) * Math.cos(z * 0.024 + 8) * 3.5;
 
     // Flatten center area for the base/drone spawn
-    const dist = Math.sqrt(x*x + z*z);
+    const dist = Math.sqrt(x * x + z * z);
     const safeZone = 40;
     const blendZone = 30;
-    
+
     if (dist < safeZone) {
-        h *= 0.1; // Very flat in the center
+        h *= 0.1;
     } else if (dist < safeZone + blendZone) {
-        // Smoothly blend from flat center to rugged exterior
         const factor = (dist - safeZone) / blendZone;
         h *= (0.1 + 0.9 * factor * factor);
     }
-    
+
     return h;
 }
 
@@ -114,13 +104,7 @@ export function createTerrainMesh(planetType) {
         // PlaneGeometry raw Y maps to -worldZ after rotation.x = -PI/2,
         // so negate Y so the mesh matches getTerrainHeight(worldX, worldZ)
         // used by all object placement and the baked height grid.
-        let z = getTerrainHeight(x, -y);
-        
-        // Micro-noise: skip on mobile (saves per-vertex Math.random calls)
-        if (!isMobileDevice) {
-            z += (Math.random() - 0.5) * 0.8;
-        }
-        
+        const z = getTerrainHeight(x, -y);
         pos.setZ(i, z);
     }
     groundGeo.computeVertexNormals();
@@ -176,12 +160,11 @@ export function createTerrainMesh(planetType) {
         groundTex.repeat.set(40, 40);
     }
 
-    // Mobile: MeshLambertMaterial — no PBR roughness/metalness shader cost, vertex colors still apply
+    // Smooth shading for rolling-hill terrain (no flat faceted look)
     const groundMat = isMobileDevice
         ? new THREE.MeshLambertMaterial({
             map: groundTex || null,
             vertexColors: true,
-            flatShading: true,
             emissive: new THREE.Color(typeConf.emissive),
             emissiveIntensity: typeConf.emissiveIntensity,
           })
@@ -190,7 +173,6 @@ export function createTerrainMesh(planetType) {
             vertexColors: true,
             roughness: typeConf.roughness,
             metalness: typeConf.metalness,
-            flatShading: true,
             emissive: new THREE.Color(typeConf.emissive),
             emissiveIntensity: typeConf.emissiveIntensity,
           });

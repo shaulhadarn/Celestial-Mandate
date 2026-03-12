@@ -368,6 +368,19 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     });
 
+    // --- 8a. Cloud drift ---
+    const followPos = controlTarget || playerMesh;
+    planetState.cloudLayers.forEach(cl => {
+        // Drift clouds slowly
+        cl.position.x += cl.userData.cloudSpeed * cl.userData.cloudDir * dt;
+        cl.position.z += cl.userData.cloudSpeed * 0.3 * dt;
+        // Keep clouds centered above the player
+        const cx = followPos.position.x;
+        const cz = followPos.position.z;
+        cl.position.x = cx + (cl.position.x - cx) * 0.999;
+        cl.position.z = cz + (cl.position.z - cz) * 0.999;
+    });
+
     // --- 8b. Patrol soldiers (waypoint-based walk) ---
     const TRAIL_SPACING = 1.2;   // drop a footprint every N units
     const TRAIL_LIFE    = 6.0;   // seconds before full fade
