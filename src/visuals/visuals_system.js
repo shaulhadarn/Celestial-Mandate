@@ -2183,7 +2183,12 @@ export function updateSystemAnimations(time, dt, group) {
         }
 
         _shipTmpDir.subVectors(_shipTmpTo, _shipTmpFrom).normalize();
-        ts.mesh.lookAt(ts.mesh.position.clone().add(_shipTmpDir));
+        // Ship nose is +Z, lookAt aligns -Z toward target, so subtract to flip
+        ts.mesh.lookAt(
+            ts.mesh.position.x - _shipTmpDir.x,
+            ts.mesh.position.y - _shipTmpDir.y,
+            ts.mesh.position.z - _shipTmpDir.z
+        );
 
         // Engine glow + core pulse (single combined sprites)
         const ud = ts.mesh.userData;
@@ -2256,13 +2261,13 @@ export function updateSystemAnimations(time, dt, group) {
             ts.mesh.position.z += (midZ / lateralLen) * ts.lateralOffset * arcT;
         }
 
-        // Face direction of travel
+        // Face direction of travel (nose is +Z, lookAt aligns -Z, so subtract)
         _shipTmpDir.copy(_shipTmpTo).sub(_shipTmpFrom).normalize();
         if (_shipTmpDir.lengthSq() > 0.001) {
             ts.mesh.lookAt(
-                ts.mesh.position.x + _shipTmpDir.x,
-                ts.mesh.position.y + _shipTmpDir.y * 0.3,
-                ts.mesh.position.z + _shipTmpDir.z
+                ts.mesh.position.x - _shipTmpDir.x,
+                ts.mesh.position.y - _shipTmpDir.y * 0.3,
+                ts.mesh.position.z - _shipTmpDir.z
             );
         }
 

@@ -1001,10 +1001,12 @@ function _generateLakePositions(planetType) {
     const lakes = [];
     const count = isMobileDevice ? 2 : 3;
 
-    // Lake near player start (offset so it's visible but not blocking base)
+    // Scenic lake — far enough from colony (origin) to avoid flooding the base
+    const nearAngle = 0.8 + Math.sin(planetType.length * 1.7) * 0.6;
+    const nearDist  = 110 + Math.abs(Math.sin(planetType.length * 2.3)) * 40;
     lakes.push({
-        x: 55 + Math.sin(planetType.length * 1.7) * 15,
-        z: -40 + Math.cos(planetType.length * 2.3) * 15,
+        x: Math.cos(nearAngle) * nearDist,
+        z: Math.sin(nearAngle) * nearDist,
         radius: 18 + (planetType.length % 3) * 4,
     });
 

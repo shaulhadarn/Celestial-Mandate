@@ -3,6 +3,10 @@ import { gameState, RACE_SHIPS, buildShip, cancelShipBuild, moveFleet, getConnec
 import { showNotification } from './ui_notifications.js';
 import { getShipSvg } from './ship_icons.js';
 import { initShipViewer, disposeShipViewer } from './ship_viewer_3d.js';
+import { getPlayerShipMeshes } from '../visuals/visuals_system_ships.js';
+import { enterShipControl } from '../visuals/visuals_system_ship_control.js';
+import { controls } from '../core/scene_config.js';
+import { refreshSystemShips } from '../visuals/renderer.js';
 
 // SVG icon templates for stat cells
 const STAT_ICONS = {
@@ -278,14 +282,19 @@ export function renderFleetsPanel() {
                 <div class="fleet-group-ships">
                     ${ships.map(f => {
                         const fleetIdx = gameState.fleets.indexOf(f);
+                        const inCurrentSystem = gameState.viewMode === 'SYSTEM' && f.systemId === gameState.selectedSystemId && !f.moving;
                         const movingInfo = f.moving
                             ? `<span class="fsr-transit">In transit to ${f.moving.toName} (${Math.floor((f.moving.progress / f.moving.total) * 100)}%)</span>`
                             : `<button class="fsr-move-btn" data-fleet-idx="${fleetIdx}">Move</button>`;
+                        const flyBtn = inCurrentSystem
+                            ? `<button class="fsr-fly-btn" data-fleet-id="${f.id}" title="Fly this ship">Fly</button>`
+                            : '';
                         return `
                         <div class="fleet-ship-row">
                             <span class="fsr-icon">${f.icon}</span>
                             <span class="fsr-name">${f.name}</span>
                             <span class="fsr-power"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" class="fsc-stat-svg"><path d="M4 1 L10 1 L7 6 L11 6 L5 13 L7 7 L3 7 Z"/></svg> ${f.power}</span>
+                            ${flyBtn}
                             ${movingInfo}
                         </div>`;
                     }).join('')}
@@ -364,6 +373,28 @@ export function renderFleetsPanel() {
             });
 
             btn.parentElement.appendChild(picker);
+        });
+    });
+
+    // Wire Fly buttons — enter 3D ship control
+    content.querySelectorAll('.fsr-fly-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const fleetId = btn.dataset.fleetId;
+            // Ensure ships are spawned in the scene
+            let shipMeshes = getPlayerShipMeshes();
+            if (shipMeshes.length === 0) {
+                refreshSystemShips();
+                shipMeshes = getPlayerShipMeshes();
+            }
+            const entry = shipMeshes.find(s => String(s.fleetData.id) === String(fleetId));
+            if (entry) {
+                enterShipControl(entry, controls);
+                // Close fleets panel
+                const panel = document.getElementById('fleets-panel');
+                if (panel) panel.classList.add('hidden');
+            } else {
+                showNotification('Ship not found in current system view', 'alert');
+            }
         });
     });
 }
