@@ -2,6 +2,7 @@
 import { gameState, RACE_SHIPS, buildShip, cancelShipBuild, moveFleet, getConnectedSystems, events } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
 import { getShipSvg } from './ship_icons.js';
+import { initShipViewer, disposeShipViewer } from './ship_viewer_3d.js';
 
 // SVG icon templates for stat cells
 const STAT_ICONS = {
@@ -96,17 +97,26 @@ export function openShipModal(ship) {
     box.style.boxShadow    = `0 0 60px ${accent}22, 0 0 120px rgba(0,0,0,0.8)`;
 
     modal.classList.remove('hidden');
+
+    // Launch 3D viewer after modal is visible so canvas has dimensions
+    requestAnimationFrame(() => initShipViewer(ship.id, accent));
+}
+
+function _closeShipModal() {
+    const overlay = document.getElementById('ship-detail-modal');
+    if (overlay) overlay.classList.add('hidden');
+    disposeShipViewer();
 }
 
 function initShipModal() {
     const closeBtn = document.getElementById('ship-modal-close');
     const overlay  = document.getElementById('ship-detail-modal');
-    if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
+    if (closeBtn) closeBtn.addEventListener('click', _closeShipModal);
     if (overlay)  overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.classList.add('hidden');
+        if (e.target === overlay) _closeShipModal();
     });
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') overlay?.classList.add('hidden');
+        if (e.key === 'Escape' && overlay && !overlay.classList.contains('hidden')) _closeShipModal();
     });
 }
 
