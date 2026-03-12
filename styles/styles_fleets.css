@@ -501,6 +501,23 @@
                 opacity 0.25s ease;
 }
 
+.ship-modal-box::-webkit-scrollbar {
+    width: 4px;
+}
+
+.ship-modal-box::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ship-modal-box::-webkit-scrollbar-thumb {
+    background: rgba(0, 200, 255, 0.15);
+    border-radius: 2px;
+}
+
+.ship-modal-box::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 200, 255, 0.3);
+}
+
 .ship-modal-overlay.hidden .ship-modal-box {
     transform: scale(0.95) translateY(12px);
     opacity: 0;
@@ -589,8 +606,6 @@
 }
 
 .ship-modal-viewer canvas {
-    width: 100%;
-    height: 100%;
     display: block;
 }
 
