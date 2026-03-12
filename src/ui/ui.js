@@ -1,7 +1,7 @@
 /* Updated: Added Research and Colonies Overview panels wired to top bar buttons */
 import * as THREE from 'three';
 import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlanet, getPlanet, surveySystem, SURVEY_COST, loadGame, resolvePirateBattle } from '../core/state.js';
-import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet } from '../visuals/renderer.js';
+import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet, refreshSystemShips } from '../visuals/renderer.js';
 import { setJoystickInput } from '../visuals/visuals_planet.js';
 import { setSystemShipJoystick } from '../visuals/visuals_system_ship_control.js';
 import { disposeGroup } from '../core/dispose.js';
@@ -508,6 +508,7 @@ async function returnToSystemViewFromPlanet() {
     if (soldierBar) soldierBar.classList.add('hidden');
 
     restoreControlsAfterPlanet();
+    refreshSystemShips(); // Rebuild ships + unit panel (picks up ships built while on planet)
     updateSelectionPanel();
 
     if (window.innerWidth <= 768) {

@@ -3,9 +3,9 @@
  * Creates a mini Three.js scene with the procedural ship mesh,
  * lighting, and pointer-drag orbit controls.
  *
- * Uses a pivot group so the ship always rotates around its visual center.
- * Hides sprites (engine glow / nav lights) to avoid shared-texture issues
- * with the second WebGL context.
+ * Reuses the renderer across opens to avoid WebGL context-loss issues
+ * that occur when dispose() + re-create happen on the same canvas.
+ * Hides sprites to avoid shared-texture problems with the second context.
  */
 import * as THREE from 'three';
 import { createPlayerShipMesh } from '../visuals/visuals_system_ships.js';
@@ -13,10 +13,12 @@ import { createPlayerShipMesh } from '../visuals/visuals_system_ships.js';
 let _renderer = null;
 let _scene = null;
 let _camera = null;
-let _pivot = null;       // outer group we rotate
+let _pivot = null;
 let _animId = null;
 let _disposed = false;
 let _pendingRetry = null;
+let _lastW = 0;
+let _lastH = 0;
 
 // Drag state
 let _isDragging = false;
@@ -24,12 +26,13 @@ let _prevX = 0;
 let _prevY = 0;
 let _rotY = 0;
 let _rotX = 0.2;
-const AUTO_ROT = 0.3;   // rad/s idle spin
+const AUTO_ROT = 0.3;
 
 /* ── Public API ──────────────────────────────────────────────────────── */
 
 export function initShipViewer(shipId, accentColor) {
-    disposeShipViewer();
+    _stopAnimation();
+    _clearScene();
     _disposed = false;
     clearTimeout(_pendingRetry);
     _initInner(shipId, accentColor, 0);
@@ -38,28 +41,53 @@ export function initShipViewer(shipId, accentColor) {
 export function disposeShipViewer() {
     _disposed = true;
     clearTimeout(_pendingRetry);
-    if (_animId) { cancelAnimationFrame(_animId); _animId = null; }
+    _stopAnimation();
+    _removePointerEvents();
+    _clearScene();
+    // Do NOT dispose the renderer — keep it alive so the canvas context
+    // is not lost. The renderer is tiny and reusable.
+    _isDragging = false;
+}
 
+/* ── Internal helpers ────────────────────────────────────────────────── */
+
+function _stopAnimation() {
+    if (_animId) { cancelAnimationFrame(_animId); _animId = null; }
+}
+
+function _removePointerEvents() {
     const ctr = document.getElementById('ship-modal-viewer');
     if (ctr && ctr._svCleanup) { ctr._svCleanup(); ctr._svCleanup = null; }
+}
 
+function _clearScene() {
     if (_pivot) {
         _pivot.traverse(ch => {
             if (ch.geometry) ch.geometry.dispose();
-            // Only dispose materials we created (not the shared cache ones from visuals_system_ships)
-            if (ch.material && !ch.material._sharedShipMat) ch.material.dispose();
+            if (ch.material) {
+                // Skip shared materials from the ship cache
+                if (ch.material._sharedShipMat) return;
+                // Skip shared textures
+                if (ch.material.map && ch.material.map.userData?.shared) {
+                    ch.material.map = null;
+                }
+                ch.material.dispose();
+            }
         });
         _pivot = null;
     }
-    if (_scene) { _scene.clear(); _scene = null; }
-    if (_renderer) { _renderer.dispose(); _renderer = null; }
+    if (_scene) {
+        _scene.clear();
+        _scene = null;
+    }
     _camera = null;
-    _isDragging = false;
 }
 
 /* ── Init (with layout retry) ────────────────────────────────────────── */
 
 function _initInner(shipId, accentColor, attempt) {
+    if (_disposed) return;
+
     const container = document.getElementById('ship-modal-viewer');
     const canvas    = document.getElementById('ship-viewer-canvas');
     if (!container || !canvas) return;
@@ -68,26 +96,59 @@ function _initInner(shipId, accentColor, attempt) {
     const w = Math.round(rect.width);
     const h = Math.round(rect.height);
 
-    if ((w < 10 || h < 10) && attempt < 6) {
-        _pendingRetry = setTimeout(() => _initInner(shipId, accentColor, attempt + 1), 80);
+    if ((w < 10 || h < 10) && attempt < 8) {
+        _pendingRetry = setTimeout(() => _initInner(shipId, accentColor, attempt + 1), 100);
         return;
     }
     if (w < 10 || h < 10) return;
 
     const dpr = Math.min(window.devicePixelRatio, 2);
 
-    /* ── Renderer ── */
-    try {
-        _renderer = new THREE.WebGLRenderer({ canvas, antialias: dpr <= 1.5 });
-    } catch (e) {
-        console.warn('Ship viewer: WebGL init failed', e);
+    /* ── Renderer (reuse if possible) ── */
+    if (_renderer) {
+        // Resize if container changed
+        if (w !== _lastW || h !== _lastH) {
+            _renderer.setSize(w, h);
+            _renderer.setPixelRatio(dpr);
+        }
+    } else {
+        try {
+            _renderer = new THREE.WebGLRenderer({
+                canvas,
+                antialias: dpr <= 1.5,
+                powerPreference: 'low-power',
+            });
+        } catch (e) {
+            console.warn('Ship viewer: WebGL init failed', e);
+            return;
+        }
+        _renderer.setSize(w, h);
+        _renderer.setPixelRatio(dpr);
+        _renderer.setClearColor(0x000a14, 1);
+        _renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        _renderer.toneMappingExposure = 1.4;
+
+        // Listen for context loss/restore on this canvas
+        canvas.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault();
+            _stopAnimation();
+        });
+        canvas.addEventListener('webglcontextrestored', () => {
+            if (!_disposed && _pivot) _animate();
+        });
+    }
+    _lastW = w;
+    _lastH = h;
+
+    // Check if the GL context is actually usable
+    const gl = _renderer.getContext();
+    if (!gl || gl.isContextLost()) {
+        console.warn('Ship viewer: GL context lost, will retry');
+        if (attempt < 10) {
+            _pendingRetry = setTimeout(() => _initInner(shipId, accentColor, attempt + 1), 200);
+        }
         return;
     }
-    _renderer.setSize(w, h);
-    _renderer.setPixelRatio(dpr);
-    _renderer.setClearColor(0x000a14, 1);           // solid dark background
-    _renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    _renderer.toneMappingExposure = 1.4;
 
     /* ── Scene ── */
     _scene = new THREE.Scene();
@@ -123,30 +184,33 @@ function _initInner(shipId, accentColor, attempt) {
         shipGroup = result.shipGroup;
     } catch (e) {
         console.warn('Ship viewer: mesh creation failed', e);
-        return;
+        // Show a placeholder cube so user sees something
+        shipGroup = new THREE.Group();
+        const placeholder = new THREE.Mesh(
+            new THREE.BoxGeometry(1, 0.4, 1.5),
+            new THREE.MeshStandardMaterial({ color: accentColor, emissive: accentColor, emissiveIntensity: 0.3 })
+        );
+        shipGroup.add(placeholder);
     }
 
     // Hide sprites (engine glows / nav lights) — they reference shared glow
     // textures that may not upload correctly to a second WebGL context
     shipGroup.traverse(ch => { if (ch.isSprite) ch.visible = false; });
 
-    // Compute bounding box BEFORE scaling
+    // Compute bounding box (invisible sprites are skipped by expandByObject)
     const box  = new THREE.Box3().setFromObject(shipGroup);
     const center = box.getCenter(new THREE.Vector3());
     const size   = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
     const scale  = 2.2 / maxDim;
 
-    // Offset the ship so its visual center sits at the local origin
     shipGroup.scale.setScalar(scale);
     shipGroup.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
 
-    // Wrap in a pivot that sits at world origin — rotation stays centered
     _pivot = new THREE.Group();
     _pivot.add(shipGroup);
     _scene.add(_pivot);
 
-    // Start from a nice 3/4 angle (nose toward camera-left)
     _rotY = -0.6;
     _rotX = 0.2;
 
@@ -171,6 +235,9 @@ function _animate() {
 /* ── Pointer drag ────────────────────────────────────────────────────── */
 
 function _bindPointerEvents(ctr) {
+    // Remove any previous listeners first
+    if (ctr._svCleanup) { ctr._svCleanup(); ctr._svCleanup = null; }
+
     const onDown = (e) => {
         _isDragging = true;
         ctr.classList.add('dragging');

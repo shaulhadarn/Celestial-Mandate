@@ -7,7 +7,7 @@ import { scene, camera, renderer, controls, groups, initRenderer as initSceneCon
 import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
 import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, removePirateVisuals, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput, handleExplorationTap } from './visuals_planet.js';
-import { getPlayerShipMeshes, spawnPlayerShip, getControlledEntry } from './visuals_system_ships.js';
+import { getPlayerShipMeshes, spawnPlayerShip, getControlledEntry, clearPlayerShips, buildPlayerShips } from './visuals_system_ships.js';
 import { isShipControlActive, enterShipControl, exitShipControl, handleSystemShipInput,
          updateShipFlight, handleShipMouseDown, handleShipMouseMove, handleShipMouseUp, handleShipWheel } from './visuals_system_ship_control.js';
 
@@ -662,6 +662,17 @@ function _buildSystemUnitPanel() {
     } else {
         panel.classList.add('hidden');
     }
+}
+
+/**
+ * Rebuild player ship meshes and the unit panel.
+ * Call after returning to system view from planet exploration
+ * to pick up any ships built while away.
+ */
+export function refreshSystemShips() {
+    clearPlayerShips();
+    buildPlayerShips(groups.system, planetMeshes);
+    _buildSystemUnitPanel();
 }
 
 // Helper to check readiness

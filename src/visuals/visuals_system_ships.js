@@ -628,7 +628,7 @@ export function spawnPlayerShip(fleetData, group, planetMesh) {
 
 export function buildPlayerShips(group, planetMeshesArr) {
     const currentSystemId = gameState.selectedSystemId;
-    if (!currentSystemId || !gameState.fleets) return;
+    if (currentSystemId == null || !gameState.fleets) return;
 
     const fleetsHere = gameState.fleets.filter(f => f.systemId === currentSystemId && !f.moving);
 
