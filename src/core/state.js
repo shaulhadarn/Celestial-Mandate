@@ -550,6 +550,7 @@ export function updateResources() {
                     name: ship ? ship.name : item.shipId,
                     icon: ship ? ship.icon : '🚀',
                     power: ship ? ship.power : 1,
+                    accentColor: ship ? ship.accentColor : '#00f2ff',
                     systemId: null,
                     planetId,
                 };

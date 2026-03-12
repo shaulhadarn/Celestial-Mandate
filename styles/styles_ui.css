@@ -1579,6 +1579,62 @@
 }
 .unit-btn.unit-active .unit-label { color: #00f2ff; }
 
+/* ── System Ship Unit Panel (right side, system view) ──────────────────────── */
+#system-unit-panel {
+    position: fixed;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 180;
+    pointer-events: auto;
+}
+#system-unit-panel.hidden { display: none; }
+#system-unit-panel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ── System Ship Control Bar ───────────────────────────────────────────────── */
+#system-ship-control-bar {
+    position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(5, 12, 24, 0.85);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    border-radius: 6px;
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    z-index: 180;
+    color: #c0d0e0;
+    font-size: 13px;
+    font-family: var(--font-main);
+    pointer-events: auto;
+    backdrop-filter: blur(6px);
+}
+#system-ship-control-bar.hidden { display: none; }
+#system-ship-name {
+    color: #00f2ff;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+#btn-back-to-orbit {
+    background: rgba(0, 242, 255, 0.12);
+    border: 1px solid rgba(0, 242, 255, 0.5);
+    color: #00f2ff;
+    padding: 4px 14px;
+    border-radius: 4px;
+    font-family: var(--font-main);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    pointer-events: auto;
+}
+#btn-back-to-orbit:hover { background: rgba(0, 242, 255, 0.25); }
+
 .bottom-actions {
     display: flex;
     gap: 8px;

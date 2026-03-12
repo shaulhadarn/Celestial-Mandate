@@ -7,6 +7,9 @@ import { scene, camera, renderer, controls, groups, initRenderer as initSceneCon
 import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
 import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, removePirateVisuals, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput, handleExplorationTap } from './visuals_planet.js';
+import { getPlayerShipMeshes, spawnPlayerShip, getControlledEntry } from './visuals_system_ships.js';
+import { isShipControlActive, enterShipControl, exitShipControl, handleSystemShipInput,
+         updateShipFlight, handleShipMouseDown, handleShipMouseMove, handleShipMouseUp, handleShipWheel } from './visuals_system_ship_control.js';
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -81,11 +84,23 @@ export async function init() {
     // Use capture phase on document so keyboard events fire before R3F's Canvas
     // can intercept them (R3F creates a focusable div that can swallow key events)
     document.addEventListener('keydown', (e) => {
+        // Ship control in system view takes priority
+        if (gameState.viewMode === 'SYSTEM' && isShipControlActive()) {
+            handleSystemShipInput(e.key, true);
+            const k = e.key.toLowerCase();
+            if (['w','a','s','d',' ','shift','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+            return;
+        }
         handleInput(e.key, true);
-        // Prevent spacebar from scrolling during exploration
         if (e.key === ' ' && gameState.viewMode === 'EXPLORATION') e.preventDefault();
     }, true);
-    document.addEventListener('keyup', (e) => handleInput(e.key, false), true);
+    document.addEventListener('keyup', (e) => {
+        if (gameState.viewMode === 'SYSTEM' && isShipControlActive()) {
+            handleSystemShipInput(e.key, false);
+            return;
+        }
+        handleInput(e.key, false);
+    }, true);
 
     // Events
     events.addEventListener('colony-founded', (e) => {
@@ -130,6 +145,48 @@ export async function init() {
         }
     });
 
+    // Ship built — spawn 3D model in system view
+    events.addEventListener('ship-built', (e) => {
+        if (gameState.viewMode !== 'SYSTEM') return;
+        const fleet = e.detail.fleet;
+        const mesh = planetMeshes.find(m => m.userData.id === fleet.planetId);
+        spawnPlayerShip(fleet, groups.system, mesh || null);
+        _buildSystemUnitPanel();
+    });
+
+    // Fleet arrived — rebuild unit panel
+    events.addEventListener('fleet-arrived', () => {
+        if (gameState.viewMode === 'SYSTEM') _buildSystemUnitPanel();
+    });
+
+    // Ship control mouse handlers
+    window.addEventListener('mousedown', (e) => {
+        if (gameState.viewMode === 'SYSTEM' && isShipControlActive()) handleShipMouseDown(e);
+    });
+    window.addEventListener('mousemove', (e) => {
+        if (gameState.viewMode === 'SYSTEM' && isShipControlActive()) handleShipMouseMove(e);
+    });
+    window.addEventListener('mouseup', () => {
+        if (gameState.viewMode === 'SYSTEM') handleShipMouseUp();
+    });
+    window.addEventListener('wheel', (e) => {
+        if (gameState.viewMode === 'SYSTEM' && isShipControlActive()) {
+            handleShipWheel(e);
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    // Back-to-orbit button in ship control bar
+    const backToOrbitBtn = document.getElementById('btn-back-to-orbit');
+    if (backToOrbitBtn) {
+        backToOrbitBtn.addEventListener('click', () => {
+            if (isShipControlActive()) {
+                exitShipControl(controls, camera);
+                _buildSystemUnitPanel();
+            }
+        });
+    }
+
 }
 
 function onMouseMove(event) {
@@ -167,6 +224,8 @@ function handleTap(event) {
     if (target && target.closest && target.closest('#soldier-control-bar')) return;
     if (target && target.closest && target.closest('#exploration-header')) return;
     if (target && target.closest && target.closest('#unit-panel')) return;
+    if (target && target.closest && target.closest('#system-unit-panel')) return;
+    if (target && target.closest && target.closest('#system-ship-control-bar')) return;
     // Block clicks when event modal (or any overlay) is open
     if (target && target.closest && target.closest('#event-modal')) return;
     // Also block if the event modal is visible (backdrop covers screen)
@@ -192,13 +251,34 @@ function handleTap(event) {
         }
     } else if (gameState.viewMode === 'SYSTEM') {
         raycaster.setFromCamera(mouse, camera);
-        
+
+        // Check player ships FIRST (smaller, higher priority)
+        const shipMeshes = getPlayerShipMeshes().map(s => s.mesh);
+        if (shipMeshes.length > 0) {
+            const shipHits = raycaster.intersectObjects(shipMeshes, true);
+            if (shipHits.length > 0) {
+                let obj = shipHits[0].object;
+                while (obj) {
+                    if (obj.userData && obj.userData.fleetId) {
+                        const entry = getPlayerShipMeshes().find(s => s.fleetData.id === obj.userData.fleetId);
+                        if (entry) {
+                            enterShipControl(entry, controls);
+                            _buildSystemUnitPanel();
+                            playSound('select');
+                        }
+                        return;
+                    }
+                    obj = obj.parent;
+                }
+            }
+        }
+
         // Target planets (recursive) and labels
         const labelSprites = planetLabels.map(l => l.sprite);
         const targets = [...planetMeshes, ...labelSprites];
 
         const intersects = raycaster.intersectObjects(targets, true);
-        
+
         if (intersects.length > 0) {
             let target = intersects[0].object;
             let pId = null;
@@ -241,6 +321,9 @@ export async function enterSystemView(systemId, instant = false) {
     }
 
     try {
+        // Exit ship control if active
+        if (isShipControlActive()) exitShipControl(controls, camera);
+
         // Animated transition (skip fade on initial/instant load)
         if (!instant) {
             await _fadeIn(500);
@@ -280,25 +363,11 @@ export async function enterSystemView(systemId, instant = false) {
         // Build new system visuals
         createSystemVisuals(sys, groups.system);
 
-        // Flush residual pan/rotate momentum BEFORE setting camera:
-        // OrbitControls accumulates panOffset and sphericalDelta internally.
-        // update() with damping off applies + zeros all accumulators in one shot.
-        const wasDamping = controls.enableDamping;
-        controls.enableDamping = false;
-        controls.update();
+        // Force camera to system center — must fully reset OrbitControls state
+        _snapCameraToCenter();
 
-        // Now snap camera to system view position (accumulators are drained)
-        const targetPos = new THREE.Vector3(0, 0, 0);
-        camera.position.set(0, 40, 50);
-        camera.zoom = 1;
-        camera.updateProjectionMatrix();
-        controls.target.copy(targetPos);
-
-        // Save clean state and reset — update() inside reset() will find
-        // zero deltas so the position stays exactly where we set it.
-        controls.saveState();
-        controls.reset();
-        controls.enableDamping = wasDamping;
+        // Build system unit panel for player ships
+        _buildSystemUnitPanel();
 
         // Force R3F to render frames so the scene is ready before revealing
         _forceFrames(10);
@@ -348,6 +417,12 @@ export async function returnToGalaxyView() {
         groups.system.visible = false;
         groups.planet.visible = false;
 
+        // Hide system ship panels
+        const sPanel = document.getElementById('system-unit-panel');
+        if (sPanel) sPanel.classList.add('hidden');
+        const sBar = document.getElementById('system-ship-control-bar');
+        if (sBar) sBar.classList.add('hidden');
+
         // Clean up system view GPU resources
         disposeGroup(groups.system);
         planetMeshes.length = 0;
@@ -384,6 +459,36 @@ function _forceFrames(count) {
     requestAnimationFrame(() => _forceFrames(count - 1));
 }
 
+// Bulletproof camera snap — fully resets OrbitControls internal state
+function _snapCamera(target, position) {
+    if (!controls || !camera) return;
+    // 1. Disable damping so update() applies everything instantly
+    const wasDamping = controls.enableDamping;
+    controls.enableDamping = false;
+    // 2. Flush any accumulated pan/rotate/zoom deltas
+    controls.update();
+    // 3. Set the desired target and position
+    controls.target.copy(target);
+    camera.position.copy(position);
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    // 4. Save this as the "home" state
+    controls.saveState();
+    // 5. Reset to home state (also calls update() internally)
+    controls.reset();
+    // 6. One more update() to ensure internal spherical is synced
+    controls.update();
+    // 7. Restore damping
+    controls.enableDamping = wasDamping;
+}
+
+function _snapCameraToCenter() {
+    _snapCamera(
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 40, 50)
+    );
+}
+
 export function enterPlanetView(planetData) {
     if (!controls || !camera) {
         console.error("enterPlanetView: Scene not ready");
@@ -404,6 +509,12 @@ export function enterPlanetView(planetData) {
 
     gameState.viewMode = 'EXPLORATION';
     setMusicState('EXPLORATION');
+
+    // Hide system ship panels
+    const sPanel = document.getElementById('system-unit-panel');
+    if (sPanel) sPanel.classList.add('hidden');
+    const sBar = document.getElementById('system-ship-control-bar');
+    if (sBar) sBar.classList.add('hidden');
 
     groups.galaxy.visible = false;
     groups.system.visible = false;
@@ -445,21 +556,7 @@ export function restoreControlsAfterPlanet() {
     controls.zoomSpeed = 1.2;
     controls.enabled = true;
 
-    // Flush residual momentum before snapping (see enterSystemView)
-    const wasDamping = controls.enableDamping;
-    controls.enableDamping = false;
-    controls.update();
-
-    // Set camera and target to default system view
-    controls.target.set(0, 0, 0);
-    camera.position.set(0, 40, 50);
-    camera.zoom = 1;
-    camera.updateProjectionMatrix();
-
-    controls.saveState();
-    controls.reset();
-    controls.enableDamping = wasDamping;
-
+    _snapCameraToCenter();
     savedControlsState = null;
 }
 
@@ -490,19 +587,7 @@ function animateCamera(target, distance, height, duration = 800) {
 
 export function focusCamera(target, distance = 50) {
     if (!controls || !camera) return;
-    // Flush residual momentum before snapping (see enterSystemView)
-    const wasDamping = controls.enableDamping;
-    controls.enableDamping = false;
-    controls.update();
-
-    controls.target.copy(target);
-    camera.position.copy(target).add(new THREE.Vector3(0, distance, distance * 0.6));
-    camera.zoom = 1;
-    camera.updateProjectionMatrix();
-
-    controls.saveState();
-    controls.reset();
-    controls.enableDamping = wasDamping;
+    _snapCamera(target, new THREE.Vector3(target.x, target.y + distance, target.z + distance * 0.6));
 }
 
 // Removed: helper functions like createTextSprite, addColonyVisual (moved to visuals_system.js)
@@ -518,6 +603,9 @@ export function updateFrame(state, delta) {
 
     if(gameState.viewMode === 'SYSTEM') {
         updateSystemAnimations(time, dt, groups.system);
+        if (isShipControlActive()) {
+            updateShipFlight(dt, camera);
+        }
     }
 
     if(gameState.viewMode === 'EXPLORATION') {
@@ -525,6 +613,51 @@ export function updateFrame(state, delta) {
         if(camera && controls) {
             updatePlanetPhysics(dt, camera, controls, groups.planet);
         }
+    }
+}
+
+// ── System Unit Panel ────────────────────────────────────────────────────────
+
+function _buildSystemUnitPanel() {
+    const panel = document.getElementById('system-unit-panel');
+    if (!panel) return;
+    const list = document.getElementById('system-unit-panel-list');
+    if (!list) return;
+
+    list.innerHTML = '';
+
+    const ships = getPlayerShipMeshes();
+    const controlled = getControlledEntry();
+
+    // "Free Camera" / orbit button
+    const orbitBtn = document.createElement('button');
+    orbitBtn.className = 'unit-btn' + (!controlled ? ' unit-active' : '');
+    orbitBtn.innerHTML = '<span class="unit-icon">&#127758;</span><span class="unit-label">Orbit</span>';
+    orbitBtn.addEventListener('click', () => {
+        if (isShipControlActive()) {
+            exitShipControl(controls, camera);
+            _buildSystemUnitPanel();
+        }
+    });
+    list.appendChild(orbitBtn);
+
+    // Ship buttons
+    ships.forEach(entry => {
+        const btn = document.createElement('button');
+        btn.className = 'unit-btn' + (controlled === entry ? ' unit-active' : '');
+        btn.innerHTML = `<span class="unit-icon">&#128640;</span><span class="unit-label">${entry.fleetData.name.substring(0, 6)}</span>`;
+        btn.addEventListener('click', () => {
+            enterShipControl(entry, controls);
+            _buildSystemUnitPanel();
+        });
+        list.appendChild(btn);
+    });
+
+    // Show panel only if ships exist
+    if (ships.length > 0) {
+        panel.classList.remove('hidden');
+    } else {
+        panel.classList.add('hidden');
     }
 }
 

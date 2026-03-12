@@ -5,6 +5,7 @@ import { gameState } from '../core/state.js';
 import { disposeGroup } from '../core/dispose.js';
 import { createTextSprite } from '../core/text_sprite.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
+import { buildPlayerShips, updatePlayerShipOrbits, clearPlayerShips } from './visuals_system_ships.js';
 
 export let planetMeshes = [];
 export let planetLabels = [];
@@ -246,6 +247,7 @@ export function clearSystemVisuals(group) {
     _pirateRaiders.forEach(pr => { if (pr.mesh.parent) pr.mesh.parent.remove(pr.mesh); });
     _pirateRaiders = [];
     _battleAnim = null;
+    clearPlayerShips();
 }
 
 export function createSystemVisuals(system, group) {
@@ -798,6 +800,9 @@ export function createSystemVisuals(system, group) {
 
     // ── Pirate raider ships ──
     buildPirateRaidRoutes(group);
+
+    // ── Player fleet ships ──
+    buildPlayerShips(group, planetMeshes);
 }
 
 export function addColonyVisual(planetMesh) {
@@ -2092,6 +2097,9 @@ export function updateSystemAnimations(time, dt, group) {
             }
         }
     });
+
+    // ── Player fleet ship orbits ──
+    updatePlayerShipOrbits(time, dt);
 
     // Update trail particles
     if (_trailInited && dt > 0) {
