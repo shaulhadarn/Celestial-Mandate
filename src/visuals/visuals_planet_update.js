@@ -401,35 +401,88 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     creatures.forEach(c => {
         const ud = c.userData;
         ud.phase += dt * ud.speed;
+        ud.idlePhase = (ud.idlePhase || 0) + dt;
 
         const roam   = ud.roamRadius  || 10;
         const bob    = ud.bobHeight   || 0.4;
         const bscale = ud.bodyScale   || 1.0;
+        const jts    = ud.joints      || {};
+        const p      = ud.phase;
+        const ip     = ud.idlePhase;
 
-        const targetX = ud.originX + Math.cos(ud.phase) * roam;
-        const targetZ = ud.originZ + Math.sin(ud.phase) * roam;
+        // ── Movement (roaming circle) ──
+        const targetX = ud.originX + Math.cos(p) * roam;
+        const targetZ = ud.originZ + Math.sin(p) * roam;
 
         c.position.x = THREE.MathUtils.lerp(c.position.x, targetX, 0.5 * dt);
         c.position.z = THREE.MathUtils.lerp(c.position.z, targetZ, 0.5 * dt);
         c.position.y = getTerrainHeightFast(c.position.x, c.position.z) + bscale * 0.9
-                       + Math.abs(Math.sin(ud.phase * 4)) * bob;
+                       + Math.abs(Math.sin(p * 4)) * bob;
 
+        // Face movement direction (smooth)
         const cdx = targetX - c.position.x;
         const cdz = targetZ - c.position.z;
         if (Math.abs(cdx) + Math.abs(cdz) > 0.01) {
-            c.rotation.y = Math.atan2(cdx, cdz);
+            const targetRot = Math.atan2(cdx, cdz);
+            c.rotation.y = THREE.MathUtils.lerp(c.rotation.y, targetRot, 3.0 * dt);
         }
 
-        const legStart = ud.legStartIdx || 4;
-        const legCount = ud.legCount    || 4;
-        for (let li = 0; li < legCount * 2; li++) {
-            const child = c.children[legStart + li];
-            if (!child) continue;
-            const side  = li % 2 === 0 ? 1 : -1;
-            const swing = Math.sin(ud.phase * 6 + li * 0.8) * 0.35;
-            child.rotation.x = swing * side;
+        // Walk speed factor (for animation intensity)
+        const walkSpeed = Math.sqrt(cdx * cdx + cdz * cdz);
+        const walkAmp = Math.min(1.0, walkSpeed * 0.5);
+
+        // ── Jointed leg animation (hip + knee) ──
+        if (jts.legs) {
+            const legCount = jts.legs.length;
+            for (let li = 0; li < legCount; li++) {
+                const leg = jts.legs[li];
+                // Alternating gait: opposite legs swing opposite, stagger by index
+                const offset = (li / legCount) * Math.PI * 2;
+                const swing = Math.sin(p * 6 + offset);
+
+                // Hip: forward/back swing
+                leg.hip.rotation.x = swing * 0.45 * walkAmp;
+                // Slight outward splay on swing
+                leg.hip.rotation.z = leg.side * 0.05 * Math.abs(swing);
+
+                // Knee: bends when leg is behind (swing negative)
+                leg.knee.rotation.x = Math.max(0, -swing) * 0.65 * walkAmp;
+            }
         }
 
+        // ── Head look-around ──
+        if (jts.head) {
+            // Slow scanning side-to-side
+            jts.head.rotation.y = Math.sin(ip * 0.6) * 0.3;
+            // Subtle nod (up-down tied to walk)
+            jts.head.rotation.x = Math.sin(p * 4) * 0.08 * walkAmp
+                                + Math.sin(ip * 1.2) * 0.05;
+        }
+
+        // ── Mandible movement ──
+        if (jts.mandibleL && jts.mandibleR) {
+            // Slow chewing/clicking motion
+            const chew = Math.sin(ip * 2.5) * 0.15 + Math.sin(ip * 4.1) * 0.08;
+            jts.mandibleL.rotation.y = -chew;
+            jts.mandibleR.rotation.y = chew;
+        }
+
+        // ── Antennae sway ──
+        if (jts.antennaeL && jts.antennaeR) {
+            // Independent wavering, slightly different frequencies
+            jts.antennaeL.rotation.x = Math.sin(ip * 1.8 + 0.5) * 0.25;
+            jts.antennaeL.rotation.z = Math.sin(ip * 2.3) * 0.15;
+            jts.antennaeR.rotation.x = Math.sin(ip * 1.8 - 0.5) * 0.25;
+            jts.antennaeR.rotation.z = Math.sin(ip * 2.3 + 1.0) * -0.15;
+        }
+
+        // ── Tail swish (species A) ──
+        if (jts.tail) {
+            jts.tail.rotation.y = Math.sin(ip * 1.3) * 0.35 + Math.sin(p * 3) * 0.15 * walkAmp;
+            jts.tail.rotation.x = Math.sin(ip * 0.9) * 0.1;
+        }
+
+        // ── Shadow ──
         if (ud.shadowMesh) {
             const rawGH = getTerrainHeightFast(c.position.x, c.position.z) + 0.1;
             ud.shadowMesh.position.set(c.position.x, rawGH, c.position.z);

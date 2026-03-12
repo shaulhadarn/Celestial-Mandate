@@ -310,52 +310,84 @@ export function createPlanetProps(planetType, group, heightFn) {
 
 // -- Alien species definitions ------------------------------------------------
 function getSpeciesConfigs(planetType) {
-    // Species A — large slow grazer
+    // Species A — large armored grazer (6 legs, heavy, slow)
     const speciesA = {
-        bodyColor:  0x44aa66,
-        legColor:   0x226644,
-        eyeColor:   0xffff00,
-        eyeGlow:    0xaaaa00,
-        bodyScale:  1.6,
-        legCount:   6,
-        speed:      0.15,
-        roamRadius: 18,
-        bobHeight:  0.3,
-        count:      isMobileDevice ? 3 : 6,
+        bodyColor:   0x44aa66,
+        bellyColor:  0x66cc88,
+        legColor:    0x226644,
+        carapaceColor: 0x337755,
+        eyeColor:    0xffff00,
+        eyeGlow:     0xaaaa00,
+        markingColor: 0x22ff88,
+        markingGlow:  0x11aa55,
+        bodyScale:   1.6,
+        legCount:    6,
+        speed:       0.15,
+        roamRadius:  18,
+        bobHeight:   0.3,
+        count:       isMobileDevice ? 3 : 6,
+        hasTail:     true,
+        hasAntennae: true,
+        hasSpines:   true,
+        hasMandibles: true,
     };
-    // Species B — small fast hunter
+    // Species B — agile predator (4 legs, fast, sleek)
     const speciesB = {
-        bodyColor:  0xcc4422,
-        legColor:   0x882211,
-        eyeColor:   0x00ffff,
-        eyeGlow:    0x008888,
-        bodyScale:  0.8,
-        legCount:   4,
-        speed:      0.55,
-        roamRadius: 30,
-        bobHeight:  0.6,
-        count:      isMobileDevice ? 4 : 8,
+        bodyColor:   0xcc4422,
+        bellyColor:  0xdd7744,
+        legColor:    0x882211,
+        carapaceColor: 0xaa3318,
+        eyeColor:    0x00ffff,
+        eyeGlow:     0x008888,
+        markingColor: 0xff4400,
+        markingGlow:  0xcc2200,
+        bodyScale:   0.8,
+        legCount:    4,
+        speed:       0.55,
+        roamRadius:  30,
+        bobHeight:   0.6,
+        count:       isMobileDevice ? 4 : 8,
+        hasTail:     false,
+        hasAntennae: true,
+        hasSpines:   false,
+        hasMandibles: true,
     };
 
     // Adjust colors per planet type
     switch (planetType) {
         case 'Ice': case 'Arctic':
-            speciesA.bodyColor = 0xaaddff; speciesA.legColor = 0x6699bb;
-            speciesB.bodyColor = 0x88ccff; speciesB.legColor = 0x4488aa;
+            speciesA.bodyColor = 0xaaddff; speciesA.bellyColor = 0xcceeff;
+            speciesA.legColor = 0x6699bb; speciesA.carapaceColor = 0x88bbdd;
+            speciesA.markingColor = 0x44ddff; speciesA.markingGlow = 0x22aacc;
+            speciesB.bodyColor = 0x88ccff; speciesB.bellyColor = 0xaaddff;
+            speciesB.legColor = 0x4488aa; speciesB.carapaceColor = 0x66aacc;
+            speciesB.markingColor = 0x00ccff; speciesB.markingGlow = 0x0088aa;
             break;
         case 'Desert':
-            speciesA.bodyColor = 0xcc8833; speciesA.legColor = 0x885522;
-            speciesB.bodyColor = 0xdd6622; speciesB.legColor = 0x993311;
+            speciesA.bodyColor = 0xcc8833; speciesA.bellyColor = 0xddaa55;
+            speciesA.legColor = 0x885522; speciesA.carapaceColor = 0xaa7728;
+            speciesA.markingColor = 0xffcc44; speciesA.markingGlow = 0xccaa22;
+            speciesB.bodyColor = 0xdd6622; speciesB.bellyColor = 0xee8844;
+            speciesB.legColor = 0x993311; speciesB.carapaceColor = 0xbb5518;
+            speciesB.markingColor = 0xff8800; speciesB.markingGlow = 0xcc6600;
             break;
         case 'Ocean':
-            speciesA.bodyColor = 0x2288aa; speciesA.legColor = 0x115566;
-            speciesB.bodyColor = 0x44bbcc; speciesB.legColor = 0x227788;
+            speciesA.bodyColor = 0x2288aa; speciesA.bellyColor = 0x44aacc;
+            speciesA.legColor = 0x115566; speciesA.carapaceColor = 0x1a7799;
+            speciesA.markingColor = 0x00eeff; speciesA.markingGlow = 0x00aabb;
+            speciesB.bodyColor = 0x44bbcc; speciesB.bellyColor = 0x66ddee;
+            speciesB.legColor = 0x227788; speciesB.carapaceColor = 0x33aabb;
+            speciesB.markingColor = 0x44ffff; speciesB.markingGlow = 0x22cccc;
             break;
         case 'Molten':
-            speciesA.bodyColor = 0x882200; speciesA.legColor = 0x441100;
-            speciesA.eyeColor  = 0xff4400; speciesA.eyeGlow = 0xff2200;
-            speciesB.bodyColor = 0xcc3300; speciesB.legColor = 0x661100;
-            speciesB.eyeColor  = 0xffaa00; speciesB.eyeGlow = 0xff6600;
+            speciesA.bodyColor = 0x882200; speciesA.bellyColor = 0xaa4400;
+            speciesA.legColor = 0x441100; speciesA.carapaceColor = 0x661800;
+            speciesA.eyeColor = 0xff4400; speciesA.eyeGlow = 0xff2200;
+            speciesA.markingColor = 0xff6600; speciesA.markingGlow = 0xff4400;
+            speciesB.bodyColor = 0xcc3300; speciesB.bellyColor = 0xee5500;
+            speciesB.legColor = 0x661100; speciesB.carapaceColor = 0xaa2800;
+            speciesB.eyeColor = 0xffaa00; speciesB.eyeGlow = 0xff6600;
+            speciesB.markingColor = 0xffaa00; speciesB.markingGlow = 0xff8800;
             break;
     }
     return [speciesA, speciesB];
@@ -364,68 +396,295 @@ function getSpeciesConfigs(planetType) {
 function buildCreatureMesh(cfg) {
     const g = new THREE.Group();
     const s = cfg.bodyScale;
+    const seg = isMobileDevice ? 6 : 10; // geometry detail
+    const joints = {}; // store animatable joints
 
-    // Body
-    const body = new THREE.Mesh(
-        new THREE.SphereGeometry(s, isMobileDevice ? 6 : 10, isMobileDevice ? 6 : 10),
-        mat(cfg.bodyColor, 0, 0, false, 1, 0.75)
+    const bodyMat     = mat(cfg.bodyColor, 0, 0, false, 1, 0.55);
+    const bellyMat    = mat(cfg.bellyColor, 0, 0, false, 1, 0.65);
+    const carapaceMat = mat(cfg.carapaceColor, 0, 0, false, 1, 0.35);
+    const legMat      = mat(cfg.legColor, 0, 0, false, 1, 0.6);
+    const eyeMat      = mat(cfg.eyeColor, cfg.eyeGlow, 1.5, false, 1, 0.1);
+    const markMat     = mat(cfg.markingColor, cfg.markingGlow, 0.8, true, 0.7, 0.3);
+
+    // ── Thorax (rear body segment) ──
+    const thorax = new THREE.Mesh(
+        new THREE.SphereGeometry(s * 0.85, seg, seg),
+        bodyMat
     );
-    body.scale.set(1, 0.65, 1.2);
-    body.castShadow = true;
-    g.add(body);
+    thorax.scale.set(1, 0.6, 1.3);
+    thorax.position.set(0, 0, -s * 0.5);
+    thorax.castShadow = true;
+    g.add(thorax);
 
-    // Head
-    const head = new THREE.Mesh(
-        new THREE.SphereGeometry(s * 0.55, isMobileDevice ? 5 : 8, isMobileDevice ? 5 : 8),
-        mat(cfg.bodyColor, 0, 0, false, 1, 0.7)
+    // Thorax bioluminescent stripe
+    if (!isMobileDevice) {
+        const thoraxStripe = new THREE.Mesh(
+            new THREE.SphereGeometry(s * 0.87, seg, seg),
+            markMat
+        );
+        thoraxStripe.scale.set(0.3, 0.62, 1.0);
+        thoraxStripe.position.copy(thorax.position);
+        g.add(thoraxStripe);
+    }
+
+    // ── Abdomen (front body segment) ──
+    const abdomen = new THREE.Mesh(
+        new THREE.SphereGeometry(s * 0.7, seg, seg),
+        bodyMat
     );
-    head.position.set(0, s * 0.3, s * 1.1);
-    head.castShadow = true;
-    g.add(head);
+    abdomen.scale.set(0.9, 0.65, 1.0);
+    abdomen.position.set(0, s * 0.05, s * 0.4);
+    abdomen.castShadow = true;
+    g.add(abdomen);
 
-    // Eyes (2)
-    const eyeMat = mat(cfg.eyeColor, cfg.eyeGlow, 1.5, false, 1, 0.1);
-    [-0.22, 0.22].forEach(ex => {
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(s * 0.12, 5, 5), eyeMat);
-        eye.position.set(ex * s, s * 0.45, s * 1.55);
-        g.add(eye);
+    // Belly (lighter underbelly)
+    const belly = new THREE.Mesh(
+        new THREE.SphereGeometry(s * 0.6, seg, seg),
+        bellyMat
+    );
+    belly.scale.set(0.75, 0.4, 0.9);
+    belly.position.set(0, -s * 0.2, s * 0.1);
+    g.add(belly);
+
+    // ── Carapace (dorsal armor plates) ──
+    const plateCount = cfg.legCount === 6 ? 4 : 2;
+    for (let i = 0; i < plateCount; i++) {
+        const pz = s * (-0.7 + i * 0.5);
+        const plate = new THREE.Mesh(
+            new THREE.SphereGeometry(s * 0.35, seg, 4),
+            carapaceMat
+        );
+        plate.scale.set(1.4, 0.3, 0.8);
+        plate.position.set(0, s * 0.35 + i * s * 0.02, pz);
+        g.add(plate);
+    }
+
+    // ── Spines along back (species A) ──
+    if (cfg.hasSpines && !isMobileDevice) {
+        for (let i = 0; i < 5; i++) {
+            const spine = new THREE.Mesh(
+                new THREE.ConeGeometry(s * 0.06, s * 0.4, 4),
+                carapaceMat
+            );
+            spine.position.set(0, s * 0.55, s * (-0.8 + i * 0.35));
+            spine.rotation.x = -0.2;
+            g.add(spine);
+        }
+    }
+
+    // ── Head group (pivots for look animation) ──
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, s * 0.15, s * 0.95);
+    g.add(headGroup);
+    joints.head = headGroup;
+
+    // Neck
+    const neck = new THREE.Mesh(
+        new THREE.CylinderGeometry(s * 0.2, s * 0.28, s * 0.3, seg),
+        bodyMat
+    );
+    neck.position.set(0, s * 0.05, s * 0.1);
+    neck.rotation.x = 0.4;
+    headGroup.add(neck);
+
+    // Cranium
+    const cranium = new THREE.Mesh(
+        new THREE.SphereGeometry(s * 0.42, seg, seg),
+        bodyMat
+    );
+    cranium.scale.set(1.0, 0.8, 1.1);
+    cranium.position.set(0, s * 0.15, s * 0.35);
+    cranium.castShadow = true;
+    headGroup.add(cranium);
+
+    // Head crest / ridge
+    const crest = new THREE.Mesh(
+        new THREE.SphereGeometry(s * 0.25, seg, 4),
+        carapaceMat
+    );
+    crest.scale.set(0.5, 0.4, 1.0);
+    crest.position.set(0, s * 0.32, s * 0.25);
+    headGroup.add(crest);
+
+    // Eyes (larger, more prominent, with pupils)
+    [-0.2, 0.2].forEach(side => {
+        const eyeSocket = new THREE.Mesh(
+            new THREE.SphereGeometry(s * 0.1, 6, 6),
+            mat(0x111111, 0, 0, false, 1, 0.9)
+        );
+        eyeSocket.position.set(side * s, s * 0.25, s * 0.6);
+        headGroup.add(eyeSocket);
+
+        const eye = new THREE.Mesh(
+            new THREE.SphereGeometry(s * 0.09, 6, 6),
+            eyeMat
+        );
+        eye.position.set(side * s, s * 0.25, s * 0.64);
+        headGroup.add(eye);
     });
 
-    // Legs
-    const legMat = mat(cfg.legColor, 0, 0, false, 1, 0.9);
+    // ── Mandibles (jaw pincers) ──
+    if (cfg.hasMandibles) {
+        const mandibleL = new THREE.Group();
+        mandibleL.position.set(-s * 0.15, s * 0.0, s * 0.7);
+        headGroup.add(mandibleL);
+        const mandibleR = new THREE.Group();
+        mandibleR.position.set(s * 0.15, s * 0.0, s * 0.7);
+        headGroup.add(mandibleR);
+        joints.mandibleL = mandibleL;
+        joints.mandibleR = mandibleR;
+
+        [-1, 1].forEach((side, i) => {
+            const parent = i === 0 ? mandibleL : mandibleR;
+            const jaw = new THREE.Mesh(
+                new THREE.ConeGeometry(s * 0.06, s * 0.35, 4),
+                legMat
+            );
+            jaw.position.set(0, -s * 0.05, s * 0.12);
+            jaw.rotation.x = 1.2;
+            jaw.rotation.z = side * 0.3;
+            parent.add(jaw);
+        });
+    }
+
+    // ── Antennae ──
+    if (cfg.hasAntennae) {
+        const antennaeL = new THREE.Group();
+        antennaeL.position.set(-s * 0.12, s * 0.35, s * 0.5);
+        headGroup.add(antennaeL);
+        const antennaeR = new THREE.Group();
+        antennaeR.position.set(s * 0.12, s * 0.35, s * 0.5);
+        headGroup.add(antennaeR);
+        joints.antennaeL = antennaeL;
+        joints.antennaeR = antennaeR;
+
+        [-1, 1].forEach((side, i) => {
+            const parent = i === 0 ? antennaeL : antennaeR;
+            // Base segment
+            const seg1 = new THREE.Mesh(
+                new THREE.CylinderGeometry(s * 0.02, s * 0.025, s * 0.4, 4),
+                legMat
+            );
+            seg1.position.set(0, s * 0.2, s * 0.05);
+            seg1.rotation.x = -0.6;
+            seg1.rotation.z = side * 0.3;
+            parent.add(seg1);
+            // Tip (glowing)
+            const tip = new THREE.Mesh(
+                new THREE.SphereGeometry(s * 0.04, 5, 5),
+                markMat
+            );
+            tip.position.set(0, s * 0.42, s * 0.15);
+            parent.add(tip);
+        });
+    }
+
+    // ── Jointed legs (hip group → upper leg → knee group → lower leg → foot) ──
+    const legJoints = [];
+    const legSpread = cfg.legCount === 6 ? 0.7 : 0.85; // arc fraction of PI
     for (let j = 0; j < cfg.legCount; j++) {
-        const angle = (j / cfg.legCount) * Math.PI * 2;
-        const legTop = new THREE.Mesh(
-            new THREE.CylinderGeometry(s * 0.1, s * 0.08, s * 0.9, 4),
+        // Distribute legs along the sides (not full 360°, just sides+front)
+        const frac = (j / (cfg.legCount - 1)) - 0.5; // -0.5 to 0.5
+        const side = j % 2 === 0 ? -1 : 1;
+        const zPos = frac * s * 2.0; // spread along body
+        const xPos = side * s * 0.65;
+
+        // Hip pivot
+        const hipGroup = new THREE.Group();
+        hipGroup.position.set(xPos, -s * 0.15, zPos);
+        g.add(hipGroup);
+
+        // Upper leg (thigh)
+        const upperLeg = new THREE.Mesh(
+            new THREE.CylinderGeometry(s * 0.09, s * 0.07, s * 0.65, isMobileDevice ? 4 : 6),
             legMat
         );
-        legTop.position.set(Math.cos(angle) * s * 0.85, -s * 0.35, Math.sin(angle) * s * 0.6);
-        legTop.rotation.z = Math.cos(angle) * 0.4;
-        legTop.rotation.x = Math.sin(angle) * 0.3;
-        legTop.castShadow = true;
-        g.add(legTop);
+        upperLeg.position.set(side * s * 0.25, -s * 0.15, 0);
+        upperLeg.rotation.z = side * 0.5;
+        hipGroup.add(upperLeg);
 
-        const legBot = new THREE.Mesh(
-            new THREE.CylinderGeometry(s * 0.07, s * 0.05, s * 0.7, 4),
+        // Joint bulge at connection
+        const jointBulge = new THREE.Mesh(
+            new THREE.SphereGeometry(s * 0.08, 5, 5),
+            carapaceMat
+        );
+        jointBulge.position.set(side * s * 0.45, -s * 0.35, 0);
+        hipGroup.add(jointBulge);
+
+        // Knee pivot
+        const kneeGroup = new THREE.Group();
+        kneeGroup.position.set(side * s * 0.45, -s * 0.35, 0);
+        hipGroup.add(kneeGroup);
+
+        // Lower leg (shin)
+        const lowerLeg = new THREE.Mesh(
+            new THREE.CylinderGeometry(s * 0.06, s * 0.04, s * 0.55, isMobileDevice ? 4 : 6),
             legMat
         );
-        legBot.position.set(Math.cos(angle) * s * 1.1, -s * 0.9, Math.sin(angle) * s * 0.85);
-        legBot.rotation.z = Math.cos(angle) * 0.6;
-        legBot.rotation.x = Math.sin(angle) * 0.5;
-        g.add(legBot);
-    }
+        lowerLeg.position.set(side * s * 0.1, -s * 0.3, 0);
+        lowerLeg.rotation.z = side * 0.3;
+        kneeGroup.add(lowerLeg);
 
-    // Tail (species A only — longer body)
-    if (cfg.legCount === 6) {
-        const tail = new THREE.Mesh(
-            new THREE.ConeGeometry(s * 0.2, s * 1.4, 5),
-            mat(cfg.bodyColor, 0, 0, false, 1, 0.8)
+        // Foot pad
+        const foot = new THREE.Mesh(
+            new THREE.SphereGeometry(s * 0.06, 5, 4),
+            carapaceMat
         );
-        tail.position.set(0, s * 0.1, -s * 1.3);
-        tail.rotation.x = -0.5;
-        g.add(tail);
+        foot.scale.set(1, 0.4, 1.3);
+        foot.position.set(side * s * 0.15, -s * 0.58, 0);
+        kneeGroup.add(foot);
+
+        legJoints.push({ hip: hipGroup, knee: kneeGroup, side });
+    }
+    joints.legs = legJoints;
+
+    // ── Tail (species A — segmented, flexible) ──
+    if (cfg.hasTail) {
+        const tailGroup = new THREE.Group();
+        tailGroup.position.set(0, s * 0.05, -s * 1.2);
+        g.add(tailGroup);
+        joints.tail = tailGroup;
+
+        const tailSegs = isMobileDevice ? 3 : 5;
+        for (let i = 0; i < tailSegs; i++) {
+            const tRadius = s * (0.2 - i * 0.03);
+            const seg = new THREE.Mesh(
+                new THREE.SphereGeometry(Math.max(tRadius, s * 0.05), 5, 5),
+                i % 2 === 0 ? bodyMat : carapaceMat
+            );
+            seg.scale.set(1, 0.6, 1);
+            seg.position.set(0, -i * s * 0.06, -i * s * 0.3);
+            tailGroup.add(seg);
+        }
+        // Tail tip glow
+        const tailTip = new THREE.Mesh(
+            new THREE.SphereGeometry(s * 0.06, 5, 5),
+            markMat
+        );
+        tailTip.position.set(0, -tailSegs * s * 0.06, -tailSegs * s * 0.3);
+        tailGroup.add(tailTip);
     }
 
+    // ── Bioluminescent body markings (side dots) ──
+    if (!isMobileDevice) {
+        const dotCount = cfg.legCount === 6 ? 4 : 3;
+        for (let i = 0; i < dotCount; i++) {
+            [-1, 1].forEach(side => {
+                const dot = new THREE.Mesh(
+                    new THREE.SphereGeometry(s * 0.05, 4, 4),
+                    markMat
+                );
+                dot.position.set(
+                    side * s * 0.65,
+                    s * 0.05,
+                    s * (-0.5 + i * 0.4)
+                );
+                g.add(dot);
+            });
+        }
+    }
+
+    g.userData.joints = joints;
     return g;
 }
 
@@ -446,18 +705,24 @@ export function createCreatures(type, group, heightFn) {
 
             creature.position.set(x, y, z);
             creature.rotation.y = Math.random() * Math.PI * 2;
+
+            // Preserve joints from buildCreatureMesh, merge with movement data
+            const jointRefs = creature.userData.joints || {};
             creature.userData = {
-                originX:    x,
-                originZ:    z,
-                phase:      Math.random() * Math.PI * 2,
-                speed:      cfg.speed,
-                roamRadius: cfg.roamRadius,
-                bobHeight:  cfg.bobHeight,
-                bodyScale:  cfg.bodyScale,
-                legCount:   cfg.legCount,
+                originX:     x,
+                originZ:     z,
+                phase:       Math.random() * Math.PI * 2,
+                idlePhase:   Math.random() * Math.PI * 2,
+                speed:       cfg.speed,
+                roamRadius:  cfg.roamRadius,
+                bobHeight:   cfg.bobHeight,
+                bodyScale:   cfg.bodyScale,
+                legCount:    cfg.legCount,
                 speciesIdx,
-                // leg animation refs — children indices for legs start at 3 (body+head+eyes)
-                legStartIdx: 4,
+                hasTail:     !!cfg.hasTail,
+                hasAntennae: !!cfg.hasAntennae,
+                hasMandibles:!!cfg.hasMandibles,
+                joints:      jointRefs,
             };
             group.add(creature);
             creatures.push(creature);
