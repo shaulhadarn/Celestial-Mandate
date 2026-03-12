@@ -14,6 +14,7 @@ import planetState from './visuals_planet_state.js';
 import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_planet_terrain.js';
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
 import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers, createGroundMist, createAtmosphericHaze } from './visuals_planet_environment.js';
+import { hasGrass, createGrassMesh } from './visuals_planet_grass.js';
 import { renderColonyGroundBuildings, soldierMeshes } from './visuals_planet_colony.js';
 
 // Sub-modules — import also registers the mouse/touch listeners (self-invoking init)
@@ -152,6 +153,7 @@ export function createPlanetVisuals(planetData, group) {
     planetState.cloudLayers = [];
     planetState.groundMist = null;
     planetState.hazeMesh = null;
+    planetState.grassData = null;
     planetState.dustMesh = null;
     planetState.currentPlanetData = planetData;
     planetState.explorationGroup = group;
@@ -341,6 +343,12 @@ export function createPlanetVisuals(planetData, group) {
     // 11. Atmospheric haze (horizon gradient cylinder)
     planetState.hazeMesh = createAtmosphericHaze(skyColor, planetData.type);
     if (planetState.hazeMesh) group.add(planetState.hazeMesh);
+
+    // 12. Grass (instanced blades for grassy planet types)
+    if (hasGrass(planetData.type)) {
+        planetState.grassData = createGrassMesh(planetData.type);
+        if (planetState.grassData) group.add(planetState.grassData.mesh);
+    }
 
     return planetState.playerMesh;
 }

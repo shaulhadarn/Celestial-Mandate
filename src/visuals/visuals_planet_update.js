@@ -8,6 +8,7 @@ import { getTerrainHeight, getTerrainHeightFast } from './visuals_planet_terrain
 import { harvesterGroups, soldierMeshes, hubGroup, renderColonyGroundBuildings } from './visuals_planet_colony.js';
 import { getOrCreateHarvesterHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
+import { updateGrass } from './visuals_planet_grass.js';
 
 // ── Pre-allocated reusable vectors (never GC'd) ─────────────────────────────
 const _cameraOffset = new THREE.Vector3(0, 0, 0); // dynamic, updated per frame
@@ -428,6 +429,9 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         planetState.hazeMesh.position.x = followPos.position.x;
         planetState.hazeMesh.position.z = followPos.position.z;
     }
+
+    // --- 8c. Grass wind animation ---
+    updateGrass(planetState.grassData, dt);
 
     // --- 8b. Patrol soldiers (waypoint-based walk) ---
     const TRAIL_SPACING = 1.2;   // drop a footprint every N units
