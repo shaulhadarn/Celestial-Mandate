@@ -218,13 +218,10 @@ export function initFleetsUI() {
         if (target.classList.contains('fsr-fly-btn')) {
             e.stopPropagation();
             const fleetId = target.dataset.fleetId;
-            console.log('[FLY] clicked, fleetId=', fleetId, 'viewMode=', gameState.viewMode, 'selectedSystemId=', gameState.selectedSystemId);
             // Always refresh to ensure ships are spawned
             refreshSystemShips();
-            let shipMeshes = getPlayerShipMeshes();
-            console.log('[FLY] shipMeshes count=', shipMeshes.length, 'ids=', shipMeshes.map(s => s.fleetData.id));
+            const shipMeshes = getPlayerShipMeshes();
             const entry = shipMeshes.find(s => String(s.fleetData.id) === String(fleetId));
-            console.log('[FLY] matched entry=', !!entry, 'controls=', !!controls);
             if (entry) {
                 enterShipControl(entry, controls);
                 if (panel) panel.classList.add('hidden');

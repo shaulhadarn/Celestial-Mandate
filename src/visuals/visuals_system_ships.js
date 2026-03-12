@@ -194,9 +194,9 @@ function _createScoutHull(accent) {
     }
 
     // Nav lights
-    g.add(Object.assign(_makeNavLight(0x00ff00, 0.08), { position: new THREE.Vector3(0.95, 0.03, -0.15) }));
-    g.add(Object.assign(_makeNavLight(0xff0000, 0.08), { position: new THREE.Vector3(-0.95, 0.03, -0.15) }));
-    g.add(Object.assign(_makeNavLight(accent, 0.06), { position: new THREE.Vector3(0, 0.15, 0.8) }));
+    { const nl = _makeNavLight(0x00ff00, 0.08); nl.position.set(0.95, 0.03, -0.15); g.add(nl); }
+    { const nl = _makeNavLight(0xff0000, 0.08); nl.position.set(-0.95, 0.03, -0.15); g.add(nl); }
+    { const nl = _makeNavLight(accent, 0.06); nl.position.set(0, 0.15, 0.8); g.add(nl); }
 
     // Trail anchor
     const trailAnchor = new THREE.Object3D();
@@ -344,10 +344,10 @@ function _createCorvetteHull(accent) {
     g.add(engineGlow);
 
     // Nav lights
-    g.add(Object.assign(_makeNavLight(0x00ff00, 0.1), { position: new THREE.Vector3(1.3, -0.05, -0.2) }));
-    g.add(Object.assign(_makeNavLight(0xff0000, 0.1), { position: new THREE.Vector3(-1.3, -0.05, -0.2) }));
-    g.add(Object.assign(_makeNavLight(accent, 0.08), { position: new THREE.Vector3(0, 0.53, -0.5) }));
-    g.add(Object.assign(_makeNavLight(0xffffff, 0.06), { position: new THREE.Vector3(0, -0.25, 1.5) }));
+    { const nl = _makeNavLight(0x00ff00, 0.1); nl.position.set(1.3, -0.05, -0.2); g.add(nl); }
+    { const nl = _makeNavLight(0xff0000, 0.1); nl.position.set(-1.3, -0.05, -0.2); g.add(nl); }
+    { const nl = _makeNavLight(accent, 0.08); nl.position.set(0, 0.53, -0.5); g.add(nl); }
+    { const nl = _makeNavLight(0xffffff, 0.06); nl.position.set(0, -0.25, 1.5); g.add(nl); }
 
     // Trail anchor
     const trailAnchor = new THREE.Object3D();
@@ -523,12 +523,12 @@ function _createCruiserHull(accent) {
     g.add(coreGlow);
 
     // Nav lights (6 positions)
-    g.add(Object.assign(_makeNavLight(0x00ff00, 0.12), { position: new THREE.Vector3(1.4, -0.05, 0.0) }));
-    g.add(Object.assign(_makeNavLight(0xff0000, 0.12), { position: new THREE.Vector3(-1.4, -0.05, 0.0) }));
-    g.add(Object.assign(_makeNavLight(accent, 0.1), { position: new THREE.Vector3(0.2, 0.68, -0.5) }));
-    g.add(Object.assign(_makeNavLight(accent, 0.1), { position: new THREE.Vector3(-0.2, 0.68, -0.5) }));
-    g.add(Object.assign(_makeNavLight(0xffffff, 0.08), { position: new THREE.Vector3(0, -0.3, 2.0) }));
-    g.add(Object.assign(_makeNavLight(0xffffff, 0.06), { position: new THREE.Vector3(0, 0.22, -1.4) }));
+    { const nl = _makeNavLight(0x00ff00, 0.12); nl.position.set(1.4, -0.05, 0.0); g.add(nl); }
+    { const nl = _makeNavLight(0xff0000, 0.12); nl.position.set(-1.4, -0.05, 0.0); g.add(nl); }
+    { const nl = _makeNavLight(accent, 0.1); nl.position.set(0.2, 0.68, -0.5); g.add(nl); }
+    { const nl = _makeNavLight(accent, 0.1); nl.position.set(-0.2, 0.68, -0.5); g.add(nl); }
+    { const nl = _makeNavLight(0xffffff, 0.08); nl.position.set(0, -0.3, 2.0); g.add(nl); }
+    { const nl = _makeNavLight(0xffffff, 0.06); nl.position.set(0, 0.22, -1.4); g.add(nl); }
 
     // Trail anchor
     const trailAnchor = new THREE.Object3D();
