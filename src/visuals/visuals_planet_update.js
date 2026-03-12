@@ -10,7 +10,7 @@ import { getOrCreateHarvesterHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 
 // ── Pre-allocated reusable vectors (never GC'd) ─────────────────────────────
-const _cameraOffset = new THREE.Vector3(0, CAMERA_HEIGHT_OFFSET, 0);
+const _cameraOffset = new THREE.Vector3(0, 0, 0); // dynamic, updated per frame
 const _droneCenter  = new THREE.Vector3();
 const _finalCenter  = new THREE.Vector3();
 const _forward      = new THREE.Vector3();
@@ -38,12 +38,18 @@ export function updateColonyBuildings() {
 
 export function updatePlanetPhysics(dt, camera, controls, group) {
     const { playerMesh, sunLight, dustMesh, creatures, planetProps,
-            cameraYaw, cameraPitch, cameraDistance, keyState, joystickInput } = planetState;
+            cameraYaw, cameraPitch, keyState, joystickInput } = planetState;
 
     if (!playerMesh || !camera) return;
 
     const controlTarget = planetState.controlTarget; // null = drone, mesh = soldier
     const followTarget = controlTarget || playerMesh;
+
+    // --- 0. Smooth camera distance + height transitions ---
+    const lerpRate = 3 * dt; // smooth ~0.2s transition
+    planetState.cameraDistance += (planetState.targetCameraDistance - planetState.cameraDistance) * lerpRate;
+    planetState.cameraHeightOffset += (planetState.targetCameraHeightOffset - planetState.cameraHeightOffset) * lerpRate;
+    _cameraOffset.y = planetState.cameraHeightOffset;
 
     // --- 1. Camera Position (follows controlTarget or drone) ---
     _droneCenter.copy(followTarget.position).add(_cameraOffset);
@@ -52,10 +58,11 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     const sinPitch = Math.sin(cameraPitch);
     const cosPitch = Math.cos(cameraPitch);
 
-    const camX = _droneCenter.x + cameraDistance * sinYaw * cosPitch;
-    let camY = _droneCenter.y + cameraDistance * sinPitch;
-    const camZ = _droneCenter.z + cameraDistance * cosYaw * cosPitch;
-    const camGroundH = getTerrainHeightFast(camX, camZ) + 2.0;
+    const useDist = planetState.cameraDistance;
+    const camX = _droneCenter.x + useDist * sinYaw * cosPitch;
+    let camY = _droneCenter.y + useDist * sinPitch;
+    const camZ = _droneCenter.z + useDist * cosYaw * cosPitch;
+    const camGroundH = getTerrainHeightFast(camX, camZ) + 1.5;
     if (camY < camGroundH) camY = camGroundH;
     camera.position.set(camX, camY, camZ);
     camera.lookAt(_droneCenter);
@@ -77,8 +84,8 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
     if (controlTarget) {
         // --- 2b/3b. Soldier ground movement ---
-        const soldierSpeed = 8;
-        const soldierDrag = 0.85;
+        const soldierSpeed = 40;
+        const soldierDrag = 0.88;
         const sVel = controlTarget.userData.velocity;
 
         if (_inputDir.lengthSq() > 0) {
@@ -96,36 +103,55 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
         const soldierSpd = Math.sqrt(sVel.x * sVel.x + sVel.z * sVel.z);
 
-        // --- 4b. Soldier rotation ---
-        if (soldierSpd > 0.05) {
+        // --- 4b. Soldier rotation (face walking direction) ---
+        if (soldierSpd > 0.1) {
             const targetRot = Math.atan2(sVel.x, sVel.z);
             let diff = targetRot - controlTarget.rotation.y;
             while (diff > Math.PI) diff -= Math.PI * 2;
             while (diff < -Math.PI) diff += Math.PI * 2;
-            controlTarget.rotation.y += diff * 10 * dt;
+            controlTarget.rotation.y += diff * 12 * dt;
         }
 
-        // Walk cycle animation for controlled soldier
+        // --- Walk cycle animation for controlled soldier ---
         const ud = controlTarget.userData;
-        if (soldierSpd > 0.05) {
-            ud.walkPhase = (ud.walkPhase || 0) + soldierSpd * dt * 4;
+        if (soldierSpd > 0.1) {
+            ud.walkPhase = (ud.walkPhase || 0) + soldierSpd * dt * 6;
             const walkSin = Math.sin(ud.walkPhase);
             const walkCos = Math.cos(ud.walkPhase);
-            controlTarget.position.y += Math.abs(walkSin) * 0.04;
-            controlTarget.rotation.z = walkCos * 0.02;
+            // Vertical bob
+            controlTarget.position.y += Math.abs(walkSin) * 0.06;
+            // Slight body lean
+            controlTarget.rotation.z = walkCos * 0.03;
+
             controlTarget.children.forEach(child => {
                 if (child.userData.isLeg) {
-                    child.rotation.x = walkSin * 0.5 * child.userData.side;
+                    // Strong leg swing
+                    child.rotation.x = walkSin * 0.7 * child.userData.side;
                 }
                 if (child.userData.isArm) {
-                    const amp = child.userData.side === 1 ? 0.2 : 0.35;
+                    // Arms counter-swing, weapon arm less
+                    const amp = child.userData.side === 1 ? 0.3 : 0.5;
                     child.rotation.x = Math.sin(ud.walkPhase + Math.PI) * amp * child.userData.side;
                     child.rotation.z = 0;
                 }
+                if (child.userData.isHead) {
+                    // Subtle head bob with walk
+                    child.rotation.x = Math.sin(ud.walkPhase * 2) * 0.03;
+                }
             });
         } else {
-            // Idle animations for controlled soldier
+            // Idle — breathing + relax limbs
+            const idleT = performance.now() * 0.001;
             controlTarget.rotation.z *= 0.9;
+            controlTarget.children.forEach(child => {
+                if (child.userData.isLeg) {
+                    child.rotation.x *= 0.85; // smoothly return to rest
+                }
+                if (child.userData.isArm) {
+                    child.rotation.x *= 0.85;
+                    child.rotation.z = Math.sin(idleT * 1.5 + (child.userData.side || 0)) * 0.02;
+                }
+            });
         }
     }
 
@@ -771,10 +797,12 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     }
 
     // --- 12. Final Camera Update (reuse cached trig from step 1) ---
-    _finalCenter.copy(playerMesh.position).add(_cameraOffset);
-    const finalCamX = _finalCenter.x + cameraDistance * sinYaw * cosPitch;
-    const finalCamY = _finalCenter.y + cameraDistance * sinPitch;
-    const finalCamZ = _finalCenter.z + cameraDistance * cosYaw * cosPitch;
+    _finalCenter.copy(followTarget.position).add(_cameraOffset);
+    const finalCamX = _finalCenter.x + useDist * sinYaw * cosPitch;
+    let finalCamY = _finalCenter.y + useDist * sinPitch;
+    const finalCamZ = _finalCenter.z + useDist * cosYaw * cosPitch;
+    const finalCamGH = getTerrainHeightFast(finalCamX, finalCamZ) + 1.5;
+    if (finalCamY < finalCamGH) finalCamY = finalCamGH;
     camera.position.set(finalCamX, finalCamY, finalCamZ);
     camera.lookAt(_finalCenter);
 }

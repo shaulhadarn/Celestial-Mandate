@@ -66,7 +66,9 @@ function initExplorationMouseControls() {
     const onWheel = (e) => {
         if (gameState.viewMode !== 'EXPLORATION') return;
         e.preventDefault();
-        planetState.cameraDistance = Math.max(CAMERA_DISTANCE_MIN, Math.min(CAMERA_DISTANCE_MAX, planetState.cameraDistance + e.deltaY * 0.05));
+        const newDist = Math.max(CAMERA_DISTANCE_MIN, Math.min(CAMERA_DISTANCE_MAX, planetState.cameraDistance + e.deltaY * 0.05));
+        planetState.cameraDistance = newDist;
+        planetState.targetCameraDistance = newDist;
     };
 
     // ── Touch ────────────────────────────────────────────────────────────────
@@ -131,7 +133,9 @@ function initExplorationMouseControls() {
         if (e.touches.length === 2 && planetState.isPinching && !isDroneMoving()) {
             const newDist = getTouchDistance(e.touches[0], e.touches[1]);
             const delta = planetState.pinchStartDist - newDist;
-            planetState.cameraDistance = Math.max(CAMERA_DISTANCE_MIN, Math.min(CAMERA_DISTANCE_MAX, planetState.cameraDistance + delta * 0.05));
+            const pinchDist = Math.max(CAMERA_DISTANCE_MIN, Math.min(CAMERA_DISTANCE_MAX, planetState.cameraDistance + delta * 0.05));
+            planetState.cameraDistance = pinchDist;
+            planetState.targetCameraDistance = pinchDist;
             planetState.pinchStartDist = newDist;
             return;
         }

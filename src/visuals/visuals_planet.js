@@ -73,6 +73,10 @@ function _switchToSoldier(soldier) {
     if (!soldier.userData.velocity) soldier.userData.velocity = new THREE.Vector3();
     else soldier.userData.velocity.set(0, 0, 0);
 
+    // Zoom camera in for tight third-person soldier view
+    planetState.targetCameraDistance = 8;
+    planetState.targetCameraHeightOffset = 1.4;
+
     const bar = document.getElementById('soldier-control-bar');
     if (bar) bar.classList.remove('hidden');
 }
@@ -82,6 +86,11 @@ function _switchToDrone() {
         planetState.controlTarget.userData._playerControlled = false;
     }
     planetState.controlTarget = null;
+
+    // Restore drone camera distance
+    planetState.targetCameraDistance = 18;
+    planetState.targetCameraHeightOffset = 2;
+
     const bar = document.getElementById('soldier-control-bar');
     if (bar) bar.classList.add('hidden');
 }
