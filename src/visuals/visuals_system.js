@@ -150,7 +150,7 @@ function _initSatTrailPool(group) {
     _trailInited = true;
 }
 
-export function _spawnSatTrail(x, y, z, vx, vy, vz) {
+export function _spawnSatTrail(x, y, z, vx, vy, vz, sizeMul) {
     if (!_trailInited) return;
     if (isMobileDevice && _trailActive >= 60) return;
 
@@ -161,8 +161,9 @@ export function _spawnSatTrail(x, y, z, vx, vy, vz) {
     if (!slot) return;
 
     const idx = slot._idx;
-    const baseSize = (isMobileDevice ? 1.2 : 1.6) + Math.random() * 0.6;
-    const life = 0.5 + Math.random() * 0.4;
+    const sm = sizeMul || 1.0;
+    const baseSize = ((isMobileDevice ? 1.2 : 1.6) + Math.random() * 0.6) * sm;
+    const life = (0.5 + Math.random() * 0.4) * (0.6 + sm * 0.4);
 
     slot.active = true;
     slot.life = life;
@@ -1612,10 +1613,12 @@ export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
                 bs.mesh.position.y += formationOffsets[i].y * formScale + Math.sin(moveT * Math.PI) * (2 + i * 0.4);
                 bs.mesh.position.z += formationOffsets[i].z * formScale;
 
-                // Face direction of travel
+                // Face direction of travel (nose +Z, lookAt aligns -Z, so flip)
                 const lookTarget = piratePos.clone();
                 lookTarget.y = bs.mesh.position.y;
-                bs.mesh.lookAt(lookTarget);
+                const bdx1 = lookTarget.x - bs.mesh.position.x;
+                const bdz1 = lookTarget.z - bs.mesh.position.z;
+                bs.mesh.lookAt(bs.mesh.position.x - bdx1, bs.mesh.position.y, bs.mesh.position.z - bdz1);
 
                 // Engine glow brightens during approach
                 if (bs.engineGlow) {
@@ -1640,8 +1643,11 @@ export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
                     piratePos.y + 1.0 + Math.sin(elapsed * 0.003 + i) * 0.8,
                     piratePos.z + Math.sin(angle) * orbitR
                 );
-                // Face toward pirate station
-                bs.mesh.lookAt(piratePos);
+                // Face toward pirate station (nose +Z, lookAt aligns -Z, so flip)
+                const cdx = piratePos.x - bs.mesh.position.x;
+                const cdy = piratePos.y - bs.mesh.position.y;
+                const cdz = piratePos.z - bs.mesh.position.z;
+                bs.mesh.lookAt(bs.mesh.position.x - cdx, bs.mesh.position.y - cdy, bs.mesh.position.z - cdz);
 
                 // Engine glow pulse
                 if (bs.engineGlow) {
@@ -1739,24 +1745,24 @@ export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
                     if (ps.dockGlow) ps.dockGlow.material.opacity = Math.max(0, (1 - fadeT) * 0.8);
                 });
 
-                // Surviving ships fly back
+                // Surviving ships fly back (nose +Z, lookAt aligns -Z, so flip)
                 const alive = battleShips.filter(bs => !bs.dead);
                 alive.forEach((bs, i) => {
                     bs.mesh.position.lerpVectors(piratePos, homePos, afterT);
                     bs.mesh.position.y += Math.sin(afterT * Math.PI) * (2 + i * 0.3);
-                    const lookTarget = homePos.clone();
-                    lookTarget.y = bs.mesh.position.y;
-                    bs.mesh.lookAt(lookTarget);
+                    const rdx = homePos.x - bs.mesh.position.x;
+                    const rdz = homePos.z - bs.mesh.position.z;
+                    bs.mesh.lookAt(bs.mesh.position.x - rdx, bs.mesh.position.y, bs.mesh.position.z - rdz);
                 });
             } else {
-                // ── Defeat: ships retreat ────────────────────────────────────
+                // ── Defeat: ships retreat (nose +Z, lookAt aligns -Z, so flip)
                 const alive = battleShips.filter(bs => !bs.dead);
                 alive.forEach((bs, i) => {
                     bs.mesh.position.lerpVectors(piratePos, homePos, afterT);
                     bs.mesh.position.y += Math.sin(afterT * Math.PI) * (2 + i * 0.3);
-                    const lookTarget = homePos.clone();
-                    lookTarget.y = bs.mesh.position.y;
-                    bs.mesh.lookAt(lookTarget);
+                    const rdx2 = homePos.x - bs.mesh.position.x;
+                    const rdz2 = homePos.z - bs.mesh.position.z;
+                    bs.mesh.lookAt(bs.mesh.position.x - rdx2, bs.mesh.position.y, bs.mesh.position.z - rdz2);
                 });
             }
         }

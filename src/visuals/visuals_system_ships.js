@@ -610,10 +610,13 @@ export function spawnPlayerShip(fleetData, group, planetMesh) {
 
     group.add(shipGroup);
 
+    const trailScale = { scout: 0.35, corvette: 0.65, cruiser: 1.0 }[hullClass] || 0.35;
+
     _playerShipMeshes.push({
         mesh: shipGroup,
         engineGlow,
         trailAnchor,
+        trailScale,
         fleetData,
         orbitPlanetMesh: planetMesh || null,
         orbitAngle: startAngle,
@@ -667,13 +670,21 @@ export function updatePlayerShipOrbits(time, dt) {
             center.z + Math.sin(a) * r
         );
 
-        // Face orbital direction (nose at -Z, so look behind to point nose forward)
+        // Face orbital direction (nose is +Z, lookAt aligns -Z, so look opposite)
         _tmpLookAt.set(
-            center.x + Math.cos(a - 0.1) * r,
-            center.y + Math.sin((a - 0.1) * 0.5) * incl * r,
-            center.z + Math.sin(a - 0.1) * r
+            center.x + Math.cos(a + 0.1) * r,
+            center.y + Math.sin((a + 0.1) * 0.5) * incl * r,
+            center.z + Math.sin(a + 0.1) * r
         );
-        entry.mesh.lookAt(_tmpLookAt);
+        // Subtract direction from position to flip nose forward
+        const dx = _tmpLookAt.x - entry.mesh.position.x;
+        const dy = _tmpLookAt.y - entry.mesh.position.y;
+        const dz = _tmpLookAt.z - entry.mesh.position.z;
+        entry.mesh.lookAt(
+            entry.mesh.position.x - dx,
+            entry.mesh.position.y - dy,
+            entry.mesh.position.z - dz
+        );
 
         // Engine glow pulse
         if (entry.engineGlow) {
@@ -707,10 +718,12 @@ function _emitShipTrail(entry, dt) {
         entry._prevPos.copy(_trailWP);
     }
 
+    const ts = entry.trailScale || 1.0;
     if (hasMoved && Math.random() < 0.7) {
         _spawnSatTrail(
             _trailWP.x, _trailWP.y, _trailWP.z,
-            -dx * 2.0, -dy * 2.0, -dz * 2.0
+            -dx * 2.0, -dy * 2.0, -dz * 2.0,
+            ts
         );
     }
 }
