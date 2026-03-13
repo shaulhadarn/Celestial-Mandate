@@ -8,6 +8,7 @@ import { setControlledEntry, getControlledEntry } from './visuals_system_ships.j
 import { isMobile as isMobileDevice } from '../core/device.js';
 import { events } from '../core/state.js';
 import { controls } from '../core/scene_config.js';
+import { _spawnSatTrail } from './visuals_system.js';
 
 // ── Pre-allocated vectors ───────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ const _right   = new THREE.Vector3();
 const _camPos  = new THREE.Vector3();
 const _camTarget = new THREE.Vector3();
 const _euler   = new THREE.Euler();
+const _trailWP = new THREE.Vector3();
 
 // ── Shared mutable state ────────────────────────────────────────────────────
 
@@ -55,8 +57,14 @@ export function isShipControlActive() {
 export function enterShipControl(shipEntry, controls) {
     setControlledEntry(shipEntry);
 
-    // Disable orbit camera
-    if (controls) controls.enabled = false;
+    // Fully disable OrbitControls — stop its update() from repositioning the camera
+    if (controls) {
+        controls.enabled = false;
+        if (!controls._shipOrigUpdate) {
+            controls._shipOrigUpdate = controls.update.bind(controls);
+            controls.update = () => {}; // no-op during ship flight
+        }
+    }
 
     // Reset flight state
     systemShipState.velocity.set(0, 0, 0);
@@ -70,16 +78,6 @@ export function enterShipControl(shipEntry, controls) {
     systemShipState.joystickInput.x = 0;
     systemShipState.joystickInput.y = 0;
     systemShipState.cameraYawOffset = 0;
-
-    // Snap camera behind the ship immediately
-    const mesh = shipEntry.mesh;
-    if (mesh && controls) {
-        _euler.setFromQuaternion(mesh.quaternion, 'YXZ');
-        const camYaw = _euler.y + Math.PI;
-        const camDist = systemShipState.cameraDistance;
-        const camPitch = systemShipState.cameraPitch;
-        controls.target.set(mesh.position.x, mesh.position.y + 0.3, mesh.position.z);
-    }
 
     // Show control bar
     const bar = document.getElementById('system-ship-control-bar');
@@ -113,8 +111,12 @@ export function exitShipControl(controls, camera) {
     systemShipState.velocity.set(0, 0, 0);
     systemShipState.keyState = {};
 
-    // Re-enable OrbitControls
+    // Re-enable OrbitControls — restore its update() first
     if (controls) {
+        if (controls._shipOrigUpdate) {
+            controls.update = controls._shipOrigUpdate;
+            delete controls._shipOrigUpdate;
+        }
         controls.enabled = true;
         controls.minDistance = 10;
         controls.maxDistance = 300;
@@ -438,5 +440,29 @@ export function updateShipFlight(dt, camera) {
     // Keep OrbitControls target on the ship so it doesn't fight the camera
     if (controls) {
         controls.target.copy(_camTarget);
+    }
+
+    // ── Engine trails ──
+    // Emit trail particles from the engine exhaust, velocity-based
+    if (entry.trailAnchor && speed > 0.5) {
+        entry.trailAnchor.getWorldPosition(_trailWP);
+        // Trail velocity = opposite of ship velocity (exhaust goes backward)
+        const trailVx = -velocity.x * 1.5;
+        const trailVy = -velocity.y * 1.5;
+        const trailVz = -velocity.z * 1.5;
+        // Emit 1-3 particles per frame based on speed
+        const emitCount = speed > systemShipState.maxSpeed * 0.5 ? 3 : speed > 2 ? 2 : 1;
+        for (let i = 0; i < emitCount; i++) {
+            // Slight random spread for a fuller exhaust plume
+            const spread = 0.15;
+            _spawnSatTrail(
+                _trailWP.x + (Math.random() - 0.5) * spread,
+                _trailWP.y + (Math.random() - 0.5) * spread,
+                _trailWP.z + (Math.random() - 0.5) * spread,
+                trailVx + (Math.random() - 0.5) * 2,
+                trailVy + (Math.random() - 0.5) * 2,
+                trailVz + (Math.random() - 0.5) * 2
+            );
+        }
     }
 }

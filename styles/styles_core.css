@@ -19,6 +19,9 @@ body, html {
     color: var(--color-text-bright);
     font-family: var(--font-main);
     user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
     font-weight: 500;
 }
 
@@ -42,6 +45,8 @@ body, html {
 #game-container > div,
 #game-container > div > div {
     touch-action: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 #ui-layer {
