@@ -139,10 +139,8 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             const walkSin = Math.sin(wp);
             const walkCos = Math.cos(wp);
 
-            // Vertical bob
-            controlTarget.position.y += Math.abs(walkSin) * 0.06;
-            // Slight body lean
-            controlTarget.rotation.z = walkCos * 0.03;
+            // Gentle vertical bob (subtle, no side-lean)
+            controlTarget.position.y += Math.abs(walkSin) * 0.02;
 
             if (j) {
                 // Hip swing (right leg forward when sin>0)
@@ -167,7 +165,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         } else {
             // Idle — breathing + relax joints
             const idleT = performance.now() * 0.001;
-            controlTarget.rotation.z *= 0.9;
+            controlTarget.rotation.z *= 0.8;
 
             if (j) {
                 j.rightLeg.rotation.x *= 0.85;
