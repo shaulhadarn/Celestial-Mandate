@@ -202,8 +202,11 @@ export function handleShipMouseDown(e) {
 
 export function handleShipMouseMove(e) {
     if (!isShipControlActive() || !systemShipState.mouseDown) return;
-    systemShipState.mouseDeltaX += (e.clientX - systemShipState.lastMouseX) * 0.003;
-    systemShipState.mouseDeltaY += (e.clientY - systemShipState.lastMouseY) * 0.003;
+    const dx = e.clientX - systemShipState.lastMouseX;
+    const dy = e.clientY - systemShipState.lastMouseY;
+    // Mouse drag orbits camera around ship (does NOT rotate the ship)
+    systemShipState.cameraYawOffset -= dx * 0.005;
+    systemShipState.cameraPitch = Math.max(0.05, Math.min(1.4, systemShipState.cameraPitch + dy * 0.004));
     systemShipState.lastMouseX = e.clientX;
     systemShipState.lastMouseY = e.clientY;
 }
@@ -375,16 +378,7 @@ export function updateShipFlight(dt, camera) {
     }
     mesh.rotateY(yawInput * 2.5 * dt);
 
-    // Yaw/pitch from mouse drag (desktop)
-    if (Math.abs(systemShipState.mouseDeltaX) > 0.001) {
-        mesh.rotateY(-systemShipState.mouseDeltaX * 1.5);
-        systemShipState.mouseDeltaX *= 0.5; // decay
-    }
-    if (Math.abs(systemShipState.mouseDeltaY) > 0.001) {
-        mesh.rotateX(-systemShipState.mouseDeltaY * 1.0);
-        systemShipState.mouseDeltaY *= 0.5;
-    }
-
+    // Mouse drag now orbits camera (handled in handleShipMouseMove), not the ship
     // Drag
     velocity.multiplyScalar(systemShipState.drag);
 

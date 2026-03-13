@@ -929,8 +929,9 @@ export function addColonyVisual(planetMesh) {
     trailAnchor.position.set(0, 0, -0.7);
     satGroup.add(trailAnchor);
 
-    // Position satellite at orbit radius
+    // Position satellite at orbit radius; rotate so engine trails behind orbit direction
     satGroup.position.set(orbitRadius, 0, 0);
+    satGroup.rotation.y = Math.PI;
     orbitPivot.add(satGroup);
 
     // Random starting angle and inclination
@@ -1114,8 +1115,9 @@ export function addShipyardVisual(planetMesh) {
     const { stationGroup, dockGlow, navLights, engineGlow, trailAnchor } = _createShipyardMesh();
     stationGroup.scale.setScalar(stationScale);
 
-    // Position at orbit radius
+    // Position at orbit radius; rotate so engine trails behind orbit direction
     stationGroup.position.set(orbitRadius, 0, 0);
+    stationGroup.rotation.y = Math.PI;
     orbitPivot.add(stationGroup);
 
     // Random starting angle and different inclination from colony sat
@@ -1248,6 +1250,7 @@ export function addPirateBaseVisual(planetMesh) {
     const { stationGroup, dockGlow, navLights, engineGlow, trailAnchor } = _createPirateStationMesh();
     stationGroup.scale.setScalar(stationScale);
     stationGroup.position.set(orbitRadius, 0, 0);
+    stationGroup.rotation.y = Math.PI;
     orbitPivot.add(stationGroup);
 
     orbitPivot.rotation.y = Math.random() * Math.PI * 2;
@@ -2189,11 +2192,11 @@ export function updateSystemAnimations(time, dt, group) {
         }
 
         _shipTmpDir.subVectors(_shipTmpTo, _shipTmpFrom).normalize();
-        // Ship nose is +Z, lookAt aligns -Z toward target, so subtract to flip
+        // Pirate raider nose is +Z — Object3D.lookAt makes +Z face target
         ts.mesh.lookAt(
-            ts.mesh.position.x - _shipTmpDir.x,
-            ts.mesh.position.y - _shipTmpDir.y,
-            ts.mesh.position.z - _shipTmpDir.z
+            ts.mesh.position.x + _shipTmpDir.x,
+            ts.mesh.position.y + _shipTmpDir.y,
+            ts.mesh.position.z + _shipTmpDir.z
         );
 
         // Engine glow + core pulse (single combined sprites)
@@ -2267,13 +2270,13 @@ export function updateSystemAnimations(time, dt, group) {
             ts.mesh.position.z += (midZ / lateralLen) * ts.lateralOffset * arcT;
         }
 
-        // Face direction of travel (nose is +Z, lookAt aligns -Z, so subtract)
+        // Face direction of travel — Object3D.lookAt makes +Z face target
         _shipTmpDir.copy(_shipTmpTo).sub(_shipTmpFrom).normalize();
         if (_shipTmpDir.lengthSq() > 0.001) {
             ts.mesh.lookAt(
-                ts.mesh.position.x - _shipTmpDir.x,
-                ts.mesh.position.y - _shipTmpDir.y * 0.3,
-                ts.mesh.position.z - _shipTmpDir.z
+                ts.mesh.position.x + _shipTmpDir.x,
+                ts.mesh.position.y + _shipTmpDir.y * 0.3,
+                ts.mesh.position.z + _shipTmpDir.z
             );
         }
 
