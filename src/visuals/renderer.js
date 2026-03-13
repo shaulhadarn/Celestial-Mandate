@@ -51,7 +51,12 @@ export async function init() {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mousedown', onPointerDown);
     window.addEventListener('mouseup', onPointerUp);
-    // Touch support — passive:false is CRITICAL so preventDefault() can block browser scroll/pan
+    // Touch support — use CSS touch-action:none on canvas instead of preventDefault
+    // so OrbitControls' element-level listeners still receive touch events.
+    if (renderer && renderer.domElement) {
+        renderer.domElement.style.touchAction = 'none';
+    }
+
     const _isUITouch = (target) => {
         if (!target || !target.closest) return false;
         return target.closest('#ui-layer') || target.closest('#splash-screen') ||
@@ -63,18 +68,11 @@ export async function init() {
                target.closest('button');
     };
     window.addEventListener('touchmove', (e) => {
-        // Only block default when touching the 3D canvas (not UI overlays)
-        if (!_isUITouch(e.target || e.srcElement)) {
-            e.preventDefault();
-        }
         if (e.touches[0]) onMouseMove(e.touches[0]);
-    }, { passive: false });
+    }, { passive: true });
     window.addEventListener('touchstart', (e) => {
-        if (!_isUITouch(e.target || e.srcElement)) {
-            e.preventDefault();
-        }
         if (e.touches[0]) onPointerDown(e.touches[0]);
-    }, { passive: false });
+    }, { passive: true });
     window.addEventListener('touchend', (e) => {
         const t = e.changedTouches[0];
         // Attach the real DOM target from the TouchEvent so handleTap can filter UI taps

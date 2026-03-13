@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { setControlledEntry, getControlledEntry } from './visuals_system_ships.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
 import { events } from '../core/state.js';
+import { controls } from '../core/scene_config.js';
 
 // ── Pre-allocated vectors ───────────────────────────────────────────────────
 
@@ -70,6 +71,16 @@ export function enterShipControl(shipEntry, controls) {
     systemShipState.joystickInput.y = 0;
     systemShipState.cameraYawOffset = 0;
 
+    // Snap camera behind the ship immediately
+    const mesh = shipEntry.mesh;
+    if (mesh && controls) {
+        _euler.setFromQuaternion(mesh.quaternion, 'YXZ');
+        const camYaw = _euler.y + Math.PI;
+        const camDist = systemShipState.cameraDistance;
+        const camPitch = systemShipState.cameraPitch;
+        controls.target.set(mesh.position.x, mesh.position.y + 0.3, mesh.position.z);
+    }
+
     // Show control bar
     const bar = document.getElementById('system-ship-control-bar');
     if (bar) {
@@ -112,6 +123,14 @@ export function exitShipControl(controls, camera) {
         controls.rotateSpeed = 1.0;
         controls.panSpeed = 1.4;
         controls.zoomSpeed = 1.2;
+        // Restore mobile touch mapping
+        if (isMobileDevice) {
+            controls.touches = {
+                ONE: THREE.TOUCH.PAN,
+                TWO: THREE.TOUCH.DOLLY_PAN,
+            };
+            controls.screenSpacePanning = true;
+        }
 
         // Flush and reset camera
         if (camera) {
@@ -208,11 +227,13 @@ export function setSystemShipJoystick(x, y) {
 let _verticalWired = false;
 
 function _wireVerticalButtons() {
-    if (_verticalWired) return;
-    _verticalWired = true;
-
     const ascend = document.getElementById('btn-ship-ascend');
     const descend = document.getElementById('btn-ship-descend');
+
+    // Only wire once, but retry if DOM elements weren't ready on first attempt
+    if (_verticalWired) return;
+    if (!ascend && !descend) return; // DOM not ready, will retry next enterShipControl
+    _verticalWired = true;
 
     const setKey = (key, val) => { systemShipState.keyState[key] = val; };
 
@@ -406,11 +427,16 @@ export function updateShipFlight(dt, camera) {
         mesh.position.z + camDist * Math.cos(camYaw) * Math.cos(camPitch)
     );
 
-    // Smooth camera follow
-    camera.position.lerp(_camPos, 6 * dt);
+    // Set camera directly (OrbitControls.update() runs before us each frame,
+    // so we must override its positioning and sync controls.target to the ship)
+    camera.position.copy(_camPos);
 
-    // Look at ship
     _camTarget.copy(mesh.position);
     _camTarget.y += 0.3; // slightly above center
     camera.lookAt(_camTarget);
+
+    // Keep OrbitControls target on the ship so it doesn't fight the camera
+    if (controls) {
+        controls.target.copy(_camTarget);
+    }
 }

@@ -31,6 +31,56 @@ const GRASS_CONFIGS = {
         bladeWidth:  0.12,
         density:     0.5,
     },
+    // Dry scrub — sparse sandy-brown tufts poking through sand
+    Desert: {
+        tipColor:    new THREE.Color(0.72, 0.58, 0.28),
+        bottomColor: new THREE.Color(0.35, 0.25, 0.10),
+        bladeHeight: 1.0,
+        bladeWidth:  0.10,
+        density:     0.18,
+    },
+    // Frosted crystal grass — icy blue-white short blades
+    Ice: {
+        tipColor:    new THREE.Color(0.55, 0.78, 0.92),
+        bottomColor: new THREE.Color(0.15, 0.28, 0.42),
+        bladeHeight: 0.8,
+        bladeWidth:  0.10,
+        density:     0.25,
+    },
+    // Sparser frozen tundra grass — pale blue
+    Arctic: {
+        tipColor:    new THREE.Color(0.45, 0.65, 0.80),
+        bottomColor: new THREE.Color(0.12, 0.22, 0.35),
+        bladeHeight: 0.7,
+        bladeWidth:  0.09,
+        density:     0.15,
+    },
+    // Dead grey tufts on rocky wasteland
+    Barren: {
+        tipColor:    new THREE.Color(0.42, 0.38, 0.32),
+        bottomColor: new THREE.Color(0.18, 0.16, 0.12),
+        bladeHeight: 0.6,
+        bladeWidth:  0.08,
+        density:     0.10,
+    },
+    // Withered dark vegetation on dead world
+    Tomb: {
+        tipColor:    new THREE.Color(0.28, 0.32, 0.18),
+        bottomColor: new THREE.Color(0.08, 0.10, 0.05),
+        bladeHeight: 0.9,
+        bladeWidth:  0.11,
+        density:     0.15,
+    },
+    // Ember filaments — sparse glowing crystalline strands on volcanic surface
+    Molten: {
+        tipColor:    new THREE.Color(0.95, 0.35, 0.05),
+        bottomColor: new THREE.Color(0.30, 0.08, 0.02),
+        bladeHeight: 0.7,
+        bladeWidth:  0.07,
+        density:     0.08,
+        emissive:    new THREE.Color(1.0, 0.3, 0.0),
+        emissiveIntensity: 0.6,
+    },
 };
 
 /** Returns true if the planet type should have grass. */
@@ -148,6 +198,10 @@ export function createGrassMesh(planetType) {
     geo.setAttribute('phase',             new THREE.InstancedBufferAttribute(phases, 1));
     geo.instanceCount = instances;
 
+    // Emissive glow for special types (Molten ember grass)
+    const emissiveColor = conf.emissive || new THREE.Color(0, 0, 0);
+    const emissiveIntensity = conf.emissiveIntensity || 0.0;
+
     // Shader material — wind + color gradient
     const material = new THREE.ShaderMaterial({
         uniforms: {
@@ -155,6 +209,8 @@ export function createGrassMesh(planetType) {
             bladeHeight: { value: bH },
             tipColor:    { value: conf.tipColor },
             bottomColor: { value: conf.bottomColor },
+            emissiveCol: { value: emissiveColor },
+            emissiveStr: { value: emissiveIntensity },
         },
         vertexShader: /* glsl */`
             precision mediump float;
@@ -246,6 +302,8 @@ export function createGrassMesh(planetType) {
             precision mediump float;
             uniform vec3 tipColor;
             uniform vec3 bottomColor;
+            uniform vec3 emissiveCol;
+            uniform float emissiveStr;
             varying vec2 vUv;
             varying float frc;
             varying float vPhase;
@@ -259,6 +317,8 @@ export function createGrassMesh(planetType) {
                 // Fake ambient occlusion at root
                 float ao=smoothstep(0.0,0.3,frc)*0.6+0.4;
                 col*=ao;
+                // Emissive glow (for Molten ember grass etc.)
+                col+=emissiveCol*emissiveStr*frc;
                 // Blade edge alpha — thin at tip
                 float alpha=smoothstep(0.0,0.1,vUv.x)*smoothstep(1.0,0.9,vUv.x);
                 alpha*=smoothstep(0.0,0.15,frc)*0.85+0.15;

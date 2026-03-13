@@ -813,13 +813,18 @@
 @media (max-width: 768px) {
     .ship-modal-overlay {
         padding: 10px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        align-items: flex-start;
     }
 
     .ship-modal-box {
         max-width: none;
-        max-height: 85vh;
+        max-height: none;
+        overflow-y: visible;
         border-radius: 12px;
-        -webkit-overflow-scrolling: touch;
+        margin: auto;
+        flex-shrink: 0;
     }
 
     .ship-modal-close {

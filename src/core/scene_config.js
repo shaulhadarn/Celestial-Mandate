@@ -55,6 +55,14 @@ export function initRenderer() {
         controls.dampingFactor = 0.05;
         controls.maxDistance = 1000;
         controls.minDistance = 10;
+        // Mobile touch: one-finger = pan (drag map), two-finger = dolly + pan (pinch zoom)
+        if (isMobile) {
+            controls.touches = {
+                ONE: THREE.TOUCH.PAN,
+                TWO: THREE.TOUCH.DOLLY_PAN,
+            };
+            controls.screenSpacePanning = true;
+        }
     }).catch(e => console.warn('Could not load OrbitControls', e));
 
     // Post-Processing Setup
@@ -185,6 +193,14 @@ function recreateRenderer() {
             newControls.panSpeed = controls.panSpeed;
             newControls.zoomSpeed = controls.zoomSpeed;
             newControls.target.copy(controls.target);
+            // Restore mobile touch mapping
+            if (isMobile) {
+                newControls.touches = {
+                    ONE: THREE.TOUCH.PAN,
+                    TWO: THREE.TOUCH.DOLLY_PAN,
+                };
+                newControls.screenSpacePanning = true;
+            }
             controls = newControls;
         });
     }

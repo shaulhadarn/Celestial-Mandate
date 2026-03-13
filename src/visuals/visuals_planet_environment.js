@@ -714,18 +714,27 @@ function buildCreatureMesh(cfg) {
 
     // ── Jointed legs (hip group → upper leg → knee group → lower leg → foot) ──
     const legJoints = [];
-    const legSpread = cfg.legCount === 6 ? 0.7 : 0.85; // arc fraction of PI
     for (let j = 0; j < cfg.legCount; j++) {
-        // Distribute legs along the sides (not full 360°, just sides+front)
+        // Distribute legs along the body — keep within thorax/abdomen bounds
         const frac = (j / (cfg.legCount - 1)) - 0.5; // -0.5 to 0.5
         const side = j % 2 === 0 ? -1 : 1;
-        const zPos = frac * s * 2.0; // spread along body
-        const xPos = side * s * 0.65;
+        const zPos = frac * s * 1.4 - s * 0.1; // tighter spread, shifted slightly rearward
+        // Body tapers toward front — narrow the hip attachment for front legs
+        const taper = 1.0 - Math.max(0, frac) * 0.35;
+        const xPos = side * s * 0.65 * taper;
 
         // Hip pivot
         const hipGroup = new THREE.Group();
         hipGroup.position.set(xPos, -s * 0.15, zPos);
         g.add(hipGroup);
+
+        // Hip socket — visually connects leg to body
+        const hipSocket = new THREE.Mesh(
+            new THREE.SphereGeometry(s * 0.12, 5, 5),
+            bodyMat
+        );
+        hipSocket.scale.set(1.0, 0.7, 0.8);
+        hipGroup.add(hipSocket);
 
         // Upper leg (thigh)
         const upperLeg = new THREE.Mesh(
@@ -874,6 +883,11 @@ const CLOUD_TYPES = {
     'Ocean':       { opacity: 0.40, color: 0xd8eaff, speed: 1.2 },
     'Arctic':      { opacity: 0.22, color: 0xdae8f4, speed: 0.6 },
     'Ice':         { opacity: 0.18, color: 0xc8dce8, speed: 0.5 },
+    'Desert':      { opacity: 0.14, color: 0xf0dcc0, speed: 0.4 },
+    'Barren':      { opacity: 0.08, color: 0xbbbbbb, speed: 0.3 },
+    'Molten':      { opacity: 0.26, color: 0x4a2a1a, speed: 0.7 },
+    'Tomb':        { opacity: 0.16, color: 0x88aa88, speed: 0.35 },
+    'Gas Giant':   { opacity: 0.45, color: 0xeedd99, speed: 1.5 },
 };
 
 let _cloudTexCache = null;
@@ -1124,6 +1138,12 @@ const LAKE_TYPES = {
     'Ice':         { waterColor: 0x4a8aaa, waterEmissive: 0x0a1a2a, shoreVeg: false },
     'Arctic':      { waterColor: 0x3a7a9a, waterEmissive: 0x081828, shoreVeg: false },
     'Desert':      { waterColor: 0x2a6a5a, waterEmissive: 0x081a14, shoreVeg: true },
+    // Lava lakes — bright orange/red, strong emissive glow
+    'Molten':      { waterColor: 0xcc3300, waterEmissive: 0xff4400, emissiveIntensity: 0.8, opacity: 0.95, roughness: 0.35, metalness: 0.2, shoreVeg: false, shoreColor: 0x2a1a0a },
+    // Chemical/mineral pools — murky grey-brown
+    'Barren':      { waterColor: 0x4a4030, waterEmissive: 0x1a1408, emissiveIntensity: 0.1, opacity: 0.9, roughness: 0.4, metalness: 0.3, shoreVeg: false, shoreColor: 0x5a5040 },
+    // Toxic pools — sickly green with faint glow
+    'Tomb':        { waterColor: 0x1a3a10, waterEmissive: 0x2a5a0a, emissiveIntensity: 0.35, opacity: 0.88, roughness: 0.15, metalness: 0.5, shoreVeg: false, shoreColor: 0x2a2a1a },
 };
 
 /**
@@ -1184,22 +1204,26 @@ export function createLakes(planetType, group, heightFn) {
         // ── Water surface disc ──
         const segments = isMobileDevice ? 24 : 48;
         const waterGeo = new THREE.CircleGeometry(lake.radius, segments);
+        const lakeOpacity = conf.opacity || 0.82;
+        const lakeEmissiveStr = conf.emissiveIntensity || 0.25;
+        const lakeRoughness = conf.roughness ?? 0.08;
+        const lakeMetalness = conf.metalness ?? 0.6;
         const waterMat = isMobileDevice
             ? new THREE.MeshLambertMaterial({
                 color: conf.waterColor,
                 emissive: conf.waterEmissive,
-                emissiveIntensity: 0.3,
+                emissiveIntensity: Math.min(lakeEmissiveStr, 0.5),
                 transparent: true,
-                opacity: 0.82,
+                opacity: lakeOpacity,
             })
             : new THREE.MeshStandardMaterial({
                 color: conf.waterColor,
                 emissive: conf.waterEmissive,
-                emissiveIntensity: 0.25,
-                roughness: 0.08,
-                metalness: 0.6,
+                emissiveIntensity: lakeEmissiveStr,
+                roughness: lakeRoughness,
+                metalness: lakeMetalness,
                 transparent: true,
-                opacity: 0.82,
+                opacity: lakeOpacity,
                 envMapIntensity: 1.5,
             });
 
@@ -1215,9 +1239,10 @@ export function createLakes(planetType, group, heightFn) {
 
         // ── Subtle shore ring (sandy/muddy edge) ──
         const shoreGeo = new THREE.RingGeometry(lake.radius - 1.5, lake.radius + 2.5, segments);
-        const shoreColor = planetType === 'Desert' ? 0x8a7a4a
+        const shoreColor = conf.shoreColor
+            || (planetType === 'Desert' ? 0x8a7a4a
             : (planetType === 'Ice' || planetType === 'Arctic') ? 0x5a7a8a
-            : 0x4a5a3a;
+            : 0x4a5a3a);
         const shoreMat = isMobileDevice
             ? new THREE.MeshLambertMaterial({ color: shoreColor, transparent: true, opacity: 0.5 })
             : new THREE.MeshStandardMaterial({ color: shoreColor, roughness: 0.95, metalness: 0, transparent: true, opacity: 0.5 });
@@ -1225,6 +1250,13 @@ export function createLakes(planetType, group, heightFn) {
         shoreMesh.rotation.x = -Math.PI / 2;
         shoreMesh.position.set(lake.x, waterY + 0.05, lake.z);
         group.add(shoreMesh);
+
+        // ── Point light for glowing lakes (lava, toxic) ──
+        if (!isMobileDevice && lakeEmissiveStr >= 0.3) {
+            const glowLight = new THREE.PointLight(conf.waterEmissive, lakeEmissiveStr * 2.5, lake.radius * 3);
+            glowLight.position.set(lake.x, waterY + 2, lake.z);
+            group.add(glowLight);
+        }
 
         // ── Shore vegetation (trees, bushes, reeds around the lake edge) ──
         if (conf.shoreVeg && vegCfg.hasVeg) {

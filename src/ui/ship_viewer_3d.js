@@ -369,6 +369,7 @@ function _nozzle() {
     return new THREE.MeshStandardMaterial({
         color: 0x080808, metalness: 0.95, roughness: 0.12,
         envMap: _getEnvMap(), envMapIntensity: 0.3,
+        side: THREE.DoubleSide,
     });
 }
 // Accent trim — colored emissive for stripes/panels only
@@ -385,6 +386,7 @@ function _glow(c) {
     return new THREE.MeshStandardMaterial({
         color: c, emissive: new THREE.Color(c), emissiveIntensity: 1.5,
         transparent: true, opacity: 0.8,
+        side: THREE.DoubleSide, depthWrite: false,
     });
 }
 
