@@ -419,9 +419,9 @@ export function updateShipFlight(dt, camera) {
     const camDist = systemShipState.cameraDistance;
     const camPitch = systemShipState.cameraPitch;
 
-    // Camera position: orbit around ship using ship yaw + user offset
+    // Camera position: orbit behind ship using ship yaw + user offset
     _euler.setFromQuaternion(mesh.quaternion, 'YXZ');
-    const camYaw = _euler.y + Math.PI + systemShipState.cameraYawOffset;
+    const camYaw = _euler.y + systemShipState.cameraYawOffset;
 
     _camPos.set(
         mesh.position.x + camDist * Math.sin(camYaw) * Math.cos(camPitch),
