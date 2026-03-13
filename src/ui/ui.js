@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlanet, getPlanet, surveySystem, SURVEY_COST, loadGame, resolvePirateBattle } from '../core/state.js';
 import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet, refreshSystemShips } from '../visuals/renderer.js';
 import { setJoystickInput } from '../visuals/visuals_planet.js';
+import planetState from '../visuals/visuals_planet_state.js';
 import { setSystemShipJoystick } from '../visuals/visuals_system_ship_control.js';
 import { disposeGroup } from '../core/dispose.js';
 import { groups, controls, scene } from '../core/scene_config.js';
@@ -468,10 +469,39 @@ function showLoadingScreen(onComplete) {
 }
 
 async function returnToSystemViewFromPlanet() {
-    // Phase 1: Fade to black
-    await showTransition('', '');
+    // ── Phase 0: Drone ascent animation ──────────────────────────────────
+    // Disable input during ascent
+    setJoystickInput(0, 0);
+    planetState._ascending = true;
+    planetState._ascendProgress = 0;
 
-    // Phase 2: Do the scene swap while screen is black
+    // Hide exploration UI immediately so it doesn't float during ascent
+    document.getElementById('exploration-controls').classList.add('hidden');
+    const exHeader = document.getElementById('exploration-header');
+    if (exHeader) exHeader.classList.add('hidden');
+    const unitPanel = document.getElementById('unit-panel');
+    if (unitPanel) unitPanel.classList.add('hidden');
+    const soldierBar = document.getElementById('soldier-control-bar');
+    if (soldierBar) soldierBar.classList.add('hidden');
+
+    // Bright atmospheric fade overlay (breaks through sky)
+    const overlay = getTransitionOverlay();
+    overlay.querySelector('.transition-text').textContent = '';
+    overlay.querySelector('.transition-subtext').textContent = '';
+    overlay.querySelector('.transition-spinner').style.display = 'none';
+    overlay.style.background = 'radial-gradient(ellipse at 50% 60%, rgba(180,220,255,1) 0%, rgba(100,170,240,0.95) 40%, rgba(40,100,180,0.85) 100%)';
+    overlay.style.transition = 'opacity 1.4s ease-in';
+    overlay.classList.add('active');
+
+    // Let ascent animation play (drone flies up + overlay fades in)
+    await new Promise(r => setTimeout(r, 1600));
+
+    // ── Phase 1: Scene swap while screen is bright ───────────────────────
+    planetState._ascending = false;
+    planetState._ascendProgress = 0;
+    planetState.targetCameraDistance = 18;
+    planetState.targetCameraHeightOffset = 2;
+
     gameState.viewMode = 'SYSTEM';
     setMusicState('SYSTEM');
     groups.planet.visible = false;
@@ -493,34 +523,26 @@ async function returnToSystemViewFromPlanet() {
     setJoystickInput(0, 0);
 
     document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
-    document.getElementById('exploration-controls').classList.add('hidden');
     document.getElementById('btn-view-toggle').classList.remove('hidden');
     document.getElementById('btn-empire-hub').classList.add('hidden');
     const mdb = document.getElementById('mobile-date-badge');
     if (mdb) mdb.style.display = '';
 
-    // Hide exploration header + unit panel
-    const exHeader = document.getElementById('exploration-header');
-    if (exHeader) exHeader.classList.add('hidden');
-    const unitPanel = document.getElementById('unit-panel');
-    if (unitPanel) unitPanel.classList.add('hidden');
-    const soldierBar = document.getElementById('soldier-control-bar');
-    if (soldierBar) soldierBar.classList.add('hidden');
-
     restoreControlsAfterPlanet();
-    refreshSystemShips(); // Rebuild ships + unit panel (picks up ships built while on planet)
+    refreshSystemShips();
     updateSelectionPanel();
 
     if (window.innerWidth <= 768) {
-        // Hide system panel on mobile to avoid clutter, but keep planet panel
-        // visible so the user can still see the planet they just explored
         document.getElementById('system-panel').classList.add('hidden');
     }
 
-    // Brief pause for scene to render a frame
-    await new Promise(r => setTimeout(r, 200));
+    // Brief pause for system scene to render a frame
+    await new Promise(r => setTimeout(r, 250));
 
-    // Phase 3: Fade in the orbit view
+    // ── Phase 2: Fade in the orbit view ──────────────────────────────────
+    // Reset overlay to normal dark style for future transitions
+    overlay.style.background = '';
+    overlay.style.transition = '';
     await hideTransition();
 }
 

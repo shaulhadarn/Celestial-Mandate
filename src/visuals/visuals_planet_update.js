@@ -188,6 +188,26 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     const drag = 0.92;
     const velocity = playerMesh.userData.velocity;
 
+    // ── Ascent animation (orbit exit) — bypass normal physics ────────────
+    if (planetState._ascending) {
+        planetState._ascendProgress += dt;
+        const p = planetState._ascendProgress;
+        // Accelerating upward thrust, dampen horizontal drift
+        velocity.x *= 0.92;
+        velocity.z *= 0.92;
+        const upSpeed = 60 + p * 120; // accelerates over time
+        playerMesh.position.x += velocity.x * dt;
+        playerMesh.position.z += velocity.z * dt;
+        playerMesh.position.y += upSpeed * dt;
+        // Tilt drone nose upward during ascent
+        playerMesh.rotation.x = THREE.MathUtils.lerp(playerMesh.rotation.x, -0.5, 3 * dt);
+        playerMesh.rotation.z *= 0.9;
+        // Zoom camera out and pitch up for cinematic effect
+        planetState.targetCameraDistance = 35 + p * 20;
+        planetState.targetCameraHeightOffset = 2 + p * 6;
+        // Skip normal input, gravity, terrain clamping
+    } else {
+
     if (!controlTarget) {
         // Only accept input when controlling drone
         if (_inputDir.lengthSq() > 0) {
@@ -231,6 +251,8 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         playerMesh.position.z += velocity.z * dt;
     }
     velocity.multiplyScalar(drag);
+
+    } // end ascending else
 
     // Cache velocity magnitude once (used 6+ times below)
     const cachedSpeed = velocity.length();

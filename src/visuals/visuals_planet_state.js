@@ -46,6 +46,10 @@ const planetState = {
     controlTarget: null,
     buildingInfoTarget: null,
 
+    // Orbit exit ascent animation
+    _ascending: false,
+    _ascendProgress: 0,
+
     // Camera transition targets (smoothly lerped in update loop)
     targetCameraDistance: 18,
     cameraHeightOffset: 2,     // dynamic, lerped toward target
