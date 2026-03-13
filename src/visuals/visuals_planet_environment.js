@@ -85,6 +85,27 @@ function getVegetationConfig(type) {
                 bushColor: 0x99bbdd, flowerColor: 0xaaddff,
                 alienPlantColor: 0x44ccff, alienGlow: 0x0088ff,
             };
+        case 'Barren':
+            return {
+                hasVeg: true, sparse: true,
+                treeColor: 0x5a5040, trunkColor: 0x3a3020,
+                bushColor: 0x6a6050, flowerColor: 0x8a7a60,
+                alienPlantColor: 0x887755, alienGlow: 0x554422,
+            };
+        case 'Molten':
+            return {
+                hasVeg: true, sparse: true,
+                treeColor: 0xcc4400, trunkColor: 0x551a00,
+                bushColor: 0xaa3300, flowerColor: 0xff6600,
+                alienPlantColor: 0xff4400, alienGlow: 0xff2200,
+            };
+        case 'Tomb':
+            return {
+                hasVeg: true, sparse: true,
+                treeColor: 0x2a3318, trunkColor: 0x1a1a10,
+                bushColor: 0x333a22, flowerColor: 0x445530,
+                alienPlantColor: 0x33aa22, alienGlow: 0x22ff00,
+            };
         default:
             return { hasVeg: false };
     }
@@ -392,10 +413,11 @@ export function createPlanetProps(planetType, group, heightFn) {
     group.add(rockInstancedMesh);
     group.add(crystalInstancedMesh);
 
-    // ---- Vegetation (kept as Groups — only 30-70 objects) -------------------
+    // ---- Vegetation -----------------------------------------------------------
     const vegCfg = getVegetationConfig(planetType);
     if (vegCfg.hasVeg) {
-        const vegCount = isMobileDevice ? 30 : 70;
+        const baseCount = isMobileDevice ? 60 : 160;
+        const vegCount = vegCfg.sparse ? Math.round(baseCount * 0.3) : baseCount;
         const hasNaturalVeg = !!vegCfg.wildflowerColors; // Terran/Continental
         for (let i = 0; i < vegCount; i++) {
             const r = 20 + Math.random() * 280;
@@ -1260,7 +1282,7 @@ export function createLakes(planetType, group, heightFn) {
 
         // ── Shore vegetation (trees, bushes, reeds around the lake edge) ──
         if (conf.shoreVeg && vegCfg.hasVeg) {
-            const shoreVegCount = isMobileDevice ? 8 : 18;
+            const shoreVegCount = isMobileDevice ? 14 : 28;
             const hasNaturalVeg = !!vegCfg.wildflowerColors;
             for (let i = 0; i < shoreVegCount; i++) {
                 const angle = (i / shoreVegCount) * Math.PI * 2 + Math.random() * 0.3;

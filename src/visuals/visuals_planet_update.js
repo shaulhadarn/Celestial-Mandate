@@ -9,6 +9,11 @@ import { harvesterGroups, soldierMeshes, hubGroup, buildingAnims, renderColonyGr
 import { getOrCreateHarvesterHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 import { updateGrass } from './visuals_planet_grass.js';
+import { scene } from '../core/scene_config.js';
+
+// Dark space color for ascent sky-fade
+const _spaceColor = new THREE.Color(0x020408);
+const _lerpColor  = new THREE.Color();
 
 // ── Pre-allocated reusable vectors (never GC'd) ─────────────────────────────
 const _cameraOffset = new THREE.Vector3(0, 0, 0); // dynamic, updated per frame
@@ -205,6 +210,33 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         // Zoom camera out and pitch up for cinematic effect
         planetState.targetCameraDistance = 35 + p * 20;
         planetState.targetCameraHeightOffset = 2 + p * 6;
+
+        // Fade sky, fog, and background toward dark space over ~1.6s
+        // Save original sky color on first ascent frame
+        if (!planetState._ascendSkyColor && scene && scene.background) {
+            planetState._ascendSkyColor = scene.background.clone();
+        }
+        if (planetState._ascendSkyColor && scene) {
+            const fade = Math.min(1, p / 1.4); // 0→1 over 1.4s
+            _lerpColor.copy(planetState._ascendSkyColor).lerp(_spaceColor, fade);
+            scene.background.copy(_lerpColor);
+            if (scene.fog) scene.fog.color.copy(_lerpColor);
+            // Also darken the sky sphere mesh (first BackSide mesh in planet group)
+            if (!planetState._ascendSkyMesh) {
+                group.traverse(c => {
+                    if (!planetState._ascendSkyMesh && c.isMesh && c.material && c.material.side === THREE.BackSide) {
+                        planetState._ascendSkyMesh = c;
+                    }
+                });
+            }
+            if (planetState._ascendSkyMesh) {
+                planetState._ascendSkyMesh.material.color.copy(_lerpColor);
+            }
+            // Reduce fog density to let distant terrain fade away
+            if (scene.fog) {
+                scene.fog.density = THREE.MathUtils.lerp(scene.fog.density, 0.0001, fade);
+            }
+        }
         // Skip normal input, gravity, terrain clamping
     } else {
 

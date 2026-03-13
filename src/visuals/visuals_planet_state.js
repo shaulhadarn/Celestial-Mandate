@@ -49,6 +49,8 @@ const planetState = {
     // Orbit exit ascent animation
     _ascending: false,
     _ascendProgress: 0,
+    _ascendSkyColor: null,  // original sky color saved on ascent start
+    _ascendSkyMesh: null,   // sky sphere mesh ref for color fade
 
     // Camera transition targets (smoothly lerped in update loop)
     targetCameraDistance: 18,

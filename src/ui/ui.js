@@ -484,21 +484,23 @@ async function returnToSystemViewFromPlanet() {
     const soldierBar = document.getElementById('soldier-control-bar');
     if (soldierBar) soldierBar.classList.add('hidden');
 
-    // Bright atmospheric fade overlay (breaks through sky)
+    // Dark space overlay — matches the sky darkening during ascent
     const overlay = getTransitionOverlay();
     overlay.querySelector('.transition-text').textContent = '';
     overlay.querySelector('.transition-subtext').textContent = '';
     overlay.querySelector('.transition-spinner').style.display = 'none';
-    overlay.style.background = 'radial-gradient(ellipse at 50% 60%, rgba(180,220,255,1) 0%, rgba(100,170,240,0.95) 40%, rgba(40,100,180,0.85) 100%)';
-    overlay.style.transition = 'opacity 1.4s ease-in';
+    overlay.style.background = '#020408';
+    overlay.style.transition = 'opacity 1.6s ease-in';
     overlay.classList.add('active');
 
-    // Let ascent animation play (drone flies up + overlay fades in)
-    await new Promise(r => setTimeout(r, 1600));
+    // Let ascent animation play (drone flies up + sky darkens + overlay fades in)
+    await new Promise(r => setTimeout(r, 1800));
 
-    // ── Phase 1: Scene swap while screen is bright ───────────────────────
+    // ── Phase 1: Scene swap while screen is dark space ───────────────────
     planetState._ascending = false;
     planetState._ascendProgress = 0;
+    planetState._ascendSkyColor = null;
+    planetState._ascendSkyMesh = null;
     planetState.targetCameraDistance = 18;
     planetState.targetCameraHeightOffset = 2;
 
@@ -537,13 +539,16 @@ async function returnToSystemViewFromPlanet() {
     }
 
     // Brief pause for system scene to render a frame
-    await new Promise(r => setTimeout(r, 250));
+    await new Promise(r => setTimeout(r, 300));
 
-    // ── Phase 2: Fade in the orbit view ──────────────────────────────────
-    // Reset overlay to normal dark style for future transitions
+    // ── Phase 2: Smoothly reveal the orbit view ──────────────────────────
+    // Use a slower fade-out so the system view fades in gently
+    overlay.style.transition = 'opacity 1s ease-out';
+    overlay.classList.remove('active');
+    await new Promise(r => setTimeout(r, 1100));
+    // Reset overlay styles for future transitions
     overlay.style.background = '';
     overlay.style.transition = '';
-    await hideTransition();
 }
 
 // ── Ship joystick for mobile system view ──────────────────────────────────────
