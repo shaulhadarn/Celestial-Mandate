@@ -579,7 +579,7 @@ export function spawnPlayerShip(fleetData, group, planetMesh) {
 
     // Scale: ships are tiny compared to planets (planet radius ~2-3 units)
     const hullClass = _getHullClass(fleetData.shipId);
-    const scale = { scout: 0.12, corvette: 0.18, cruiser: 0.25 }[hullClass] || 0.12;
+    const scale = { scout: 0.06, corvette: 0.09, cruiser: 0.13 }[hullClass] || 0.06;
     shipGroup.scale.setScalar(scale);
 
     // Orbit parameters — wider to give sense of space
@@ -667,11 +667,11 @@ export function updatePlayerShipOrbits(time, dt) {
             center.z + Math.sin(a) * r
         );
 
-        // Face orbital direction
+        // Face orbital direction (nose at -Z, so look behind to point nose forward)
         _tmpLookAt.set(
-            center.x + Math.cos(a + 0.1) * r,
-            center.y + Math.sin((a + 0.1) * 0.5) * incl * r,
-            center.z + Math.sin(a + 0.1) * r
+            center.x + Math.cos(a - 0.1) * r,
+            center.y + Math.sin((a - 0.1) * 0.5) * incl * r,
+            center.z + Math.sin(a - 0.1) * r
         );
         entry.mesh.lookAt(_tmpLookAt);
 
