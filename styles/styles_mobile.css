@@ -950,4 +950,10 @@
     .evt-choice-label {
         font-size: 13px;
     }
+
+    /* Move system ship unit panel to upper-right so it doesn't overlap colony modal close button */
+    #system-unit-panel {
+        top: 60px;
+        transform: none;
+    }
 }

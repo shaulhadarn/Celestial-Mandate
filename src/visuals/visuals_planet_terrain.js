@@ -93,8 +93,8 @@ export function getTerrainHeight(x, z) {
  */
 export function createTerrainMesh(planetType) {
     const groundSize = 1000;
-    // Mobile: 96 segments = ~37k verts vs 256 = ~263k verts — 7x fewer triangles
-    const groundSegments = isMobileDevice ? 96 : 256;
+    // Mobile: 192 segments for smooth terrain (vs 256 desktop)
+    const groundSegments = isMobileDevice ? 192 : 256;
     const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize, groundSegments, groundSegments);
     
     const pos = groundGeo.attributes.position;
