@@ -58,18 +58,41 @@
     opacity: 0.8;
 }
 
+.colony-section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+}
+
+.colony-section-toggle .section-chevron {
+    font-size: 8px;
+    transition: transform 0.25s ease;
+    opacity: 0.5;
+}
+
+.colony-section-toggle.collapsed .section-chevron {
+    transform: rotate(-90deg);
+}
+
+.building-grid.collapsed,
+.construction-list.collapsed {
+    display: none;
+}
+
 .building-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     min-height: 50px;
 }
 
 .building-slot {
     aspect-ratio: 1;
-    background: linear-gradient(180deg, rgba(0, 242, 255, 0.04) 0%, rgba(0, 0, 0, 0.2) 100%);
-    border: 1px solid rgba(0, 242, 255, 0.1);
-    border-radius: 4px;
+    background: linear-gradient(180deg, rgba(0, 242, 255, 0.05) 0%, rgba(0, 10, 20, 0.3) 100%);
+    border: 1px solid rgba(0, 242, 255, 0.12);
+    border-radius: 6px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -78,33 +101,34 @@
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
-    padding: 4px;
+    padding: 6px;
 }
 
 .building-slot.empty {
-    opacity: 0.25;
+    opacity: 0.2;
     border-style: dashed;
-    background: rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.12);
 }
 
 .building-slot:hover {
     border-color: rgba(0, 242, 255, 0.4);
-    box-shadow: 0 0 12px rgba(0, 242, 255, 0.1), inset 0 0 12px rgba(0, 242, 255, 0.05);
+    background: linear-gradient(180deg, rgba(0, 242, 255, 0.08) 0%, rgba(0, 10, 20, 0.35) 100%);
+    box-shadow: 0 0 14px rgba(0, 242, 255, 0.1), inset 0 0 14px rgba(0, 242, 255, 0.04);
 }
 
 .building-icon {
-    font-size: 22px;
-    margin-bottom: 3px;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    font-size: 24px;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
 }
 
 .building-traits {
     font-size: 9px;
     text-align: center;
     line-height: 1.2;
-    color: #aaccdd;
-    background: rgba(0, 0, 0, 0.4);
-    padding: 2px 4px;
+    color: #99bbcc;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 2px 5px;
     border-radius: 3px;
     width: 92%;
 }
@@ -149,16 +173,18 @@
 }
 
 .build-option {
-    background: linear-gradient(135deg, rgba(0, 242, 255, 0.03) 0%, rgba(0, 0, 0, 0.15) 100%);
+    background: linear-gradient(135deg, rgba(0, 242, 255, 0.03) 0%, rgba(0, 0, 0, 0.12) 100%);
     border: 1px solid rgba(0, 242, 255, 0.08);
-    border-radius: 4px;
-    padding: 12px;
+    border-radius: 6px;
+    padding: 12px 14px;
     transition: all 0.2s;
+    position: relative;
 }
 
 .build-option:hover {
-    background: linear-gradient(135deg, rgba(0, 242, 255, 0.06) 0%, rgba(0, 0, 0, 0.2) 100%);
-    border-color: rgba(0, 242, 255, 0.2);
+    background: linear-gradient(135deg, rgba(0, 242, 255, 0.07) 0%, rgba(0, 0, 0, 0.18) 100%);
+    border-color: rgba(0, 242, 255, 0.22);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 .build-header {
@@ -174,11 +200,12 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    color: #d0e4f0;
 }
 
 .build-stats-preview {
     font-size: 11px;
-    color: #8ba4b3;
+    color: #6a8ca0;
     display: flex;
     gap: 8px;
 }
@@ -193,7 +220,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 8px 6px;
+    padding: 7px 6px;
     font-size: 10px;
     border: 1px solid;
     background: transparent;
@@ -201,7 +228,7 @@
     transition: all 0.2s;
     text-transform: uppercase;
     letter-spacing: 1px;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 
 .btn-build-normal {
@@ -269,21 +296,29 @@
 .planet-stats {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 8px 0;
+    gap: 2px;
+    padding: 10px 0;
     border-bottom: 1px solid rgba(0, 242, 255, 0.06);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .planet-stats .stat {
     display: flex;
     justify-content: space-between;
-    font-size: 14px;
-    color: var(--color-text-dim);
-    padding: 2px 0;
+    align-items: center;
+    font-size: 13px;
+    color: rgba(136, 187, 221, 0.7);
+    padding: 5px 2px;
+    border-radius: 3px;
+    transition: background 0.15s ease;
+}
+
+.planet-stats .stat:hover {
+    background: rgba(0, 242, 255, 0.03);
 }
 
 .planet-stats .stat span {
     color: #ffffff;
     font-weight: 600;
+    font-size: 14px;
 }

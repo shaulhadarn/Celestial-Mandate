@@ -199,10 +199,23 @@ function renderStarList(activeSystemId) {
         const row = document.createElement('div');
         row.className = `star-list-item${isSelected ? ' active' : ''}`;
         const suffix = hasColony ? ' 🏛' : (isPirate ? ' ☠️' : '');
+
+        // Type icon based on planet type
+        const TYPE_ICONS = {
+            'Terran': '🌍', 'Continental': '🌿', 'Ocean': '🌊',
+            'Desert': '🏜️', 'Arctic': '❄️', 'Barren': '🪨',
+            'Molten': '🌋', 'Gas Giant': '🪐', 'Tomb': '💀',
+            'Unknown': '❓', 'Pirate Base': '☠️',
+        };
+        const typeIcon = TYPE_ICONS[typeLabel] || '🌐';
+
         row.innerHTML = `
-            <span class="star-list-dot" style="background:${dotColor};box-shadow:0 0 5px ${dotColor};"></span>
-            <span class="star-list-name">${planet.name}</span>
-            <span class="star-list-meta">${typeLabel} · ${sizeLabel}${suffix}</span>
+            <span class="star-list-dot" style="background:radial-gradient(circle at 35% 35%, ${dotColor}cc, ${dotColor}44, #000);box-shadow:0 0 8px ${dotColor}88;"></span>
+            <div class="star-list-info">
+                <span class="star-list-name">${planet.name}${suffix}</span>
+                <span class="star-list-type">${typeIcon} ${typeLabel}</span>
+            </div>
+            <span class="star-list-meta">${sizeLabel}</span>
         `;
         row.addEventListener('click', () => {
             selectPlanet(planet.id);

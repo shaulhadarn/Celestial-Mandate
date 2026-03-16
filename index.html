@@ -577,7 +577,7 @@
         <div id="system-panel" class="panel hidden">
             <div class="panel-header">
                 <h2 id="sys-name">System Name</h2>
-                <button id="btn-close-system">Close</button>
+                <button id="btn-close-system">✕</button>
             </div>
             <div class="panel-content">
                 <div id="sys-details">
@@ -588,7 +588,7 @@
                     <button id="btn-survey" class="action-btn">Survey System</button>
                 </div>
                 <div class="star-list-section">
-                    <div class="star-list-header">PLANETS IN SYSTEM</div>
+                    <div class="star-list-header" onclick="document.getElementById('star-list').classList.toggle('collapsed');this.querySelector('.section-chevron').classList.toggle('collapsed')">PLANETS <span class="section-chevron">▼</span></div>
                     <div id="star-list"></div>
                 </div>
             </div>
@@ -597,7 +597,7 @@
         <div id="planet-panel" class="panel hidden">
             <div class="panel-header">
                 <h2 id="planet-name">Planet Name</h2>
-                <button id="btn-close-planet">Close</button>
+                <button id="btn-close-planet">✕</button>
             </div>
             <div class="panel-content">
                 <div class="planet-controls">
@@ -622,14 +622,14 @@
                     </div>
 
                     <div class="colony-section">
-                        <h3>Infrastructure</h3>
+                        <h3 class="colony-section-toggle" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">Infrastructure <span class="section-chevron">▼</span></h3>
                         <div id="colony-building-list" class="building-grid">
                             <!-- Buildings go here -->
                         </div>
                     </div>
 
                     <div class="colony-section">
-                        <h3>Construction</h3>
+                        <h3 class="colony-section-toggle" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">Construction <span class="section-chevron">▼</span></h3>
                         <div id="colony-construction-list" class="construction-list">
                             <!-- Build options go here -->
                         </div>

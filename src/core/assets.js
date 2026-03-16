@@ -263,6 +263,20 @@ let _musicStarted = false;
 let _userVolume = DEFAULT_VOL;
 let _fading = false;
 
+// Unlock web audio on first user gesture (required by most browsers)
+let _audioUnlocked = false;
+function _unlockAudio() {
+    if (_audioUnlocked) return;
+    _audioUnlocked = true;
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+            const ctx = new Ctx();
+            ctx.resume().then(() => ctx.close()).catch(() => {});
+        }
+    } catch (_) { /* non-fatal */ }
+}
+
 function _fadeAudio(audio, fromVol, toVol, duration = FADE_MS) {
     return new Promise(resolve => {
         if (!audio) { resolve(); return; }
@@ -270,13 +284,13 @@ function _fadeAudio(audio, fromVol, toVol, duration = FADE_MS) {
         const stepTime = duration / steps;
         const volStep = (toVol - fromVol) / steps;
         let current = 0;
-        audio.volume = Math.max(0, Math.min(1, fromVol));
+        try { audio.volume = Math.max(0, Math.min(1, fromVol)); } catch (_) {}
         const interval = setInterval(() => {
             current++;
-            audio.volume = Math.max(0, Math.min(1, fromVol + volStep * current));
+            try { audio.volume = Math.max(0, Math.min(1, fromVol + volStep * current)); } catch (_) {}
             if (current >= steps) {
                 clearInterval(interval);
-                audio.volume = Math.max(0, Math.min(1, toVol));
+                try { audio.volume = Math.max(0, Math.min(1, toVol)); } catch (_) {}
                 resolve();
             }
         }, stepTime);
@@ -284,13 +298,30 @@ function _fadeAudio(audio, fromVol, toVol, duration = FADE_MS) {
 }
 
 function _playWithRetry(audio) {
-    const p = audio.play();
-    if (p && p.catch) {
-        p.catch(() => {
-            const resume = () => { if (audio) audio.play().catch(() => {}); };
-            window.addEventListener('click', resume, { once: true });
-            window.addEventListener('touchstart', resume, { once: true });
-        });
+    const attempt = () => {
+        const p = audio.play();
+        if (p && p.catch) {
+            p.catch(() => {
+                // Retry on next user interaction (covers strict autoplay policies)
+                const resume = () => {
+                    if (audio && _currentAudio === audio) {
+                        audio.play().catch(() => {});
+                    }
+                };
+                window.addEventListener('click', resume, { once: true });
+                window.addEventListener('touchstart', resume, { once: true });
+                window.addEventListener('keydown', resume, { once: true });
+            });
+        }
+    };
+
+    // If audio not ready yet, wait for it to be loadable
+    if (audio.readyState === 0) {
+        audio.addEventListener('canplay', () => attempt(), { once: true });
+        // Also try immediately — some browsers handle this fine
+        attempt();
+    } else {
+        attempt();
     }
 }
 
@@ -303,6 +334,7 @@ async function _playStateTrack(stateName, index) {
     _trackIdx = index % pool.length;
 
     const audio = new Audio(pool[_trackIdx]);
+    audio.preload = 'auto';
     audio.loop = false;
     audio.volume = 0;
     _currentAudio = audio;
@@ -322,63 +354,97 @@ async function _playStateTrack(stateName, index) {
 async function _advanceInPool() {
     if (_fading || !_currentState) return;
     _fading = true;
-    const old = _currentAudio;
-    const nextIdx = (_trackIdx + 1) % STATE_TRACKS[_currentState].length;
+    try {
+        const old = _currentAudio;
+        const nextIdx = (_trackIdx + 1) % STATE_TRACKS[_currentState].length;
 
-    if (old) {
-        await _fadeAudio(old, old.volume, 0);
-        old.pause();
-        old.src = '';
+        if (old) {
+            await _fadeAudio(old, old.volume, 0);
+            old.pause();
+            old.src = '';
+        }
+
+        await _playStateTrack(_currentState, nextIdx);
+    } catch (e) {
+        console.warn('Music advance failed:', e);
+    } finally {
+        _fading = false;
     }
-
-    await _playStateTrack(_currentState, nextIdx);
-    _fading = false;
 }
 
 // Switch music to match a new game state (crossfade between states)
 async function _switchToState(stateName) {
     if (!_musicStarted) return;
     if (stateName === _currentState) return;
-    if (_fading) return; // avoid overlapping transitions
+    if (_fading) return;
 
     _fading = true;
-    const old = _currentAudio;
+    try {
+        const old = _currentAudio;
 
-    // Fade out current track
-    if (old) {
-        await _fadeAudio(old, old.volume, 0, FADE_MS);
-        old.pause();
-        old.src = '';
-        _currentAudio = null;
+        // Fade out current track
+        if (old) {
+            await _fadeAudio(old, old.volume, 0, FADE_MS);
+            old.pause();
+            old.src = '';
+            _currentAudio = null;
+        }
+
+        // Start a random track from the new state's pool
+        const pool = STATE_TRACKS[stateName];
+        if (pool && pool.length > 0) {
+            const startIdx = Math.floor(Math.random() * pool.length);
+            await _playStateTrack(stateName, startIdx);
+        }
+    } catch (e) {
+        console.warn('Music state switch failed:', e);
+    } finally {
+        _fading = false;
     }
+}
 
-    // Start a random track from the new state's pool
+/**
+ * Start music directly from a user gesture — plays immediately
+ * without going through the async _switchToState chain, so the
+ * browser's user-activation context is preserved.
+ */
+function _startMusicDirect(stateName) {
+    _unlockAudio();
+    _musicStarted = true;
+
     const pool = STATE_TRACKS[stateName];
-    if (pool && pool.length > 0) {
-        const startIdx = Math.floor(Math.random() * pool.length);
-        await _playStateTrack(stateName, startIdx);
-    }
-    _fading = false;
+    if (!pool || pool.length === 0) return;
+
+    _currentState = stateName;
+    _trackIdx = Math.floor(Math.random() * pool.length);
+
+    const audio = new Audio(pool[_trackIdx]);
+    audio.preload = 'auto';
+    audio.loop = false;
+    audio.volume = 0;
+    _currentAudio = audio;
+
+    audio.addEventListener('ended', () => {
+        if (_currentState === stateName && _currentAudio === audio) {
+            _advanceInPool();
+        }
+    });
+
+    // Play SYNCHRONOUSLY in the user gesture call stack
+    _playWithRetry(audio);
+
+    // Fade in asynchronously
+    _fadeAudio(audio, 0, _userVolume);
 }
 
 export function startMenuMusic() {
     if (_musicStarted) return;
-    _musicStarted = true;
-    try {
-        _switchToState('GALAXY');
-    } catch (e) {
-        console.warn('Music init failed (non-fatal):', e);
-    }
+    _startMusicDirect('GALAXY');
 }
 
 export function startMusic() {
     if (_musicStarted) return;
-    _musicStarted = true;
-    try {
-        _switchToState('GALAXY');
-    } catch (e) {
-        console.warn('Music init failed (non-fatal):', e);
-    }
+    _startMusicDirect('GALAXY');
 }
 
 /** Call when gameState.viewMode changes to crossfade music */
@@ -389,5 +455,7 @@ export function setMusicState(viewMode) {
 
 export function setMusicVolume(vol) {
     _userVolume = Math.max(0, Math.min(1, vol));
-    if (_currentAudio && !_fading) _currentAudio.volume = _userVolume;
+    if (_currentAudio && !_fading) {
+        try { _currentAudio.volume = _userVolume; } catch (_) {}
+    }
 }

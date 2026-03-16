@@ -787,8 +787,8 @@
 }
 
 .panel-header {
-    background: linear-gradient(90deg, rgba(0, 242, 255, 0.08) 0%, rgba(0, 0, 0, 0.2) 100%);
-    padding: 18px 24px;
+    background: linear-gradient(90deg, rgba(0, 242, 255, 0.06) 0%, rgba(0, 0, 0, 0.15) 100%);
+    padding: 14px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -809,15 +809,15 @@
 
 .panel-header h2 {
     margin: 0;
-    font-size: 20px;
+    font-size: 17px;
     text-transform: uppercase;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     color: #ffffff;
-    text-shadow: 0 0 10px rgba(0, 242, 255, 0.6);
+    text-shadow: 0 0 10px rgba(0, 242, 255, 0.4);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-weight: 600;
+    font-weight: 700;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -877,8 +877,8 @@
 }
 
 .panel-content {
-    padding: 20px 24px;
-    font-size: 14px;
+    padding: 16px 20px;
+    font-size: 13px;
 }
 
 /* Empire Hub Specific Icon Glows — gradient SVGs provide their own color */
@@ -908,24 +908,33 @@
 
 #sys-details p,
 #planet-panel p {
-    margin: 6px 0;
-    color: var(--color-text-dim);
+    margin: 4px 0;
+    color: rgba(136, 187, 221, 0.7);
     display: flex;
     justify-content: space-between;
-    font-size: 14px;
-    padding: 2px 0;
+    align-items: center;
+    font-size: 13px;
+    padding: 4px 2px;
+    border-radius: 3px;
+    transition: background 0.15s ease;
+}
+
+#sys-details p:hover,
+#planet-panel p:hover {
+    background: rgba(0, 242, 255, 0.03);
 }
 
 #sys-details span,
 #planet-panel span {
-    color: var(--color-primary);
+    color: #ffffff;
     font-weight: 600;
+    font-size: 14px;
 }
 
 #sys-details {
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(0, 242, 255, 0.06);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .action-btn,
@@ -965,22 +974,28 @@
 #btn-close-system,
 #btn-close-planet,
 #btn-close-settings {
-    width: auto;
+    width: 28px;
+    height: 28px;
     margin: 0;
-    padding: 6px 16px;
-    font-size: 12px;
-    letter-spacing: 2px;
-    border-color: rgba(0, 242, 255, 0.25);
-    color: var(--color-primary);
+    padding: 0;
+    font-size: 14px;
+    letter-spacing: 0;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    flex-shrink: 0;
 }
 
 #btn-close-system:hover,
 #btn-close-planet:hover,
 #btn-close-settings:hover {
-    background: rgba(0, 242, 255, 0.1);
-    border-color: rgba(0, 242, 255, 0.5);
-    color: #ffffff;
-    box-shadow: 0 0 15px rgba(0, 242, 255, 0.15);
+    background: rgba(255, 80, 80, 0.12);
+    border-color: rgba(255, 80, 80, 0.35);
+    color: #ff6666;
+    box-shadow: none;
 }
 
 .action-buttons {
@@ -1363,6 +1378,7 @@
 }
 
 /* ── Star List in System Panel ───────────────────────────────────────────── */
+/* ── Star/Planet List in System Panel ───────────────────────────────────── */
 .star-list-section {
     margin-top: 14px;
     border-top: 1px solid rgba(0, 242, 255, 0.06);
@@ -1370,6 +1386,9 @@
 }
 
 .star-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 2.5px;
@@ -1378,16 +1397,32 @@
     margin-bottom: 10px;
     padding-left: 0;
     opacity: 0.7;
+    cursor: pointer;
+    user-select: none;
+}
+
+.star-list-header .section-chevron {
+    font-size: 8px;
+    transition: transform 0.25s ease;
+    opacity: 0.5;
+}
+
+.star-list-header .section-chevron.collapsed {
+    transform: rotate(-90deg);
 }
 
 #star-list {
-    max-height: 220px;
+    max-height: 300px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 242, 255, 0.2) transparent;
+}
+
+#star-list.collapsed {
+    display: none;
 }
 
 #star-list::-webkit-scrollbar {
@@ -1406,13 +1441,13 @@
 .star-list-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
-    border-radius: 3px;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 4px;
     cursor: pointer;
     border: 1px solid transparent;
     transition: all 0.2s ease;
-    margin-bottom: 1px;
+    position: relative;
 }
 
 .star-list-item:hover {
@@ -1421,31 +1456,49 @@
 }
 
 .star-list-item.active {
-    background: rgba(0, 242, 255, 0.08);
+    background: linear-gradient(90deg, rgba(0, 242, 255, 0.1) 0%, rgba(0, 242, 255, 0.03) 100%);
     border-color: rgba(0, 242, 255, 0.25);
-    box-shadow: inset 2px 0 0 var(--color-primary);
+    border-left: 2px solid var(--color-primary);
 }
 
 .star-list-dot {
-    width: 10px;
-    height: 10px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     flex-shrink: 0;
-    box-shadow: 0 0 6px currentColor;
+}
+
+.star-list-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
 }
 
 .star-list-name {
-    flex: 1;
     font-size: 13px;
     font-weight: 600;
     color: #c8e0f0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.star-list-type {
+    font-size: 10px;
+    color: rgba(136, 187, 221, 0.6);
+    letter-spacing: 0.3px;
+    line-height: 1.2;
 }
 
 .star-list-item.active .star-list-name {
     color: #ffffff;
+}
+
+.star-list-item.active .star-list-type {
+    color: rgba(0, 242, 255, 0.6);
 }
 
 /* ── CONTROLS HINT BAR (bottom of screen) ───────────────────────────────────── */
@@ -1842,11 +1895,13 @@
 
 .star-list-meta {
     font-size: 11px;
-    color: rgba(0, 242, 255, 0.5);
+    color: rgba(0, 242, 255, 0.45);
     flex-shrink: 0;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.5px;
     text-align: right;
+    font-variant-numeric: tabular-nums;
+    min-width: 24px;
 }
 
 /* ── RANDOM EVENT MODAL ────────────────────────────────────────────────────── */
