@@ -635,8 +635,8 @@ export function createNebulaTexture(palette = []) {
 
     // Medium detail clusters — add nebula structure
     for (let i = 0; i < 36; i++) {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
+        const x = canvas.width * 0.12 + Math.random() * canvas.width * 0.76;
+        const y = canvas.height * 0.12 + Math.random() * canvas.height * 0.76;
         const radius = 80 + Math.random() * 160;
         const color = colors[Math.floor(Math.random() * colors.length)];
         const stretchX = 1.0 + Math.random() * 1.2;
@@ -661,8 +661,8 @@ export function createNebulaTexture(palette = []) {
 
     // Small bright wisps — fine detail without hard edges
     for (let i = 0; i < 24; i++) {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
+        const x = canvas.width * 0.1 + Math.random() * canvas.width * 0.8;
+        const y = canvas.height * 0.1 + Math.random() * canvas.height * 0.8;
         const radius = 40 + Math.random() * 90;
         const color = colors[Math.floor(Math.random() * colors.length)];
         const stretchX = 1.5 + Math.random() * 2.0;
@@ -719,11 +719,11 @@ export function createNebulaTexture(palette = []) {
         for (let x = 0; x < canvas.width; x++) {
             const index = (y * canvas.width + x) * 4 + 3;
             const edgeDistance = Math.min(x, canvas.width - 1 - x, y, canvas.height - 1 - y) / edgeScale;
-            const edgeFade = smoothstep(0.0, 0.25, edgeDistance);
+            const edgeFade = smoothstep(0.0, 0.38, edgeDistance);
             const rx = (x - centerX) / centerX;
             const ry = (y - centerY) / centerY;
             const radialDistance = Math.sqrt(rx * rx + ry * ry);
-            const radialFade = 1 - smoothstep(0.6, 1.0, radialDistance);
+            const radialFade = 1 - smoothstep(0.35, 0.78, radialDistance);
 
             data[index] = Math.round(data[index] * edgeFade * radialFade);
         }
