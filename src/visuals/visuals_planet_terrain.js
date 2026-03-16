@@ -208,6 +208,114 @@ export function createTerrainMesh(planetType) {
     return terrain;
 }
 
+/**
+ * Carve lake basins into the terrain mesh and baked height grid.
+ * Depresses terrain vertices within each lake radius into a smooth bowl
+ * so the water disc (placed at waterY) is actually visible above the ground.
+ * Must be called AFTER createTerrainMesh (so baked grid exists) and BEFORE
+ * lake meshes are positioned.
+ * @param {THREE.Mesh} terrainMesh - The terrain mesh to modify
+ * @param {Array} lakeDefs - Array of { x, z, radius }
+ * @returns {Array} Same lakeDefs, each augmented with .waterY
+ */
+export function carveLakeBasins(terrainMesh, lakeDefs) {
+    if (!lakeDefs || lakeDefs.length === 0) return lakeDefs;
+
+    const pos = terrainMesh.geometry.attributes.position;
+    const colorAttr = terrainMesh.geometry.attributes.color;
+
+    for (const lake of lakeDefs) {
+        // Sample terrain height at the lake edge to determine water level
+        let edgeTotal = 0;
+        const edgeSamples = 16;
+        for (let i = 0; i < edgeSamples; i++) {
+            const angle = (i / edgeSamples) * Math.PI * 2;
+            const ex = lake.x + Math.cos(angle) * lake.radius;
+            const ez = lake.z + Math.sin(angle) * lake.radius;
+            edgeTotal += getTerrainHeight(ex, ez);
+        }
+        const edgeH = edgeTotal / edgeSamples;
+        lake.waterY = edgeH - 0.6;   // water surface sits just below average edge height
+        const depth = 3.5;            // how deep the center basin goes below waterY
+        const carveRadius = lake.radius + 2; // slightly wider than lake for smooth blending
+
+        // Depress terrain vertices within lake area
+        for (let i = 0; i < pos.count; i++) {
+            const localX = pos.getX(i);
+            const localY = pos.getY(i);
+            // PlaneGeometry local Y = -worldZ (due to the negate in createTerrainMesh)
+            const worldX = localX;
+            const worldZ = -localY;
+
+            const dx = worldX - lake.x;
+            const dz = worldZ - lake.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+
+            if (dist < carveRadius) {
+                const t = dist / carveRadius; // 0 at center, 1 at edge
+                // Smooth bowl: steep at edges, flat at center (cubic ease)
+                const bowl = 1 - t * t * t;
+                const targetH = lake.waterY - depth * bowl;
+                const currentH = pos.getZ(i);
+
+                if (targetH < currentH) {
+                    pos.setZ(i, targetH);
+
+                    // Darken vertex color for underwater lake bed
+                    if (colorAttr) {
+                        const dark = 0.25 + 0.75 * t; // darker at center
+                        colorAttr.setXYZ(i,
+                            colorAttr.getX(i) * dark * 0.5,
+                            colorAttr.getY(i) * dark * 0.55,
+                            colorAttr.getZ(i) * dark * 0.65
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    pos.needsUpdate = true;
+    if (colorAttr) colorAttr.needsUpdate = true;
+    terrainMesh.geometry.computeVertexNormals();
+
+    // Update baked height grid so physics / placement respect the basins
+    if (heightGrid) {
+        const step = (GRID_EXTENT * 2) / (GRID_SIZE - 1);
+        for (const lake of lakeDefs) {
+            const depth = 3.5;
+            const carveRadius = lake.radius + 2;
+            // Only iterate grid cells near the lake (bounding box)
+            const minI = Math.max(0, Math.floor(((lake.x - carveRadius) + GRID_EXTENT) / step));
+            const maxI = Math.min(GRID_SIZE - 1, Math.ceil(((lake.x + carveRadius) + GRID_EXTENT) / step));
+            const minJ = Math.max(0, Math.floor(((lake.z - carveRadius) + GRID_EXTENT) / step));
+            const maxJ = Math.min(GRID_SIZE - 1, Math.ceil(((lake.z + carveRadius) + GRID_EXTENT) / step));
+
+            for (let j = minJ; j <= maxJ; j++) {
+                for (let i = minI; i <= maxI; i++) {
+                    const gx = -GRID_EXTENT + i * step;
+                    const gz = -GRID_EXTENT + j * step;
+                    const dx = gx - lake.x;
+                    const dz = gz - lake.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+
+                    if (dist < carveRadius) {
+                        const t = dist / carveRadius;
+                        const bowl = 1 - t * t * t;
+                        const targetH = lake.waterY - depth * bowl;
+                        const idx = j * GRID_SIZE + i;
+                        if (targetH < heightGrid[idx]) {
+                            heightGrid[idx] = targetH;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return lakeDefs;
+}
+
 export function getGroundColor(type) {
     // Kept for backwards compatibility — vertex colors now drive terrain appearance
     switch(type) {

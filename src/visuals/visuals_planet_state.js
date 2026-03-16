@@ -67,6 +67,9 @@ const planetState = {
     alienHives: [],
     hostileAliens: [],
 
+    // Colony shield
+    colonyShield: null, // { hp, maxHp, radius, mesh, wireMesh, glowMesh, lastHitTime, broken }
+
     // Quest system (transient — rebuilt on each landing)
     quests: [],
     questGroup: null,

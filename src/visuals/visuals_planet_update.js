@@ -129,16 +129,10 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             controlTarget.rotation.y += diff * 8 * dt;
         }
 
-        // Turret tracks camera yaw independently
+        // Turret aligns with hull (faces movement direction)
         const turretPivot = controlTarget.userData.turretPivot;
         if (turretPivot) {
-            let turretTarget = cameraYaw - controlTarget.rotation.y + Math.PI;
-            while (turretTarget > Math.PI) turretTarget -= Math.PI * 2;
-            while (turretTarget < -Math.PI) turretTarget += Math.PI * 2;
-            let turretDiff = turretTarget - turretPivot.rotation.y;
-            while (turretDiff > Math.PI) turretDiff -= Math.PI * 2;
-            while (turretDiff < -Math.PI) turretDiff += Math.PI * 2;
-            turretPivot.rotation.y += turretDiff * 8 * dt;
+            turretPivot.rotation.y += -turretPivot.rotation.y * 10 * dt;
         }
 
         // Shadow
@@ -146,6 +140,101 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             const sm = controlTarget.userData.shadowMesh;
             sm.position.set(controlTarget.position.x, tankGroundH + 0.1, controlTarget.position.z);
             sm.material.opacity = 0.5;
+        }
+
+        // --- Exhaust smoke from rear pipes ---
+        const exhaustParts = controlTarget.userData.exhaustParticles;
+        if (exhaustParts) {
+            const exGroup = planetState.explorationGroup;
+            // Emit smoke when moving (or idle puffs at lower rate)
+            const emitRate = tankSpd > 1 ? 0.04 : 0.25;
+            controlTarget.userData.exhaustTimer = (controlTarget.userData.exhaustTimer || 0) + dt;
+            if (controlTarget.userData.exhaustTimer > emitRate) {
+                controlTarget.userData.exhaustTimer = 0;
+                // Emit from both exhaust pipes
+                for (let ei = 0; ei < 2; ei++) {
+                    const idle = exhaustParts.find(p => p.life <= 0);
+                    if (!idle) break;
+                    // Exhaust pipe positions in local space: (-1.95, 0.9, ±0.4)
+                    const localPos = new THREE.Vector3(-1.95, 0.9, ei === 0 ? -0.4 : 0.4);
+                    controlTarget.localToWorld(localPos);
+                    idle.sprite.position.copy(localPos);
+                    idle.life = idle.maxLife;
+                    idle.sprite.visible = true;
+                    idle.sprite.material.opacity = 0.5;
+                    idle.sprite.scale.set(0.4, 0.4, 0.4);
+                    // Drift upward and slightly backward
+                    const backDir = -controlTarget.rotation.y;
+                    const speedFactor = Math.min(tankSpd * 0.15, 3);
+                    idle.vx = Math.sin(backDir) * speedFactor + (Math.random() - 0.5) * 0.5;
+                    idle.vy = 1.5 + Math.random() * 1.0;
+                    idle.vz = Math.cos(backDir) * speedFactor + (Math.random() - 0.5) * 0.5;
+                    if (!idle.added && exGroup) {
+                        exGroup.add(idle.sprite);
+                        idle.added = true;
+                    }
+                }
+            }
+            // Update live particles
+            for (const p of exhaustParts) {
+                if (p.life <= 0) continue;
+                p.life -= dt;
+                const t = 1 - p.life / p.maxLife; // 0→1 over lifetime
+                p.sprite.position.x += p.vx * dt;
+                p.sprite.position.y += p.vy * dt;
+                p.sprite.position.z += p.vz * dt;
+                p.vy *= 0.97; // slow vertical drift
+                const s = 0.4 + t * 2.0; // grow from 0.4 to 2.4
+                p.sprite.scale.set(s, s, s);
+                p.sprite.material.opacity = Math.max(0, 0.45 * (1 - t));
+                // Lighten color as smoke dissipates
+                const gray = 0.33 + t * 0.4;
+                p.sprite.material.color.setRGB(gray, gray, gray);
+                if (p.life <= 0) {
+                    p.sprite.visible = false;
+                }
+            }
+        }
+
+        // --- Track trail marks on ground ---
+        const trailMarks = controlTarget.userData.trailMarks;
+        if (trailMarks) {
+            const exGroup = planetState.explorationGroup;
+            // Only emit trails when actually moving
+            if (tankSpd > 2) {
+                controlTarget.userData.trailTimer = (controlTarget.userData.trailTimer || 0) + dt;
+                const trailRate = 0.08;
+                if (controlTarget.userData.trailTimer > trailRate) {
+                    controlTarget.userData.trailTimer = 0;
+                    const idle = trailMarks.find(p => p.life <= 0);
+                    if (idle) {
+                        const tx = controlTarget.position.x;
+                        const tz = controlTarget.position.z;
+                        const ty = getTerrainHeightFast(tx, tz) + 0.08;
+                        idle.sprite.position.set(tx, ty, tz);
+                        // Rotate trail to match tank heading
+                        idle.sprite.material.rotation = controlTarget.rotation.y;
+                        idle.life = idle.maxLife;
+                        idle.sprite.visible = true;
+                        idle.sprite.material.opacity = 0.25;
+                        idle.sprite.scale.set(2.5, 0.6, 1);
+                        if (!idle.added && exGroup) {
+                            exGroup.add(idle.sprite);
+                            idle.added = true;
+                        }
+                    }
+                }
+            }
+            // Fade existing trail marks
+            for (const t of trailMarks) {
+                if (t.life <= 0) continue;
+                t.life -= dt;
+                const frac = t.life / t.maxLife;
+                t.sprite.material.opacity = 0.25 * frac;
+                if (t.life <= 0) {
+                    t.sprite.visible = false;
+                }
+            }
         }
 
         // --- Tank firing ---
@@ -157,12 +246,11 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             const worldPos = new THREE.Vector3();
             muzzle.getWorldPosition(worldPos);
 
-            // Fire direction = turret facing in world space
-            const turretWorldRot = controlTarget.rotation.y + (turretPivot ? turretPivot.rotation.y : 0);
+            // Fire direction = hull facing direction
             const fireDir = new THREE.Vector3(
-                Math.sin(turretWorldRot),
+                Math.sin(controlTarget.rotation.y),
                 -0.03,
-                Math.cos(turretWorldRot)
+                Math.cos(controlTarget.rotation.y)
             ).normalize();
 
             // Projectile — glowing shell with tracer trail
@@ -1258,6 +1346,55 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             }
         }
 
+        // Hit detection against hostile aliens
+        if (!hit) {
+            for (let hai = 0; hai < planetState.hostileAliens.length; hai++) {
+                const hostile = planetState.hostileAliens[hai];
+                if (hostile.userData._dying) continue;
+                const hdx = pp.x - hostile.position.x;
+                const hdy = pp.y - hostile.position.y - 0.5;
+                const hdz = pp.z - hostile.position.z;
+                const hdistSq = hdx * hdx + hdy * hdy + hdz * hdz;
+                if (hdistSq < 9) {
+                    hit = true;
+                    // Tank deals 3 damage per shell
+                    hostile.userData.hp -= 3;
+                    // Impact flash
+                    const hImpact = new THREE.Sprite(new THREE.SpriteMaterial({
+                        color: 0xff6600, transparent: true, opacity: 1.0,
+                        blending: THREE.AdditiveBlending, depthWrite: false,
+                    }));
+                    hImpact.position.copy(pp);
+                    hImpact.scale.set(4, 4, 1);
+                    planetState.explorationGroup.add(hImpact);
+                    const _fHI = () => {
+                        hImpact.material.opacity -= 0.08;
+                        if (hImpact.material.opacity > 0.05) requestAnimationFrame(_fHI);
+                        else { hImpact.removeFromParent(); hImpact.material.dispose(); }
+                    };
+                    requestAnimationFrame(_fHI);
+                    // Red flash
+                    hostile.traverse(child => {
+                        if (child.isMesh && child.material && child.material.emissive) {
+                            child.material.emissive.set(0xff0000);
+                            child.material.emissiveIntensity = 1.0;
+                            setTimeout(() => {
+                                if (child.material) {
+                                    child.material.emissive.set(0x330000);
+                                    child.material.emissiveIntensity = 0.1;
+                                }
+                            }, 200);
+                        }
+                    });
+                    if (hostile.userData.hp <= 0) {
+                        hostile.userData._dying = true;
+                        hostile.userData._deathTimer = 0;
+                    }
+                    break;
+                }
+            }
+        }
+
         // Hit ground
         if (!hit) {
             const projGroundH = getTerrainHeightFast(pp.x, pp.z);
@@ -1295,6 +1432,57 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 9e. Hostile alien wave system (hive spawning + march + soldier combat) ---
     const hives = planetState.alienHives;
     const hostiles = planetState.hostileAliens;
+    const shield = planetState.colonyShield;
+
+    // ── Shield regeneration & visual update ──
+    if (shield) {
+        const REGEN_DELAY = 4; // seconds after last hit before regen starts
+        const REGEN_RATE = 3;  // HP per second
+
+        if (!shield.broken && shield.hp < shield.maxHp && (time - shield.lastHitTime) > REGEN_DELAY) {
+            shield.hp = Math.min(shield.maxHp, shield.hp + REGEN_RATE * dt);
+        }
+
+        // Revive shield if regenerated enough
+        if (shield.broken && shield.hp >= shield.maxHp * 0.3) {
+            shield.broken = false;
+        }
+
+        // Visual state
+        const hpRatio = shield.hp / shield.maxHp;
+        const isActive = !shield.broken && shield.hp > 0;
+
+        if (shield.domeMat) {
+            shield.domeMat.opacity = isActive ? 0.05 + hpRatio * 0.08 : 0;
+            // Color shifts: cyan at full → orange at low → red at critical
+            if (hpRatio > 0.5) {
+                shield.domeMat.color.setHex(0x00ccff);
+                shield.domeMat.emissive.setHex(0x004488);
+            } else if (hpRatio > 0.2) {
+                shield.domeMat.color.setHex(0xffaa00);
+                shield.domeMat.emissive.setHex(0x884400);
+            } else {
+                shield.domeMat.color.setHex(0xff3300);
+                shield.domeMat.emissive.setHex(0x881100);
+            }
+        }
+        if (shield.wireMat) {
+            shield.wireMat.opacity = isActive ? 0.06 + hpRatio * 0.1 + Math.sin(time * 2) * 0.02 : 0;
+            shield.wireMat.color.copy(shield.domeMat.color);
+        }
+        if (shield.ringMat) {
+            shield.ringMat.opacity = isActive ? 0.08 + hpRatio * 0.12 : 0;
+            shield.ringMat.color.copy(shield.domeMat.color);
+        }
+
+        // Hit flash effect
+        if (shield.hitFlashTimer > 0) {
+            shield.hitFlashTimer -= dt;
+            const flash = Math.max(0, shield.hitFlashTimer / 0.2);
+            if (shield.domeMat) shield.domeMat.opacity = Math.min(0.4, shield.domeMat.opacity + flash * 0.3);
+            if (shield.wireMat) shield.wireMat.opacity = Math.min(0.5, shield.wireMat.opacity + flash * 0.35);
+        }
+    }
 
     // Hive spawn logic
     for (let hi = 0; hi < hives.length; hi++) {
@@ -1334,18 +1522,95 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     }
 
+    // Shield active check for alien behavior
+    const shieldUp = shield && !shield.broken && shield.hp > 0;
+    const shieldRadius = shield ? shield.radius : 0;
+    const SHIELD_ATTACK_DAMAGE = 4; // damage per alien hit on shield
+    const SHIELD_ATTACK_COOLDOWN = 2; // seconds between each alien's shield attacks
+
     // Hostile alien march + animation
     for (let ai = hostiles.length - 1; ai >= 0; ai--) {
         const alien = hostiles[ai];
         const ud = alien.userData;
+
+        // Death animation (shrinking) — check first to skip everything else
+        if (ud._dying) {
+            ud._deathTimer = (ud._deathTimer || 0) + dt;
+            const t = ud._deathTimer / 0.4; // 0.4s death
+            alien.scale.setScalar(Math.max(0, 1 - t) * ud.bodyScale);
+            if (t >= 1) {
+                alien.removeFromParent();
+                if (ud.shadowMesh) ud.shadowMesh.removeFromParent();
+                hostiles.splice(ai, 1);
+            }
+            continue;
+        }
 
         // March toward colony center (0, 0)
         const dx = -alien.position.x;
         const dz = -alien.position.z;
         const distToCenter = Math.sqrt(dx * dx + dz * dz);
 
+        // Shield interaction: stop at shield boundary and attack it
+        if (shieldUp && distToCenter < shieldRadius + 1.5 && distToCenter > 8) {
+            // Alien is at shield — attack it
+            if (!ud._shieldAttackCd) ud._shieldAttackCd = 0;
+            ud._shieldAttackCd -= dt;
+
+            // Face the colony
+            const nx = dx / distToCenter;
+            const nz = dz / distToCenter;
+            alien.rotation.y = Math.atan2(nx, nz);
+
+            // Attack animation: lean forward + mandible snap
+            const jts = ud.joints;
+            if (ud._shieldAttackCd <= 0) {
+                ud._shieldAttackCd = SHIELD_ATTACK_COOLDOWN + Math.random() * 0.5;
+
+                // Deal damage to shield
+                shield.hp -= SHIELD_ATTACK_DAMAGE;
+                shield.lastHitTime = time;
+                shield.hitFlashTimer = 0.2;
+
+                if (shield.hp <= 0) {
+                    shield.hp = 0;
+                    shield.broken = true;
+                }
+            }
+
+            // Idle attack pose animation
+            ud.phase += dt * 6;
+            const wp = ud.phase;
+            if (jts && jts.mandibleL && jts.mandibleR) {
+                const snap = Math.sin(wp * 4) * 0.4;
+                jts.mandibleL.rotation.y = -Math.abs(snap);
+                jts.mandibleR.rotation.y = Math.abs(snap);
+            }
+            if (jts && jts.head) {
+                jts.head.rotation.x = Math.sin(wp * 3) * 0.15;
+            }
+            if (jts && jts.legs) {
+                for (let li = 0; li < jts.legs.length; li++) {
+                    const leg = jts.legs[li];
+                    const swing = Math.sin(wp * 2 + li) * 0.15;
+                    leg.hip.rotation.x = swing;
+                }
+            }
+            if (jts && jts.tail) {
+                jts.tail.rotation.y = Math.sin(wp * 2 + ai) * 0.4;
+            }
+
+            // Shadow
+            if (ud.shadowMesh) {
+                const gH = getTerrainHeightFast(alien.position.x, alien.position.z) + 0.1;
+                ud.shadowMesh.position.set(alien.position.x, gH, alien.position.z);
+                ud.shadowMesh.material.opacity = 0.45;
+            }
+            continue; // don't move further
+        }
+
         if (distToCenter < 8) {
-            // Reached colony — flash hub red and remove alien
+            // Reached colony hub — flash hub red and remove alien
             if (hubGroup) {
                 hubGroup.traverse(child => {
                     if (child.isMesh && child.material && child.material.emissive) {
@@ -1393,15 +1658,19 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             }
         }
 
-        // Head bob + mandible snap
+        // Head bob + mandible snap + tail sway
         if (jts && jts.head) {
             jts.head.rotation.x = Math.sin(wp * 2) * 0.08;
             jts.head.rotation.y = Math.sin(time * 1.5 + ai) * 0.1;
         }
         if (jts && jts.mandibleL && jts.mandibleR) {
-            const snap = Math.sin(time * 3 + ai * 2) * 0.2;
+            const snap = Math.sin(time * 3 + ai * 2) * 0.25;
             jts.mandibleL.rotation.y = -Math.abs(snap);
             jts.mandibleR.rotation.y = Math.abs(snap);
+        }
+        if (jts && jts.tail) {
+            jts.tail.rotation.y = Math.sin(wp * 1.5 + ai) * 0.3;
+            jts.tail.rotation.x = Math.sin(wp * 0.8) * 0.15 - 0.1;
         }
 
         // Shadow
@@ -1409,19 +1678,6 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             const gH = getTerrainHeightFast(alien.position.x, alien.position.z) + 0.1;
             ud.shadowMesh.position.set(alien.position.x, gH, alien.position.z);
             ud.shadowMesh.material.opacity = 0.45;
-        }
-
-        // Death animation (shrinking)
-        if (ud._dying) {
-            ud._deathTimer = (ud._deathTimer || 0) + dt;
-            const t = ud._deathTimer / 0.4; // 0.4s death
-            alien.scale.setScalar(Math.max(0, 1 - t));
-            if (t >= 1) {
-                alien.removeFromParent();
-                if (ud.shadowMesh) ud.shadowMesh.removeFromParent();
-                hostiles.splice(ai, 1);
-            }
-            continue; // skip combat checks for dying aliens
         }
     }
 
@@ -1481,26 +1737,52 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 if (pj && pj.muzzle) {
                     pj.muzzle.getWorldPosition(muzzleWorldPos);
                 } else {
-                    muzzleWorldPos.copy(s.position).y += 1.4;
+                    muzzleWorldPos.copy(s.position);
+                    muzzleWorldPos.y += 1.4;
                 }
 
-                // Tracer sprite (fast line from soldier to target)
-                const tracerMat = new THREE.SpriteMaterial({
-                    color: 0xffaa00, transparent: true, opacity: 0.7,
+                // Tracer beam: oriented cylinder from muzzle → target
+                const targetHitPos = new THREE.Vector3(
+                    nearestHostile.position.x,
+                    nearestHostile.position.y + 0.5,
+                    nearestHostile.position.z
+                );
+                const tracerDir = new THREE.Vector3().subVectors(targetHitPos, muzzleWorldPos);
+                const tracerLen = tracerDir.length();
+                tracerDir.normalize();
+
+                const tracerGeo = new THREE.CylinderGeometry(0.025, 0.025, tracerLen, 4, 1, true);
+                const tracerMat = new THREE.MeshBasicMaterial({
+                    color: 0xffaa00, transparent: true, opacity: 0.8,
                     blending: THREE.AdditiveBlending, depthWrite: false,
                 });
-                const tracer = new THREE.Sprite(tracerMat);
-                const midX = (muzzleWorldPos.x + nearestHostile.position.x) / 2;
-                const midY = (muzzleWorldPos.y + nearestHostile.position.y + 0.5) / 2;
-                const midZ = (muzzleWorldPos.z + nearestHostile.position.z) / 2;
-                tracer.position.set(midX, midY, midZ);
-                const tracerLen = nearestDist * 0.4;
-                tracer.scale.set(tracerLen, 0.15, 1);
+                const tracer = new THREE.Mesh(tracerGeo, tracerMat);
+                // Position at midpoint, orient along shot direction
+                tracer.position.lerpVectors(muzzleWorldPos, targetHitPos, 0.5);
+                tracer.quaternion.setFromUnitVectors(
+                    new THREE.Vector3(0, 1, 0), tracerDir
+                );
                 planetState.explorationGroup.add(tracer);
+
+                // Muzzle flash burst at rifle tip
+                const flashMat = new THREE.SpriteMaterial({
+                    color: 0xffdd44, transparent: true, opacity: 1.0,
+                    blending: THREE.AdditiveBlending, depthWrite: false,
+                });
+                const flashSprite = new THREE.Sprite(flashMat);
+                flashSprite.position.copy(muzzleWorldPos);
+                flashSprite.scale.set(1.2, 1.2, 1);
+                planetState.explorationGroup.add(flashSprite);
+
                 const _fadeTracer = () => {
-                    tracerMat.opacity -= 0.12;
-                    if (tracerMat.opacity > 0.05) requestAnimationFrame(_fadeTracer);
-                    else { tracer.removeFromParent(); tracerMat.dispose(); }
+                    tracerMat.opacity -= 0.14;
+                    flashMat.opacity -= 0.2;
+                    if (tracerMat.opacity > 0.05) {
+                        requestAnimationFrame(_fadeTracer);
+                    } else {
+                        tracer.removeFromParent(); tracerGeo.dispose(); tracerMat.dispose();
+                        flashSprite.removeFromParent(); flashMat.dispose();
+                    }
                 };
                 requestAnimationFrame(_fadeTracer);
 

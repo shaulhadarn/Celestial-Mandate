@@ -293,6 +293,7 @@ export function createPlanetVisuals(planetData, group) {
     planetState._tankDeployed = false;
     planetState.alienHives = [];
     planetState.hostileAliens = [];
+    planetState.colonyShield = null;
     planetState.quests = [];
     planetState.questGroup = null;
     planetState.currentPlanetData = planetData;
@@ -383,8 +384,8 @@ export function createPlanetVisuals(planetData, group) {
     // 4. Props
     planetState.planetProps = createPlanetProps(planetData.type, group, getTerrainHeight);
 
-    // 4b. Lakes (water bodies with shore vegetation)
-    const lakeResult = createLakes(planetData.type, group, getTerrainHeight);
+    // 4b. Lakes (water bodies with shore vegetation) — pass terrainMesh so basins can be carved
+    const lakeResult = createLakes(planetData.type, group, getTerrainHeight, planetState.terrainMesh);
     planetState.lakeMeshes = lakeResult.meshes;
     // Add lake shore vegetation collisions to prop list
     lakeResult.collisions.forEach(c => planetState.planetProps.push(c));

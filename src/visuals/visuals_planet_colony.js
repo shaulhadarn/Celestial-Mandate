@@ -1082,12 +1082,62 @@ export function buildTankMesh() {
     shadow.position.set(0, 0.05, 0);
     g.add(shadow);
 
+    // ── Exhaust smoke particles (pooled sprites, emitted from rear pipes) ──
+    const smokeTex = _getSmokeTexture();
+    const exhaustParticles = [];
+    for (let pi = 0; pi < 12; pi++) {
+        const spMat = new THREE.SpriteMaterial({
+            map: smokeTex,
+            color: 0x555555,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.NormalBlending,
+        });
+        const sp = new THREE.Sprite(spMat);
+        sp.scale.set(0.4, 0.4, 0.4);
+        sp.visible = false;
+        exhaustParticles.push({
+            sprite: sp,
+            life: 0,
+            maxLife: 0.8 + Math.random() * 0.6,
+            vx: 0, vy: 0, vz: 0,
+            added: false,
+        });
+    }
+
+    // ── Track trail marks (pooled sprites on ground behind tank) ─────────
+    const trailMarks = [];
+    for (let ti = 0; ti < 20; ti++) {
+        const tMat = new THREE.SpriteMaterial({
+            map: smokeTex,
+            color: 0x3a3020,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.NormalBlending,
+        });
+        const tsp = new THREE.Sprite(tMat);
+        tsp.scale.set(2.5, 0.6, 1);
+        tsp.visible = false;
+        trailMarks.push({
+            sprite: tsp,
+            life: 0,
+            maxLife: 3.0,
+            added: false,
+        });
+    }
+
     g.userData = {
         isTank: true,
         turretPivot,
         muzzlePoint,
         shadowMesh: shadow,
         velocity: new THREE.Vector3(),
+        exhaustParticles,
+        exhaustTimer: 0,
+        trailMarks,
+        trailTimer: 0,
     };
 
     return g;
@@ -1736,7 +1786,70 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
 
     // ── Alien hives (hostile spawn points) ──
     _spawnAlienHives(group, heightFn);
+
+    // ── Colony shield dome ──
+    _buildColonyShield(group);
 }
+
+// ── Colony Shield Dome ──────────────────────────────────────────────────────
+
+function _buildColonyShield(group) {
+    const SHIELD_RADIUS = 22;
+    const SHIELD_MAX_HP = 100;
+
+    // Inner translucent dome
+    const domeMat = new THREE.MeshStandardMaterial({
+        color: 0x00ccff, emissive: 0x004488, emissiveIntensity: 0.2,
+        transparent: true, opacity: 0.08, side: THREE.DoubleSide,
+        roughness: 0.1, metalness: 0.8, depthWrite: false,
+    });
+    const domeGeo = new THREE.SphereGeometry(SHIELD_RADIUS, 32, 24, 0, Math.PI * 2, 0, Math.PI / 2);
+    const domeMesh = new THREE.Mesh(domeGeo, domeMat);
+    domeMesh.position.y = 0;
+    domeMesh.renderOrder = 999;
+    group.add(domeMesh);
+
+    // Hex wireframe overlay (icosahedron at lower subdivision for hex-grid look)
+    const wireGeo = new THREE.IcosahedronGeometry(SHIELD_RADIUS + 0.15, 2);
+    // Remove bottom half vertices by clipping — just use full sphere but visually it's fine
+    const wireMat = new THREE.MeshBasicMaterial({
+        color: 0x00aaff, wireframe: true, transparent: true, opacity: 0.12,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+    wireMesh.position.y = 0;
+    wireMesh.renderOrder = 1000;
+    group.add(wireMesh);
+
+    // Base ring glow at ground level
+    const ringGeo = new THREE.RingGeometry(SHIELD_RADIUS - 0.5, SHIELD_RADIUS + 0.5, 48);
+    const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x00ccff, transparent: true, opacity: 0.15,
+        side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.rotation.x = -Math.PI / 2;
+    ringMesh.position.y = 0.2;
+    ringMesh.renderOrder = 998;
+    group.add(ringMesh);
+
+    planetState.colonyShield = {
+        hp: SHIELD_MAX_HP,
+        maxHp: SHIELD_MAX_HP,
+        radius: SHIELD_RADIUS,
+        mesh: domeMesh,
+        wireMesh,
+        ringMesh,
+        domeMat,
+        wireMat,
+        ringMat,
+        lastHitTime: -999,
+        broken: false,
+        hitFlashTimer: 0,
+    };
+}
+
+export { _buildColonyShield };
 
 // ── Alien Hive Structure ────────────────────────────────────────────────────
 
@@ -1847,96 +1960,171 @@ function _spawnAlienHives(group, heightFn) {
     }
 }
 
-// ── Hostile Alien Creature ──────────────────────────────────────────────────
+// ── Hostile Alien Creature (3 variants) ──────────────────────────────────────
 
 export function buildHostileAlienMesh() {
     const g = new THREE.Group();
 
+    // Variant roll: 0 = grunt (60%), 1 = spitter (25%), 2 = brute (15%)
+    const roll = Math.random();
+    const variant = roll < 0.60 ? 0 : roll < 0.85 ? 1 : 2;
+    const isBrute = variant === 2;
+    const isSpitter = variant === 1;
+    const scale = isBrute ? 1.5 : isSpitter ? 0.85 : 1.0;
+
+    const bodyColor = isBrute ? 0x551133 : isSpitter ? 0x772222 : 0x661122;
+    const chitinColor = isBrute ? 0x331122 : isSpitter ? 0x553311 : 0x441111;
+    const eyeColor = isSpitter ? 0xff6600 : 0xff0000;
+
     const bodyMat = new THREE.MeshStandardMaterial({
-        color: 0x661122, roughness: 0.5, metalness: 0.4,
-        emissive: 0x330000, emissiveIntensity: 0.1
+        color: bodyColor, roughness: 0.5, metalness: 0.4,
+        emissive: 0x330000, emissiveIntensity: 0.15
     });
     const chitin = new THREE.MeshStandardMaterial({
-        color: 0x441111, roughness: 0.3, metalness: 0.7
+        color: chitinColor, roughness: 0.3, metalness: 0.7
     });
     const eyeMat = new THREE.MeshStandardMaterial({
-        color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.9,
+        color: eyeColor, emissive: eyeColor, emissiveIntensity: 0.9,
         roughness: 0.1, metalness: 0.8
     });
     const mandibleMat = new THREE.MeshStandardMaterial({
         color: 0x2a0a0a, roughness: 0.4, metalness: 0.8
     });
+    const stingerMat = new THREE.MeshStandardMaterial({
+        color: 0xaa2200, emissive: 0x661100, emissiveIntensity: 0.3,
+        roughness: 0.2, metalness: 0.9
+    });
 
     // Body (elongated, forward-leaning)
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 1.2), bodyMat);
-    body.position.y = 0.6;
-    body.rotation.x = -0.15; // aggressive forward lean
+    const bw = 0.7 * scale, bh = 0.5 * scale, bd = 1.2 * scale;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), bodyMat);
+    body.position.y = 0.6 * scale;
+    body.rotation.x = -0.15;
     body.castShadow = true;
     g.add(body);
 
     // Armored back plates
-    const backPlate = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 0.9), chitin);
-    backPlate.position.set(0, 0.95, -0.1);
+    const backPlate = new THREE.Mesh(new THREE.BoxGeometry(0.6 * scale, 0.15 * scale, 0.9 * scale), chitin);
+    backPlate.position.set(0, 0.95 * scale, -0.1 * scale);
     g.add(backPlate);
 
-    // Spines on back
-    for (let si = 0; si < 3; si++) {
-        const spine = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.4, 4), chitin);
-        spine.position.set(0, 1.05, -0.3 + si * 0.3);
+    // Brute: extra heavy shoulder armor
+    if (isBrute) {
+        [-1, 1].forEach(side => {
+            const shoulderPlate = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.5), chitin);
+            shoulderPlate.position.set(side * 0.45 * scale, 0.85 * scale, 0.15 * scale);
+            shoulderPlate.rotation.z = side * 0.2;
+            g.add(shoulderPlate);
+        });
+        // Heavy crest
+        const crest = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.15), chitin);
+        crest.position.set(0, 1.2 * scale, 0.5 * scale);
+        g.add(crest);
+    }
+
+    // Spines on back (more for brute)
+    const spineCount = isBrute ? 5 : 3;
+    for (let si = 0; si < spineCount; si++) {
+        const sH = isBrute ? 0.55 : 0.4;
+        const spine = new THREE.Mesh(new THREE.ConeGeometry(0.06 * scale, sH * scale, 4), chitin);
+        spine.position.set(
+            (Math.random() - 0.5) * 0.2 * scale,
+            (1.05 + si * 0.04) * scale,
+            (-0.3 + si * (0.9 / spineCount)) * scale
+        );
         spine.rotation.x = -0.3;
         g.add(spine);
     }
 
     // Head pivot
     const headGroup = new THREE.Group();
-    headGroup.position.set(0, 0.7, 0.7);
+    headGroup.position.set(0, 0.7 * scale, 0.7 * scale);
     g.add(headGroup);
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.4), bodyMat);
+    const headSize = isBrute ? 0.55 : isSpitter ? 0.4 : 0.45;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(headSize * scale, 0.35 * scale, 0.4 * scale), bodyMat);
     head.castShadow = true;
     headGroup.add(head);
 
-    // Eyes (glowing red)
-    [-1, 1].forEach(side => {
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4), eyeMat);
-        eye.position.set(side * 0.18, 0.08, 0.18);
-        headGroup.add(eye);
-    });
+    // Eyes (glowing) — brutes get 4 eyes
+    const eyeCount = isBrute ? 2 : 1;
+    for (let row = 0; row < eyeCount; row++) {
+        [-1, 1].forEach(side => {
+            const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07 * scale, 6, 4), eyeMat);
+            eye.position.set(side * 0.18 * scale, (0.08 - row * 0.12) * scale, 0.18 * scale);
+            headGroup.add(eye);
+        });
+    }
 
-    // Mandibles (animated)
+    // Spitter: glowing venom sac under jaw
+    if (isSpitter) {
+        const venomSac = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 4),
+            new THREE.MeshStandardMaterial({
+                color: 0xff8800, emissive: 0xff6600, emissiveIntensity: 0.6,
+                transparent: true, opacity: 0.8, roughness: 0.2
+            })
+        );
+        venomSac.position.set(0, -0.15 * scale, 0.1 * scale);
+        headGroup.add(venomSac);
+    }
+
+    // Mandibles (animated) — brute mandibles are bigger
+    const mScale = isBrute ? 1.4 : 1.0;
     const mandibleL = new THREE.Group();
-    mandibleL.position.set(-0.15, -0.08, 0.2);
+    mandibleL.position.set(-0.15 * scale, -0.08 * scale, 0.2 * scale);
     headGroup.add(mandibleL);
-    const mL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mandibleMat);
-    mL.position.z = 0.15;
+    const mL = new THREE.Mesh(new THREE.BoxGeometry(0.06 * mScale * scale, 0.06 * mScale * scale, 0.3 * mScale * scale), mandibleMat);
+    mL.position.z = 0.15 * mScale * scale;
     mandibleL.add(mL);
 
     const mandibleR = new THREE.Group();
-    mandibleR.position.set(0.15, -0.08, 0.2);
+    mandibleR.position.set(0.15 * scale, -0.08 * scale, 0.2 * scale);
     headGroup.add(mandibleR);
-    const mR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mandibleMat);
-    mR.position.z = 0.15;
+    const mR = new THREE.Mesh(new THREE.BoxGeometry(0.06 * mScale * scale, 0.06 * mScale * scale, 0.3 * mScale * scale), mandibleMat);
+    mR.position.z = 0.15 * mScale * scale;
     mandibleR.add(mR);
+
+    // Tail with stinger (all variants)
+    const tailGroup = new THREE.Group();
+    tailGroup.position.set(0, 0.55 * scale, -0.6 * scale);
+    g.add(tailGroup);
+    const tailSeg1 = new THREE.Mesh(new THREE.BoxGeometry(0.15 * scale, 0.12 * scale, 0.4 * scale), bodyMat);
+    tailSeg1.position.z = -0.2 * scale;
+    tailGroup.add(tailSeg1);
+    const tailSeg2 = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.1 * scale, 0.35 * scale), bodyMat);
+    tailSeg2.position.set(0, 0.06 * scale, -0.55 * scale);
+    tailSeg2.rotation.x = 0.3;
+    tailGroup.add(tailSeg2);
+    const stinger = new THREE.Mesh(new THREE.ConeGeometry(0.04 * scale, 0.2 * scale, 4), stingerMat);
+    stinger.position.set(0, 0.18 * scale, -0.75 * scale);
+    stinger.rotation.x = 0.8;
+    tailGroup.add(stinger);
 
     // Legs (6 legs, 3 per side)
     const legJoints = [];
     [-1, 1].forEach(side => {
         for (let li = 0; li < 3; li++) {
             const hipGroup = new THREE.Group();
-            hipGroup.position.set(side * 0.35, 0.45, 0.3 - li * 0.4);
+            hipGroup.position.set(side * 0.35 * scale, 0.45 * scale, (0.3 - li * 0.4) * scale);
             g.add(hipGroup);
 
-            const upperLeg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.08), chitin);
-            upperLeg.position.set(side * 0.12, -0.17, 0);
+            const upperLeg = new THREE.Mesh(new THREE.BoxGeometry(0.08 * scale, 0.35 * scale, 0.08 * scale), chitin);
+            upperLeg.position.set(side * 0.12 * scale, -0.17 * scale, 0);
             hipGroup.add(upperLeg);
 
             const kneeGroup = new THREE.Group();
-            kneeGroup.position.set(side * 0.12, -0.35, 0);
+            kneeGroup.position.set(side * 0.12 * scale, -0.35 * scale, 0);
             hipGroup.add(kneeGroup);
 
-            const lowerLeg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), chitin);
-            lowerLeg.position.y = -0.15;
+            const lowerLeg = new THREE.Mesh(new THREE.BoxGeometry(0.06 * scale, 0.3 * scale, 0.06 * scale), chitin);
+            lowerLeg.position.y = -0.15 * scale;
             kneeGroup.add(lowerLeg);
+
+            // Claw foot
+            const claw = new THREE.Mesh(new THREE.ConeGeometry(0.03 * scale, 0.08 * scale, 3), mandibleMat);
+            claw.position.set(0, -0.32 * scale, 0.02 * scale);
+            claw.rotation.x = -0.5;
+            kneeGroup.add(claw);
 
             legJoints.push({ hip: hipGroup, knee: kneeGroup, side });
         }
@@ -1944,20 +2132,27 @@ export function buildHostileAlienMesh() {
 
     // Shadow
     const shadow = createShadowSprite();
-    shadow.scale.set(1.8, 1.8, 1);
+    shadow.scale.set(1.8 * scale, 1.8 * scale, 1);
     shadow.position.set(0, 0.05, 0);
     g.add(shadow);
 
+    // HP: grunt=5, spitter=3, brute=10
+    const hp = isBrute ? 10 : isSpitter ? 3 : 5;
+    const speed = isBrute ? (3 + Math.random()) : isSpitter ? (5 + Math.random() * 2) : (4 + Math.random() * 2);
+
     g.userData = {
         isHostile: true,
-        hp: 3,
-        speed: 4 + Math.random() * 2,
+        variant, // 0=grunt, 1=spitter, 2=brute
+        hp,
+        maxHp: hp,
+        speed,
         phase: Math.random() * Math.PI * 2,
-        bodyScale: 1.0,
+        bodyScale: scale,
         shadowMesh: shadow,
         joints: {
             head: headGroup,
             mandibleL, mandibleR,
+            tail: tailGroup,
             legs: legJoints,
         },
     };

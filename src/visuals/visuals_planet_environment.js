@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
+import { carveLakeBasins } from './visuals_planet_terrain.js';
 
 export function getSkyColor(type) {
     switch(type) {
@@ -1208,9 +1209,9 @@ function _generateLakePositions(planetType) {
 
 /**
  * Creates lake water meshes, shore vegetation, and returns collision data.
- * Water is a slightly reflective animated disc sitting in a terrain depression.
+ * Carves basins into the terrain mesh so water is visible above the ground.
  */
-export function createLakes(planetType, group, heightFn) {
+export function createLakes(planetType, group, heightFn, terrainMesh) {
     const conf = LAKE_TYPES[planetType];
     if (!conf) return { meshes: [], collisions: [] };
 
@@ -1219,16 +1220,11 @@ export function createLakes(planetType, group, heightFn) {
     const collisions = [];
     const vegCfg = getVegetationConfig(planetType);
 
+    // Carve basins into the terrain so lake beds are below the water surface
+    if (terrainMesh) carveLakeBasins(terrainMesh, lakeDefs);
+
     for (const lake of lakeDefs) {
-        // Find the lowest terrain height in the lake area for water level
-        let minH = Infinity;
-        for (let a = 0; a < Math.PI * 2; a += 0.4) {
-            for (let r = 0; r < lake.radius; r += 4) {
-                const h = heightFn(lake.x + Math.cos(a) * r, lake.z + Math.sin(a) * r);
-                if (h < minH) minH = h;
-            }
-        }
-        const waterY = minH - 0.3; // sit slightly below the lowest point
+        const waterY = lake.waterY ?? heightFn(lake.x, lake.z) - 0.5;
 
         // ── Water surface disc ──
         const segments = isMobileDevice ? 24 : 48;
