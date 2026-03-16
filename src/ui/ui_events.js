@@ -285,31 +285,36 @@ const _pirateConvo = [
         speaker: 'pirate',
         title: 'Incoming Transmission',
         desc: "A crackling signal cuts through your comms array. A scarred face appears on screen, grinning beneath a jagged red visor.\n\n\"Well, well... fresh colonists. Welcome to OUR sector, outsiders. The name's Krath. I run things around here.\"",
-        btn: 'Respond...'
+        btn: 'Respond...',
+        image: 'assets/images/events/pirate_intro_1.png'
     },
     {
         speaker: 'player',
         title: 'Colony Command',
         desc: "\"This is a lawful colonial settlement under imperial charter. Identify yourself and state your intentions.\"",
-        btn: 'Continue...'
+        btn: 'Continue...',
+        image: 'assets/images/events/pirate_intro_2.png'
     },
     {
         speaker: 'pirate',
         title: 'Incoming Transmission',
         desc: "Krath laughs. \"Imperial charter? Out here? That's adorable. Let me explain how this works, colonist. You see that planet on the edge of your system? That's MINE. My crew and I have been running operations from Corsair's Den long before you showed up.\"\n\nHe leans forward, his grin fading. \"Here's the deal — you pay us a little tribute. Minerals. Energy. Consider it... a protection fee.\"",
-        btn: 'Respond...'
+        btn: 'Respond...',
+        image: 'assets/images/events/pirate_intro_3.png'
     },
     {
         speaker: 'player',
         title: 'Colony Command',
         desc: "\"We will not negotiate with raiders. This system is under our jurisdiction now.\"",
-        btn: 'Continue...'
+        btn: 'Continue...',
+        image: 'assets/images/events/pirate_intro_4.png'
     },
     {
         speaker: 'pirate',
         title: 'Incoming Transmission',
         desc: "Krath slams his fist on the console. \"Wrong answer! You don't GET to say no. My raiders are already en route to your precious little colony. We'll take what we need — and we'll keep taking until there's nothing left.\"\n\nHe points at the screen. \"Unless you're smarter than you look... build yourself a shipyard, put together some real firepower, and come try to take us out. Until then — we OWN you.\"\n\nThe transmission cuts to static.",
-        btn: 'End Transmission'
+        btn: 'End Transmission',
+        image: 'assets/images/events/pirate_intro_5.png'
     }
 ];
 
@@ -347,6 +352,29 @@ function _showPirateConvoStep(stepIdx) {
         `Transmission — ${stepIdx + 1} of ${_pirateConvo.length}`;
 
     modal.querySelector('.evt-title').textContent = evt.title;
+
+    // Image — lazy load with fade-in so mobile doesn't get stuck
+    const imgWrap = modal.querySelector('.evt-image-wrap');
+    const imgEl = modal.querySelector('.evt-image');
+    if (step.image) {
+        imgEl.classList.add('evt-image-loading');
+        imgEl.src = '';
+        imgWrap.classList.remove('hidden');
+
+        const loader = new Image();
+        loader.onload = () => {
+            imgEl.src = step.image;
+            imgEl.classList.remove('evt-image-loading');
+        };
+        loader.onerror = () => {
+            // Hide if image fails to load
+            imgWrap.classList.add('hidden');
+        };
+        loader.src = step.image;
+    } else {
+        imgEl.src = '';
+        imgWrap.classList.add('hidden');
+    }
 
     const descEl = modal.querySelector('.evt-desc');
     descEl.innerHTML = _formatDesc(evt.desc);
