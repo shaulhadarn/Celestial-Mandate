@@ -346,6 +346,7 @@ _initShipTouchControls();
 
 /**
  * Update ship flight physics and camera position. Called every frame when controlling a ship.
+ * 3rd-person space sim handling: input is camera-relative, ship auto-rotates to face velocity.
  */
 export function updateShipFlight(dt, camera) {
     const entry = getControlledEntry();
@@ -353,32 +354,50 @@ export function updateShipFlight(dt, camera) {
 
     const mesh = entry.mesh;
     const { keyState, velocity, joystickInput } = systemShipState;
-
-    // Get ship's local axes
-    _forward.set(0, 0, -1).applyQuaternion(mesh.quaternion);
-    _right.set(1, 0, 0).applyQuaternion(mesh.quaternion);
-
-    // Throttle (W/S + joystick Y)
     const accel = systemShipState.acceleration;
-    if (keyState.w) velocity.addScaledVector(_forward, accel * dt);
-    if (keyState.s) velocity.addScaledVector(_forward, -accel * 0.4 * dt);
-    // Joystick Y: positive = push forward on stick = forward
+
+    // Current ship yaw
+    _euler.setFromQuaternion(mesh.quaternion, 'YXZ');
+    const shipYaw = _euler.y;
+
+    // Camera's effective yaw — this is the direction the player considers "forward"
+    const viewYaw = shipYaw + systemShipState.cameraYawOffset;
+
+    // Camera-relative forward and right vectors (horizontal plane)
+    const fwdX = -Math.sin(viewYaw);
+    const fwdZ = -Math.cos(viewYaw);
+    const rgtX = Math.cos(viewYaw);
+    const rgtZ = -Math.sin(viewYaw);
+
+    // Accumulate camera-relative input
+    let inputX = 0, inputZ = 0;
+    if (keyState.w) { inputX += fwdX; inputZ += fwdZ; }
+    if (keyState.s) { inputX -= fwdX * 0.4; inputZ -= fwdZ * 0.4; }
+    if (keyState.a) { inputX -= rgtX; inputZ -= rgtZ; }
+    if (keyState.d) { inputX += rgtX; inputZ += rgtZ; }
+
+    // Joystick (camera-relative)
     if (Math.abs(joystickInput.y) > 0.1) {
-        velocity.addScaledVector(_forward, accel * joystickInput.y * dt);
+        inputX += fwdX * joystickInput.y;
+        inputZ += fwdZ * joystickInput.y;
     }
+    if (Math.abs(joystickInput.x) > 0.1) {
+        inputX += rgtX * joystickInput.x;
+        inputZ += rgtZ * joystickInput.x;
+    }
+
+    // Normalize if combined input exceeds unit length
+    const inputLen = Math.sqrt(inputX * inputX + inputZ * inputZ);
+    if (inputLen > 1) { inputX /= inputLen; inputZ /= inputLen; }
+
+    // Apply horizontal acceleration
+    velocity.x += inputX * accel * dt;
+    velocity.z += inputZ * accel * dt;
 
     // Vertical (Space/Shift)
     if (keyState[' ']) velocity.y += accel * 0.6 * dt;
     if (keyState.shift) velocity.y -= accel * 0.6 * dt;
 
-    // Yaw from A/D keys + joystick X
-    let yawInput = (keyState.a ? 1 : 0) - (keyState.d ? 1 : 0);
-    if (Math.abs(joystickInput.x) > 0.1) {
-        yawInput -= joystickInput.x; // left stick = yaw left
-    }
-    mesh.rotateY(yawInput * 2.5 * dt);
-
-    // Mouse drag now orbits camera (handled in handleShipMouseMove), not the ship
     // Drag
     velocity.multiplyScalar(systemShipState.drag);
 
@@ -391,14 +410,33 @@ export function updateShipFlight(dt, camera) {
     // Apply movement
     mesh.position.addScaledVector(velocity, dt);
 
-    // Banking animation (visual roll based on yaw rate)
-    const targetBank = -yawInput * 0.5;
-    systemShipState.bankAngle = THREE.MathUtils.lerp(systemShipState.bankAngle, targetBank, 5 * dt);
+    // ── Auto-rotate ship to face velocity direction ──
+    const hSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
+    let yawDelta = 0;
+    if (hSpeed > 0.3) {
+        const targetYaw = Math.atan2(-velocity.x, -velocity.z);
+        yawDelta = targetYaw - _euler.y;
+        // Normalize to [-PI, PI]
+        while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
+        while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
+        // Smooth turn — faster at higher speed
+        const turnSpeed = Math.min(1, 5 * dt);
+        _euler.y += yawDelta * turnSpeed;
+    }
 
-    // Apply bank as local Z rotation (preserve quaternion yaw/pitch)
-    _euler.setFromQuaternion(mesh.quaternion, 'YXZ');
+    // Banking based on angular change
+    const bankTarget = THREE.MathUtils.clamp(-yawDelta * 0.5, -0.6, 0.6);
+    systemShipState.bankAngle = THREE.MathUtils.lerp(systemShipState.bankAngle, bankTarget, 5 * dt);
+
+    // Apply orientation (level ship — no pitch, auto-yaw, visual bank)
+    _euler.x = 0;
     _euler.z = systemShipState.bankAngle;
     mesh.quaternion.setFromEuler(_euler);
+
+    // Slowly decay camera offset back behind ship (camera returns to chase position)
+    if (inputLen > 0.1) {
+        systemShipState.cameraYawOffset *= Math.max(0, 1 - 2.5 * dt);
+    }
 
     // Engine glow intensity based on speed
     if (entry.engineGlow) {
@@ -407,7 +445,6 @@ export function updateShipFlight(dt, camera) {
     }
 
     // ── Camera: third-person orbit ──
-    // Smooth camera distance lerp
     systemShipState.cameraDistance += (systemShipState.targetCameraDistance - systemShipState.cameraDistance) * 3 * dt;
 
     const camDist = systemShipState.cameraDistance;

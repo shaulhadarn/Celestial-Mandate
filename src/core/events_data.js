@@ -259,6 +259,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'genetic_question',
+        image: 'assets/images/events/evt_genetic_question.png',
         title: 'The Genetic Question',
         desc: 'A controversial proposal has reached the highest levels of our scientific council: a genetic modification programme that could dramatically increase the productivity and resilience of our population. The science is sound, but the ethics are fiercely debated. Proponents argue it is the natural next step of evolution; opponents call it a betrayal of our species\' identity. The decision will define who we are as a civilisation for generations to come.',
         category: 'crisis',
@@ -272,6 +273,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'plague_ship',
+        image: 'assets/images/events/evt_plague_ship.png',
         title: 'Plague Ship',
         desc: 'A merchant vessel has staggered into port broadcasting an automated quarantine warning. Its crew is dead or dying, consumed by a pathogen that does not match any known biological agent. The ship\'s cargo hold contains medical supplies desperately needed by our colonies — but the contagion may have already spread to the goods. Burn the ship and lose the cargo, or risk unleashing a plague across our worlds.',
         category: 'danger',
@@ -284,6 +286,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'wormhole_tremor',
+        image: 'assets/images/events/evt_wormhole_tremor.png',
         title: 'Wormhole Tremor',
         desc: 'Space itself has torn open near the outer reaches of our territory. A wormhole — unstable, shimmering, and impossible according to current physics — has manifested without warning. Probes sent through return with sensor data from a star system thousands of light-years away, rich with untouched resources. But the wormhole pulses erratically, its edges fraying. It could close at any moment, stranding anyone we send through on the other side of the galaxy.',
         category: 'discovery',
@@ -295,6 +298,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'diplomats_gambit',
+        image: 'assets/images/events/evt_diplomats_gambit.png',
         title: 'The Diplomat\'s Gambit',
         desc: 'A foreign envoy has arrived unannounced at our capital, bearing gifts of rare minerals and a proposal wrapped in silk and hidden daggers. They represent a distant power that seeks an alliance against a mutual threat — but the terms are suspiciously generous. Our intelligence services warn that the envoy\'s true purpose may be to map our defences under the guise of friendship. Trust is a commodity in shorter supply than any mineral.',
         category: 'diplomacy',
@@ -307,6 +311,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'nanite_outbreak',
+        image: 'assets/images/events/evt_nanite_outbreak.png',
         title: 'Nanite Swarm Outbreak',
         desc: 'A cloud of self-replicating nanomachines has escaped containment in one of our research facilities and is consuming everything in its path — metal, rock, organic matter — converting it all into more of itself. The swarm is spreading across the colony surface at an alarming rate, and conventional weapons are useless against something that rebuilds itself faster than it can be destroyed. Our engineers have a plan to disrupt the swarm\'s replication signal, but it requires diverting enormous energy reserves.',
         category: 'danger',
@@ -319,6 +324,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'archaeological_expedition',
+        image: 'assets/images/events/evt_archaeological_expedition.png',
         title: 'Archaeological Expedition',
         desc: 'Construction teams on one of our colony worlds have broken through into a vast subterranean complex that predates any known civilisation. The halls are kilometres long, lined with crystalline pillars that still glow with a faint bioluminescence. At the complex\'s heart lies what can only be described as a throne room — and on the throne, a figure carved from the same crystal, frozen in an expression of infinite patience. The expedition leader reports that the deeper they go, the warmer the crystals become.',
         category: 'ancient',
@@ -331,6 +337,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'subspace_echo',
+        image: 'assets/images/events/evt_subspace_echo.png',
         title: 'Subspace Echo',
         desc: 'Our communications network has received a message that should not exist. It arrives through subspace channels from coordinates that correspond to empty, surveyed space — a region we have confirmed contains nothing but void. The message is in our own language, uses our own encryption protocols, and is dated three hundred years in the future. It contains a single set of coordinates and four words: "Do not come here."',
         category: 'discovery',
@@ -342,6 +349,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'frontier_mutiny',
+        image: 'assets/images/events/evt_frontier_mutiny.png',
         title: 'Mutiny on the Frontier',
         desc: 'A fleet stationed at the empire\'s edge has declared mutiny. The officers claim they were ordered to abandon a colony under alien attack — an order they refused to carry out. Now they sit in defiant orbit above the world they saved, their guns trained on any vessel that approaches. The mutineers are heroes to the colonists and traitors to the admiralty. How we handle this will determine whether our military holds together or fractures along fault lines of conscience.',
         category: 'crisis',
@@ -354,6 +362,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'merchant_prince',
+        image: 'assets/images/events/evt_merchant_prince.png',
         title: 'The Merchant Prince',
         desc: 'A trader of legendary reputation has arrived in our space, commanding a vessel that is part warship, part treasure vault, and part mobile bazaar. Known only as the Merchant Prince, this enigmatic figure claims to have traded with civilisations that no longer exist and to possess goods from across the galaxy. The prices are steep, but those who have dealt with the Prince before whisper that the investments always pay off — eventually.',
         category: 'diplomacy',
@@ -366,6 +375,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'gravity_anomaly',
+        image: 'assets/images/events/evt_gravity_anomaly.png',
         title: 'Gravity Well Anomaly',
         desc: 'An inexplicable gravitational anomaly has manifested in one of our outer systems — a point in empty space that bends light and pulls at nearby objects with the force of a planetary body, yet registers as containing no mass whatsoever. Our physicists are simultaneously terrified and exhilarated. Early theories suggest it may be an artificial construct — a gravity generator built by a civilisation capable of engineering spacetime itself. The anomaly is stable for now, but who can say what happens when it isn\'t?',
         category: 'discovery',
@@ -377,6 +387,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'separatist_movement',
+        image: 'assets/images/events/evt_separatist_movement.png',
         title: 'Separatist Movement',
         desc: 'A coalition of frontier colonies has formed a political movement calling itself the Free Stars Alliance, demanding self-governance and the right to conduct independent trade with alien civilisations. Their leader, a charismatic ex-governor, has published a manifesto that is spreading like wildfire through the imperial networks. The movement is peaceful — for now — but our intelligence services report that weapons are being stockpiled in hidden caches across the frontier.',
         category: 'crisis',
