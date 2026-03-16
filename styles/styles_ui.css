@@ -334,14 +334,18 @@
 /* --- PANELS --- */
 .panel {
     position: absolute;
-    background: linear-gradient(135deg, rgba(4, 12, 24, 0.95) 0%, rgba(2, 6, 12, 0.98) 100%);
-    border: 1px solid rgba(0, 242, 255, 0.15);
-    border-left: 3px solid var(--color-primary);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: linear-gradient(170deg, rgba(6, 16, 30, 0.88) 0%, rgba(2, 6, 14, 0.95) 100%);
+    border: 1px solid rgba(0, 242, 255, 0.12);
+    border-top: 1px solid rgba(0, 242, 255, 0.25);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     padding: 0;
     min-width: 300px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), inset 0 0 40px rgba(0, 242, 255, 0.05);
+    border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9),
+        0 0 1px rgba(0, 242, 255, 0.3),
+        inset 0 1px 0 rgba(0, 242, 255, 0.1),
+        inset 0 0 60px rgba(0, 242, 255, 0.02);
     transition: opacity 0.35s cubic-bezier(0.19, 1, 0.22, 1),
         transform 0.35s cubic-bezier(0.19, 1, 0.22, 1),
         visibility 0s 0s;
@@ -350,11 +354,6 @@
     opacity: 1;
     visibility: visible;
     transform: translateX(0) scale(1);
-    clip-path: polygon(0 0,
-            100% 0,
-            100% calc(100% - 20px),
-            calc(100% - 20px) 100%,
-            0 100%);
 }
 
 .panel::before {
@@ -362,10 +361,20 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
+    right: 0;
     height: 1px;
-    background: linear-gradient(90deg, var(--color-primary), transparent);
-    box-shadow: 0 0 10px var(--color-primary);
+    background: linear-gradient(90deg, transparent, rgba(0, 242, 255, 0.5) 30%, rgba(0, 242, 255, 0.5) 70%, transparent);
+    z-index: 1;
+}
+
+.panel::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0, 242, 255, 0.15), transparent);
 }
 
 .panel.hidden {
@@ -778,13 +787,13 @@
 }
 
 .panel-header {
-    background: linear-gradient(90deg, rgba(0, 242, 255, 0.15), rgba(0, 0, 0, 0.4));
-    padding: 16px 24px;
+    background: linear-gradient(90deg, rgba(0, 242, 255, 0.08) 0%, rgba(0, 0, 0, 0.2) 100%);
+    padding: 18px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 16px;
-    border-bottom: 1px solid rgba(0, 242, 255, 0.2);
+    border-bottom: 1px solid rgba(0, 242, 255, 0.12);
     position: relative;
 }
 
@@ -793,10 +802,9 @@
     position: absolute;
     bottom: -1px;
     left: 0;
-    width: 40%;
+    width: 100%;
     height: 1px;
-    background: var(--color-primary);
-    box-shadow: 0 0 8px var(--color-primary);
+    background: linear-gradient(90deg, rgba(0, 242, 255, 0.6), rgba(0, 242, 255, 0.1) 60%, transparent);
 }
 
 .panel-header h2 {
@@ -869,8 +877,8 @@
 }
 
 .panel-content {
-    padding: 20px;
-    font-size: 15px;
+    padding: 20px 24px;
+    font-size: 14px;
 }
 
 /* Empire Hub Specific Icon Glows — gradient SVGs provide their own color */
@@ -900,16 +908,24 @@
 
 #sys-details p,
 #planet-panel p {
-    margin: 5px 0;
+    margin: 6px 0;
     color: var(--color-text-dim);
     display: flex;
     justify-content: space-between;
+    font-size: 14px;
+    padding: 2px 0;
 }
 
 #sys-details span,
 #planet-panel span {
-    color: var(--color-text-bright);
+    color: var(--color-primary);
     font-weight: 600;
+}
+
+#sys-details {
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.06);
+    margin-bottom: 4px;
 }
 
 .action-btn,
@@ -917,34 +933,33 @@
 #btn-close-planet,
 #btn-close-settings {
     width: 100%;
-    padding: 12px;
-    margin-top: 15px;
-    background: linear-gradient(180deg, rgba(2, 10, 20, 0.4) 0%, rgba(4, 15, 30, 0.8) 100%);
-    border: 1px solid rgba(0, 242, 255, 0.1);
-    border-bottom: 2px solid rgba(0, 242, 255, 0.3);
-    color: #88bbdd;
-    font-size: 14px;
+    padding: 11px 16px;
+    margin-top: 12px;
+    background: linear-gradient(180deg, rgba(4, 14, 28, 0.5) 0%, rgba(2, 8, 18, 0.8) 100%);
+    border: 1px solid rgba(0, 242, 255, 0.15);
+    color: #8ec8e8;
+    font-size: 13px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 2.5px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    transition: all 0.25s ease;
+    border-radius: 3px;
 }
 
 .action-btn:hover:not(:disabled),
 #btn-close-system:hover,
 #btn-close-planet:hover,
 #btn-close-settings:hover {
-    background: linear-gradient(180deg, rgba(0, 150, 255, 0.2) 0%, rgba(10, 30, 50, 0.9) 100%);
+    background: linear-gradient(180deg, rgba(0, 140, 255, 0.15) 0%, rgba(6, 20, 40, 0.9) 100%);
     color: #ffffff;
     border-color: rgba(0, 242, 255, 0.5);
-    border-bottom-color: rgba(0, 242, 255, 1);
-    box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15), inset 0 0 20px rgba(0, 242, 255, 0.05);
 }
 
 .action-btn:disabled {
     pointer-events: none;
+    opacity: 0.35;
 }
 
 #btn-close-system,
@@ -952,20 +967,20 @@
 #btn-close-settings {
     width: auto;
     margin: 0;
-    padding: 6px 12px;
+    padding: 6px 16px;
     font-size: 12px;
-    border-bottom: 2px solid rgba(255, 50, 50, 0.3);
-    color: #ff8888;
+    letter-spacing: 2px;
+    border-color: rgba(0, 242, 255, 0.25);
+    color: var(--color-primary);
 }
 
 #btn-close-system:hover,
 #btn-close-planet:hover,
 #btn-close-settings:hover {
-    background: linear-gradient(180deg, rgba(255, 50, 50, 0.2) 0%, rgba(50, 10, 10, 0.9) 100%);
-    border-color: rgba(255, 50, 50, 0.5);
-    border-bottom: 2px solid rgba(255, 50, 50, 1);
+    background: rgba(0, 242, 255, 0.1);
+    border-color: rgba(0, 242, 255, 0.5);
     color: #ffffff;
-    box-shadow: 0 5px 15px rgba(255, 50, 50, 0.2);
+    box-shadow: 0 0 15px rgba(0, 242, 255, 0.15);
 }
 
 .action-buttons {
@@ -1349,19 +1364,20 @@
 
 /* ── Star List in System Panel ───────────────────────────────────────────── */
 .star-list-section {
-    margin-top: 16px;
-    border-top: 1px solid rgba(0, 242, 255, 0.1);
-    padding-top: 12px;
+    margin-top: 14px;
+    border-top: 1px solid rgba(0, 242, 255, 0.06);
+    padding-top: 14px;
 }
 
 .star-list-header {
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 2px;
-    color: rgba(0, 242, 255, 0.5);
+    letter-spacing: 2.5px;
+    color: var(--color-primary);
     text-transform: uppercase;
-    margin-bottom: 8px;
-    padding-left: 2px;
+    margin-bottom: 10px;
+    padding-left: 0;
+    opacity: 0.7;
 }
 
 #star-list {
@@ -1390,43 +1406,46 @@
 .star-list-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 8px;
+    gap: 10px;
+    padding: 8px 10px;
     border-radius: 3px;
     cursor: pointer;
     border: 1px solid transparent;
-    transition: background 0.15s, border-color 0.15s;
+    transition: all 0.2s ease;
+    margin-bottom: 1px;
 }
 
 .star-list-item:hover {
-    background: rgba(0, 242, 255, 0.07);
-    border-color: rgba(0, 242, 255, 0.2);
+    background: rgba(0, 242, 255, 0.05);
+    border-color: rgba(0, 242, 255, 0.12);
 }
 
 .star-list-item.active {
-    background: rgba(0, 242, 255, 0.1);
-    border-color: rgba(0, 242, 255, 0.35);
+    background: rgba(0, 242, 255, 0.08);
+    border-color: rgba(0, 242, 255, 0.25);
+    box-shadow: inset 2px 0 0 var(--color-primary);
 }
 
 .star-list-dot {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
 }
 
 .star-list-name {
     flex: 1;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    color: #c0dff0;
+    color: #c8e0f0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .star-list-item.active .star-list-name {
-    color: var(--color-primary);
+    color: #ffffff;
 }
 
 /* ── CONTROLS HINT BAR (bottom of screen) ───────────────────────────────────── */
@@ -1822,11 +1841,12 @@
 }
 
 .star-list-meta {
-    font-size: 10px;
-    color: rgba(0, 242, 255, 0.4);
+    font-size: 11px;
+    color: rgba(0, 242, 255, 0.5);
     flex-shrink: 0;
     font-weight: 600;
     letter-spacing: 0.5px;
+    text-align: right;
 }
 
 /* ── RANDOM EVENT MODAL ────────────────────────────────────────────────────── */

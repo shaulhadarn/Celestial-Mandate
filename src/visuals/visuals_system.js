@@ -2418,4 +2418,43 @@ function createSystemBackground(group) {
     });
 
     group.add(new THREE.Points(geo, mat));
+
+    // ── Nebula backdrop sprites ─────────────────────────────────────────────
+    // Procedural nebula glow textures for depth and atmosphere
+    const nebulaConfigs = [
+        { pos: [-300, 80, -500], scale: [600, 400], color: 0x1a3a6a, opacity: 0.06 },
+        { pos: [350, -60, -450], scale: [500, 350], color: 0x4a2255, opacity: 0.04 },
+        { pos: [-100, -200, -600], scale: [700, 300], color: 0x0a2a4a, opacity: 0.05 },
+        { pos: [200, 150, -550], scale: [400, 400], color: 0x2a1a4a, opacity: 0.035 },
+    ];
+
+    const nebCanvas = document.createElement('canvas');
+    nebCanvas.width = 256;
+    nebCanvas.height = 256;
+    const nebCtx = nebCanvas.getContext('2d');
+    const nebGrad = nebCtx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    nebGrad.addColorStop(0, 'rgba(255,255,255,1)');
+    nebGrad.addColorStop(0.3, 'rgba(255,255,255,0.6)');
+    nebGrad.addColorStop(0.6, 'rgba(255,255,255,0.15)');
+    nebGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    nebCtx.fillStyle = nebGrad;
+    nebCtx.fillRect(0, 0, 256, 256);
+    const nebTex = new THREE.CanvasTexture(nebCanvas);
+    nebTex.colorSpace = THREE.SRGBColorSpace;
+
+    nebulaConfigs.forEach(cfg => {
+        const spriteMat = new THREE.SpriteMaterial({
+            map: nebTex,
+            color: cfg.color,
+            transparent: true,
+            opacity: cfg.opacity,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            fog: false,
+        });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.set(cfg.pos[0], cfg.pos[1], cfg.pos[2]);
+        sprite.scale.set(cfg.scale[0], cfg.scale[1], 1);
+        group.add(sprite);
+    });
 }
