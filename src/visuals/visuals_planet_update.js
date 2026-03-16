@@ -10,6 +10,7 @@ import { getOrCreateHarvesterHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 import { updateGrass } from './visuals_planet_grass.js';
 import { scene } from '../core/scene_config.js';
+import { updateQuestProximity, updateQuestMarkerAnims } from './visuals_planet_quests.js';
 
 // Dark space color for ascent sky-fade
 const _spaceColor = new THREE.Color(0x020408);
@@ -88,7 +89,128 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         _inputDir.z += _forward.z * joystickInput.y + _right.z * joystickInput.x;
     }
 
-    if (controlTarget) {
+    if (controlTarget && controlTarget.userData.isTank) {
+        // --- 2b/3b. Tank ground movement (no strafe, tank steering) ---
+        const tankSpeed = 25;
+        const tankDrag = 0.90;
+        const tankTurnRate = 2.0;
+        const tVel = controlTarget.userData.velocity;
+
+        // A/D rotate the hull
+        if (keyState['a']) controlTarget.rotation.y += tankTurnRate * dt;
+        if (keyState['d']) controlTarget.rotation.y -= tankTurnRate * dt;
+
+        // W/S drive forward/backward along tank's facing direction
+        const tankFwdX = Math.sin(controlTarget.rotation.y);
+        const tankFwdZ = Math.cos(controlTarget.rotation.y);
+        if (keyState['w']) {
+            tVel.x += tankFwdX * tankSpeed * dt;
+            tVel.z += tankFwdZ * tankSpeed * dt;
+        }
+        if (keyState['s']) {
+            tVel.x -= tankFwdX * tankSpeed * 0.6 * dt;
+            tVel.z -= tankFwdZ * tankSpeed * 0.6 * dt;
+        }
+        // Also support joystick
+        if (Math.abs(joystickInput.y) > 0.1) {
+            tVel.x += tankFwdX * tankSpeed * joystickInput.y * dt;
+            tVel.z += tankFwdZ * tankSpeed * joystickInput.y * dt;
+        }
+        if (Math.abs(joystickInput.x) > 0.1) {
+            controlTarget.rotation.y -= joystickInput.x * tankTurnRate * dt;
+        }
+
+        // Gravity (heavier)
+        tVel.y -= 35 * dt;
+
+        controlTarget.position.x += tVel.x * dt;
+        controlTarget.position.z += tVel.z * dt;
+        controlTarget.position.y += tVel.y * dt;
+
+        // Ground collision (hull sits on terrain)
+        const tankGroundH = getTerrainHeightFast(controlTarget.position.x, controlTarget.position.z);
+        if (controlTarget.position.y <= tankGroundH) {
+            controlTarget.position.y = tankGroundH;
+            tVel.y = 0;
+        }
+
+        tVel.x *= tankDrag;
+        tVel.z *= tankDrag;
+
+        // Turret tracks camera yaw independently
+        const turretPivot = controlTarget.userData.turretPivot;
+        if (turretPivot) {
+            // Camera yaw is in world space; turret rotation is relative to hull
+            let turretTarget = cameraYaw - controlTarget.rotation.y + Math.PI;
+            while (turretTarget > Math.PI) turretTarget -= Math.PI * 2;
+            while (turretTarget < -Math.PI) turretTarget += Math.PI * 2;
+            let turretDiff = turretTarget - turretPivot.rotation.y;
+            while (turretDiff > Math.PI) turretDiff -= Math.PI * 2;
+            while (turretDiff < -Math.PI) turretDiff += Math.PI * 2;
+            turretPivot.rotation.y += turretDiff * 6 * dt;
+        }
+
+        // Shadow
+        if (controlTarget.userData.shadowMesh) {
+            const sm = controlTarget.userData.shadowMesh;
+            sm.position.set(controlTarget.position.x, tankGroundH + 0.1, controlTarget.position.z);
+            sm.material.opacity = 0.5;
+        }
+
+        // --- Tank firing ---
+        planetState._tankFireCooldown = Math.max(0, planetState._tankFireCooldown - dt);
+        const wantFire = keyState['f'] || keyState['_fire'];
+        if (wantFire && planetState._tankFireCooldown <= 0 && controlTarget.userData.muzzlePoint) {
+            planetState._tankFireCooldown = 0.4;
+            const muzzle = controlTarget.userData.muzzlePoint;
+            const worldPos = new THREE.Vector3();
+            muzzle.getWorldPosition(worldPos);
+
+            // Fire direction = turret facing in world space
+            const turretWorldRot = controlTarget.rotation.y + turretPivot.rotation.y;
+            const fireDir = new THREE.Vector3(
+                Math.sin(turretWorldRot),
+                0,
+                Math.cos(turretWorldRot)
+            );
+
+            // Create projectile
+            const projMat = new THREE.MeshStandardMaterial({
+                color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 1.2,
+                transparent: true, opacity: 0.9
+            });
+            const projMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 6, 4),
+                projMat
+            );
+            projMesh.position.copy(worldPos);
+            planetState.explorationGroup.add(projMesh);
+
+            planetState.tankProjectiles.push({
+                mesh: projMesh,
+                velocity: fireDir.multiplyScalar(80),
+                life: 2.0,
+            });
+
+            // Muzzle flash sprite
+            const flash = new THREE.Sprite(new THREE.SpriteMaterial({
+                color: 0xffcc44, transparent: true, opacity: 0.8,
+                blending: THREE.AdditiveBlending, depthWrite: false,
+            }));
+            flash.position.copy(worldPos);
+            flash.scale.set(3, 3, 1);
+            planetState.explorationGroup.add(flash);
+            // Fade out quickly
+            const _fadeFlash = () => {
+                flash.material.opacity -= 0.06;
+                flash.scale.multiplyScalar(0.92);
+                if (flash.material.opacity > 0.05) requestAnimationFrame(_fadeFlash);
+                else { flash.removeFromParent(); flash.material.dispose(); }
+            };
+            requestAnimationFrame(_fadeFlash);
+        }
+
+    } else if (controlTarget) {
         // --- 2b/3b. Soldier ground movement ---
         const soldierSpeed = 40;
         const soldierDrag = 0.88;
@@ -1055,6 +1177,101 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
     }
 
+    // --- 9d. Tank projectiles + hit detection ---
+    const projs = planetState.tankProjectiles;
+    for (let pi = projs.length - 1; pi >= 0; pi--) {
+        const proj = projs[pi];
+        proj.life -= dt;
+        proj.mesh.position.x += proj.velocity.x * dt;
+        proj.mesh.position.y += proj.velocity.y * dt;
+        proj.mesh.position.z += proj.velocity.z * dt;
+        // Slight gravity on projectile
+        proj.velocity.y -= 5 * dt;
+
+        // Hit detection against creatures
+        let hit = false;
+        for (let ci = 0; ci < creatures.length; ci++) {
+            const c = creatures[ci];
+            const dx = proj.mesh.position.x - c.position.x;
+            const dy = proj.mesh.position.y - c.position.y;
+            const dz = proj.mesh.position.z - c.position.z;
+            const distSq = dx * dx + dy * dy + dz * dz;
+            if (distSq < 6.25) { // 2.5^2
+                hit = true;
+                // Impact flash
+                const impactFlash = new THREE.Sprite(new THREE.SpriteMaterial({
+                    color: 0xff6600, transparent: true, opacity: 0.9,
+                    blending: THREE.AdditiveBlending, depthWrite: false,
+                }));
+                impactFlash.position.copy(proj.mesh.position);
+                impactFlash.scale.set(4, 4, 1);
+                planetState.explorationGroup.add(impactFlash);
+                const _fadeImpact = () => {
+                    impactFlash.material.opacity -= 0.08;
+                    impactFlash.scale.multiplyScalar(0.93);
+                    if (impactFlash.material.opacity > 0.05) requestAnimationFrame(_fadeImpact);
+                    else { impactFlash.removeFromParent(); impactFlash.material.dispose(); }
+                };
+                requestAnimationFrame(_fadeImpact);
+
+                // Red flash on creature
+                c.traverse(child => {
+                    if (child.isMesh && child.material && child.material.emissive) {
+                        const origEmissive = child.material.emissive.getHex();
+                        child.material.emissive.set(0xff0000);
+                        child.material.emissiveIntensity = 1.0;
+                        setTimeout(() => {
+                            child.material.emissive.set(origEmissive);
+                            child.material.emissiveIntensity = 0;
+                        }, 300);
+                    }
+                });
+
+                // Make creature flee away from impact
+                const fleeAngle = Math.atan2(
+                    c.position.x - proj.mesh.position.x,
+                    c.position.z - proj.mesh.position.z
+                );
+                const fleeDist = 20 + Math.random() * 15;
+                c.userData.originX = c.position.x + Math.cos(fleeAngle) * fleeDist;
+                c.userData.originZ = c.position.z + Math.sin(fleeAngle) * fleeDist;
+                c.userData.speed *= 3; // temporarily faster
+                setTimeout(() => { c.userData.speed = Math.max(0.3, c.userData.speed / 3); }, 3000);
+                break;
+            }
+        }
+
+        // Hit ground
+        if (!hit) {
+            const projGroundH = getTerrainHeightFast(proj.mesh.position.x, proj.mesh.position.z);
+            if (proj.mesh.position.y <= projGroundH) {
+                hit = true;
+                // Ground impact spark
+                const spark = new THREE.Sprite(new THREE.SpriteMaterial({
+                    color: 0xffaa00, transparent: true, opacity: 0.7,
+                    blending: THREE.AdditiveBlending, depthWrite: false,
+                }));
+                spark.position.set(proj.mesh.position.x, projGroundH + 0.5, proj.mesh.position.z);
+                spark.scale.set(2, 2, 1);
+                planetState.explorationGroup.add(spark);
+                const _fadeSpark = () => {
+                    spark.material.opacity -= 0.07;
+                    spark.scale.multiplyScalar(0.94);
+                    if (spark.material.opacity > 0.05) requestAnimationFrame(_fadeSpark);
+                    else { spark.removeFromParent(); spark.material.dispose(); }
+                };
+                requestAnimationFrame(_fadeSpark);
+            }
+        }
+
+        if (hit || proj.life <= 0) {
+            proj.mesh.removeFromParent();
+            proj.mesh.geometry.dispose();
+            proj.mesh.material.dispose();
+            projs.splice(pi, 1);
+        }
+    }
+
     // --- 10. Drone proximity to harvesters ---
     if (!planetState.placementMode) {
         let nearHarvester = null;
@@ -1100,7 +1317,11 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         _coordsEl.textContent = `X:${Math.round(coordsTarget.position.x)} Z:${Math.round(coordsTarget.position.z)}`;
     }
 
-    // --- 12. Final Camera Update (reuse cached trig from step 1) ---
+    // --- 12. Quest proximity + marker animations ---
+    updateQuestProximity(dt);
+    updateQuestMarkerAnims(dt, _t);
+
+    // --- 13. Final Camera Update (reuse cached trig from step 1) ---
     _finalCenter.copy(followTarget.position).add(_cameraOffset);
     const finalCamX = _finalCenter.x + useDist * sinYaw * cosPitch;
     let finalCamY = _finalCenter.y + useDist * sinPitch;

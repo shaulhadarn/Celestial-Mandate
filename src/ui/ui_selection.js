@@ -57,7 +57,7 @@ export function updateSelectionPanel() {
         if (isNewSystem) {
             sysPanel.classList.remove('hidden');
         }
-        renderStarList(sys.id);
+        renderStarList(sys.id, isNewSystem);
     }
 
     if (gameState.selectedPlanetId !== null && gameState.viewMode === 'SYSTEM') {
@@ -171,7 +171,7 @@ export function updateSelectionPanel() {
     }
 }
 
-function renderStarList(activeSystemId) {
+function renderStarList(activeSystemId, animate = true) {
     const container = document.getElementById('star-list');
     if (!container) return;
     container.innerHTML = '';
@@ -222,15 +222,17 @@ function renderStarList(activeSystemId) {
         });
         container.appendChild(row);
 
-        // Staggered fade-in for each planet row
-        const idx = container.children.length - 1;
-        row.style.opacity = '0';
-        row.style.transform = 'translateY(4px)';
-        requestAnimationFrame(() => {
-            row.style.transition = `opacity 0.25s ease-out ${idx * 0.04}s, transform 0.25s ease-out ${idx * 0.04}s`;
-            row.style.opacity = '1';
-            row.style.transform = 'translateY(0)';
-        });
+        // Staggered fade-in only when opening a new system
+        if (animate) {
+            const idx = container.children.length - 1;
+            row.style.opacity = '0';
+            row.style.transform = 'translateY(4px)';
+            requestAnimationFrame(() => {
+                row.style.transition = `opacity 0.25s ease-out ${idx * 0.04}s, transform 0.25s ease-out ${idx * 0.04}s`;
+                row.style.opacity = '1';
+                row.style.transform = 'translateY(0)';
+            });
+        }
     });
 }
 

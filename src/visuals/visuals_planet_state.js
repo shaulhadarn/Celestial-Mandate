@@ -42,9 +42,15 @@ const planetState = {
     placementMode: null,
     nearestHarvesterData: null,
 
-    // Control target (null = drone, soldier mesh = controlling that soldier)
+    // Control target (null = drone, soldier/tank mesh = controlling that unit)
     controlTarget: null,
     buildingInfoTarget: null,
+
+    // Tank unit
+    tankMesh: null,
+    tankProjectiles: [],
+    _tankFireCooldown: 0,
+    _tankDeployed: false,
 
     // Orbit exit ascent animation
     _ascending: false,
@@ -56,6 +62,10 @@ const planetState = {
     targetCameraDistance: 18,
     cameraHeightOffset: 2,     // dynamic, lerped toward target
     targetCameraHeightOffset: 2,
+
+    // Quest system (transient — rebuilt on each landing)
+    quests: [],
+    questGroup: null,
 };
 
 // Constants

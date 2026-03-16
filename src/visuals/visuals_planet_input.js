@@ -50,8 +50,15 @@ function initExplorationMouseControls() {
         planetState.isMouseDown = true;
         planetState.lastMouseX = e.clientX;
         planetState.lastMouseY = e.clientY;
+        // Left-click fires when controlling tank
+        if (e.button === 0 && planetState.controlTarget && planetState.controlTarget.userData && planetState.controlTarget.userData.isTank) {
+            planetState.keyState['_fire'] = true;
+        }
     };
-    const onMouseUp = () => { planetState.isMouseDown = false; };
+    const onMouseUp = () => {
+        planetState.isMouseDown = false;
+        planetState.keyState['_fire'] = false;
+    };
     const onMouseMoveExploration = (e) => {
         if (!planetState.isMouseDown || gameState.viewMode !== 'EXPLORATION') return;
         const dx = e.clientX - planetState.lastMouseX;
@@ -72,7 +79,7 @@ function initExplorationMouseControls() {
     };
 
     // ── Touch ────────────────────────────────────────────────────────────────
-    const _isUITouch = (e) => e.target.closest('#exploration-header, #harvester-hud, .action-btn, button');
+    const _isUITouch = (e) => e.target.closest('#exploration-header, #harvester-hud, .action-btn, button, #tank-fire-btn');
 
     const onTouchStart = (e) => {
         if (gameState.viewMode !== 'EXPLORATION') return;

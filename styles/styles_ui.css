@@ -825,8 +825,8 @@
 
 .panel-header h2 .title-icon,
 .fullscreen-panel-header h2 .title-icon {
-    width: 80px;
-    height: 80px;
+    width: 48px;
+    height: 48px;
     display: block;
     margin: 0 auto;
     /* Base style, overridden below per panel */
@@ -1682,6 +1682,65 @@
     touch-action: manipulation;
 }
 #btn-back-to-drone:hover { background: rgba(0, 242, 255, 0.25); }
+
+/* ── Deploy Tank Button ───────────────────────────────────────────────────── */
+#btn-deploy-tank {
+    background: rgba(100, 200, 80, 0.15);
+    border: 1px solid rgba(100, 200, 80, 0.5);
+    color: #6ac850;
+    padding: 2px 10px;
+    font-size: 11px;
+    line-height: 1.2;
+    height: 26px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--font-main);
+    letter-spacing: 0.5px;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: rgba(100, 200, 80, 0.2);
+    touch-action: manipulation;
+}
+#btn-deploy-tank:hover { background: rgba(100, 200, 80, 0.3); border-color: #8de070; }
+#btn-deploy-tank.deployed {
+    opacity: 0.4;
+    cursor: default;
+    border-color: rgba(100, 200, 80, 0.25);
+}
+#btn-deploy-tank.hidden { display: none; }
+
+/* ── Tank Fire Button (mobile) ────────────────────────────────────────────── */
+#tank-fire-btn {
+    position: fixed;
+    bottom: 120px;
+    right: 20px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 80, 30, 0.25);
+    border: 2px solid rgba(255, 120, 50, 0.7);
+    color: #ff8844;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font-main);
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 200;
+    pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: rgba(255, 80, 30, 0.3);
+    touch-action: manipulation;
+    transition: background 0.15s, transform 0.1s;
+}
+#tank-fire-btn:active {
+    background: rgba(255, 80, 30, 0.5);
+    transform: scale(0.92);
+}
+#tank-fire-btn.hidden { display: none; }
 
 /* ── Unit Selection Panel (right side) ──────────────────────────────────────── */
 #unit-panel {

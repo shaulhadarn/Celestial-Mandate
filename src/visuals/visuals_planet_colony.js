@@ -69,7 +69,7 @@ function _buildConnectionTube(group, angle, heightFn, borderColor) {
     const cosA = Math.cos(angle);
     const sinA = Math.sin(angle);
     const startR = 10;  // hub entrance tunnel end
-    const endR = 18;    // building platform edge
+    const endR = 26;    // building platform edge
     const SEGS = 6;
     const tubeW = 2.0;
     const tubeH = 0.4;
@@ -928,6 +928,170 @@ function _buildDefault(g, borderColor) {
     _addGlowSprite(g, 0, 6, 0, borderColor || 0x00f2ff, 5, 0.25);
 }
 
+// ── Deployable tank ─────────────────────────────────────────────────────────
+
+export function buildTankMesh() {
+    const g = new THREE.Group();
+
+    // Materials
+    const hullMat = _mat('tankHull', { color: 0x3a4a3a, roughness: 0.5, metalness: 0.75 });
+    const trackMat = _mat('tankTrack', { color: 0x1a1a1a, roughness: 0.9, metalness: 0.3 });
+    const turretMat = _mat('tankTurret', { color: 0x2a3a2a, roughness: 0.4, metalness: 0.8 });
+    const cannonMat = _mat('tankCannon', { color: 0x222222, roughness: 0.3, metalness: 0.9 });
+    const detailMat = _mat('tankDetail', { color: 0x444444, roughness: 0.5, metalness: 0.6 });
+    const glowMat = new THREE.MeshStandardMaterial({
+        color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.6,
+        transparent: true, opacity: 0.7
+    });
+
+    // Hull body (main box with sloped front)
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 2.4), hullMat);
+    hull.position.y = 0.8;
+    hull.castShadow = true;
+    g.add(hull);
+
+    // Sloped front plate
+    const frontPlate = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 2.2), hullMat);
+    frontPlate.position.set(1.8, 0.7, 0);
+    frontPlate.rotation.z = -0.35;
+    frontPlate.castShadow = true;
+    g.add(frontPlate);
+
+    // Rear plate
+    const rearPlate = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.7, 2.2), detailMat);
+    rearPlate.position.set(-1.75, 0.7, 0);
+    g.add(rearPlate);
+
+    // Side skirts (armor plates over tracks)
+    [-1, 1].forEach(side => {
+        const skirt = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.5, 0.15), detailMat);
+        skirt.position.set(0, 0.55, side * 1.3);
+        g.add(skirt);
+    });
+
+    // Tracks (two dark strips with wheel bumps)
+    [-1, 1].forEach(side => {
+        const track = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.5, 0.5), trackMat);
+        track.position.set(0, 0.3, side * 1.35);
+        track.castShadow = true;
+        g.add(track);
+
+        // Road wheels
+        for (let w = -1.4; w <= 1.4; w += 0.7) {
+            const wheel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.22, 0.22, 0.18, 8),
+                detailMat
+            );
+            wheel.rotation.x = Math.PI / 2;
+            wheel.position.set(w, 0.3, side * 1.55);
+            g.add(wheel);
+        }
+
+        // Drive sprocket (front) and idler (rear)
+        [1.6, -1.6].forEach(wx => {
+            const sprocket = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.28, 0.28, 0.2, 8),
+                cannonMat
+            );
+            sprocket.rotation.x = Math.PI / 2;
+            sprocket.position.set(wx, 0.35, side * 1.55);
+            g.add(sprocket);
+        });
+    });
+
+    // Hull details — viewport slit, front light
+    const viewport = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 1.2), glowMat);
+    viewport.position.set(1.3, 1.15, 0);
+    g.add(viewport);
+
+    // Headlights
+    [-0.5, 0.5].forEach(zoff => {
+        const light = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 8), glowMat);
+        light.rotation.z = Math.PI / 2;
+        light.position.set(2.1, 0.8, zoff);
+        g.add(light);
+    });
+
+    // Exhaust pipes on rear
+    [-0.4, 0.4].forEach(zoff => {
+        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.4, 6), cannonMat);
+        pipe.rotation.z = Math.PI / 2;
+        pipe.position.set(-1.95, 0.9, zoff);
+        g.add(pipe);
+    });
+
+    // ── Turret pivot (rotates independently) ──
+    const turretPivot = new THREE.Group();
+    turretPivot.position.set(-0.2, 1.35, 0);
+    g.add(turretPivot);
+
+    // Turret base ring
+    const turretRing = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.15, 12), detailMat);
+    turretPivot.add(turretRing);
+
+    // Turret body
+    const turretBody = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.7, 1.4), turretMat);
+    turretBody.position.set(0.2, 0.42, 0);
+    turretBody.castShadow = true;
+    turretPivot.add(turretBody);
+
+    // Turret sloped front
+    const turretFront = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.2), turretMat);
+    turretFront.position.set(1.1, 0.35, 0);
+    turretFront.rotation.z = -0.3;
+    turretPivot.add(turretFront);
+
+    // Commander hatch
+    const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 8), detailMat);
+    hatch.position.set(-0.3, 0.8, 0.3);
+    turretPivot.add(hatch);
+
+    // Turret side stowage boxes
+    [-1, 1].forEach(side => {
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.15), detailMat);
+        box.position.set(0, 0.35, side * 0.82);
+        turretPivot.add(box);
+    });
+
+    // ── Cannon ──
+    const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.0, 8), cannonMat);
+    cannon.rotation.z = Math.PI / 2;
+    cannon.position.set(2.3, 0.42, 0);
+    turretPivot.add(cannon);
+
+    // Muzzle brake
+    const brake = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.25, 8), cannonMat);
+    brake.rotation.z = Math.PI / 2;
+    brake.position.set(3.7, 0.42, 0);
+    turretPivot.add(brake);
+
+    // Muzzle point (projectile spawn)
+    const muzzlePoint = new THREE.Object3D();
+    muzzlePoint.position.set(3.9, 0.42, 0);
+    turretPivot.add(muzzlePoint);
+
+    // Turret glow accents
+    const turretGlow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 1.0), glowMat);
+    turretGlow.position.set(0.95, 0.78, 0);
+    turretPivot.add(turretGlow);
+
+    // Shadow sprite
+    const shadow = createShadowSprite();
+    shadow.scale.set(4, 4, 1);
+    shadow.position.set(0, 0.05, 0);
+    g.add(shadow);
+
+    g.userData = {
+        isTank: true,
+        turretPivot,
+        muzzlePoint,
+        shadowMesh: shadow,
+        velocity: new THREE.Vector3(),
+    };
+
+    return g;
+}
+
 // ── Patrol soldiers ─────────────────────────────────────────────────────────
 
 function _buildSoldierMesh() {
@@ -1273,7 +1437,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
     colony.buildings.forEach((bKey, i) => {
         const buildingData = BUILDINGS[bKey];
         const angle = (i / 5) * Math.PI * 2;
-        const dist = 22;
+        const dist = 30;
         const x = Math.cos(angle) * dist;
         const z = Math.sin(angle) * dist;
         const y = heightFn(x, z);

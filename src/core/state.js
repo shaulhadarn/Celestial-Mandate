@@ -69,7 +69,8 @@ export const gameState = {
     milestonesFired: [],         // [milestoneId, ...]
     codex: {
         unlocked: []             // [codexEntryId, ...]
-    }
+    },
+    completedSurfaceQuests: []   // [{planetId, questType, completedAt}]
 };
 
 export const BUILDINGS = {
@@ -217,6 +218,7 @@ export function saveGame() {
             milestonesFired: gameState.milestonesFired,
             codex: gameState.codex,
             pirateBase: gameState.pirateBase,
+            completedSurfaceQuests: gameState.completedSurfaceQuests,
             version: '1.3.0'
         };
         localStorage.setItem('celestial_mandate_save', JSON.stringify(data));
@@ -258,6 +260,7 @@ export function loadGame() {
         gameState.milestonesFired = data.milestonesFired || [];
         gameState.codex = data.codex || { unlocked: [] };
         gameState.pirateBase = data.pirateBase || null;
+        gameState.completedSurfaceQuests = data.completedSurfaceQuests || [];
 
         // Reset View
         gameState.viewMode = 'GALAXY';

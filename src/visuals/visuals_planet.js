@@ -15,7 +15,8 @@ import { getTerrainHeight, createTerrainMesh, getGroundColor } from './visuals_p
 import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
 import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers, createGroundMist, createAtmosphericHaze, createLakes } from './visuals_planet_environment.js';
 import { hasGrass, createGrassMesh } from './visuals_planet_grass.js';
-import { renderColonyGroundBuildings, soldierMeshes } from './visuals_planet_colony.js';
+import { renderColonyGroundBuildings, soldierMeshes, buildTankMesh } from './visuals_planet_colony.js';
+import { generatePlanetQuests, createQuestMarkers, updateQuestTrackerUI, showQuestTooltip, hideQuestTooltip } from './visuals_planet_quests.js';
 
 // Sub-modules — import also registers the mouse/touch listeners (self-invoking init)
 import { handleInput, setJoystickInput } from './visuals_planet_input.js';
@@ -95,7 +96,53 @@ function _switchToDrone() {
 
     const bar = document.getElementById('soldier-control-bar');
     if (bar) bar.classList.add('hidden');
+    const fireBtn = document.getElementById('tank-fire-btn');
+    if (fireBtn) fireBtn.classList.add('hidden');
     _updateUnitPanelHighlight();
+}
+
+function _switchToTank() {
+    if (!planetState.tankMesh) return;
+    if (planetState.controlTarget && planetState.controlTarget.userData) {
+        planetState.controlTarget.userData._playerControlled = false;
+    }
+    planetState.controlTarget = planetState.tankMesh;
+    planetState.tankMesh.userData._playerControlled = true;
+    planetState.tankMesh.userData.velocity.set(0, 0, 0);
+
+    planetState.targetCameraDistance = 14;
+    planetState.targetCameraHeightOffset = 3;
+
+    const bar = document.getElementById('soldier-control-bar');
+    if (bar) bar.classList.remove('hidden');
+    const fireBtn = document.getElementById('tank-fire-btn');
+    if (fireBtn) fireBtn.classList.remove('hidden');
+    _updateUnitPanelHighlight();
+}
+
+function _deployTank() {
+    if (planetState._tankDeployed || !planetState.explorationGroup) return;
+    const tank = buildTankMesh();
+    const drone = planetState.playerMesh;
+    const gx = drone.position.x;
+    const gz = drone.position.z;
+    const gy = getTerrainHeight(gx, gz);
+    tank.position.set(gx, gy, gz);
+    tank.rotation.y = planetState.cameraYaw;
+    planetState.explorationGroup.add(tank);
+    planetState.tankMesh = tank;
+    planetState._tankDeployed = true;
+
+    _switchToTank();
+    _buildUnitPanel();
+
+    // Update deploy button
+    const deployBtn = document.getElementById('btn-deploy-tank');
+    if (deployBtn) {
+        deployBtn.textContent = 'Tank Deployed';
+        deployBtn.disabled = true;
+        deployBtn.classList.add('deployed');
+    }
 }
 
 // ── Unit selection panel (right side quick-select) ──────────────────────────
@@ -106,9 +153,11 @@ function _updateUnitPanelHighlight() {
     list.querySelectorAll('.unit-btn').forEach(btn => {
         const idx = parseInt(btn.dataset.soldierIdx, 10);
         const isDrone = btn.dataset.unitType === 'drone';
-        const isActive = isDrone
-            ? !planetState.controlTarget
-            : (planetState.controlTarget === soldierMeshes[idx]);
+        const isTank = btn.dataset.unitType === 'tank';
+        let isActive = false;
+        if (isDrone) isActive = !planetState.controlTarget;
+        else if (isTank) isActive = planetState.controlTarget === planetState.tankMesh;
+        else isActive = planetState.controlTarget === soldierMeshes[idx];
         btn.classList.toggle('unit-active', isActive);
     });
 }
@@ -127,6 +176,16 @@ function _buildUnitPanel() {
     droneBtn.onclick = () => _switchToDrone();
     list.appendChild(droneBtn);
 
+    // Tank button (only when deployed)
+    if (planetState._tankDeployed && planetState.tankMesh) {
+        const tankBtn = document.createElement('button');
+        tankBtn.className = 'unit-btn';
+        tankBtn.dataset.unitType = 'tank';
+        tankBtn.innerHTML = '<span class="unit-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="10" width="18" height="7" rx="1"/><rect x="6" y="6" width="10" height="5" rx="1"/><line x1="16" y1="8" x2="22" y2="8"/><rect x="2" y="17" width="20" height="3" rx="1"/></svg></span><span class="unit-label">Tank</span>';
+        tankBtn.onclick = () => _switchToTank();
+        list.appendChild(tankBtn);
+    }
+
     // Soldier buttons
     soldierMeshes.forEach((s, i) => {
         const btn = document.createElement('button');
@@ -138,13 +197,24 @@ function _buildUnitPanel() {
         list.appendChild(btn);
     });
 
-    panel.classList.toggle('hidden', soldierMeshes.length === 0);
+    const hasUnits = soldierMeshes.length > 0 || planetState._tankDeployed;
+    panel.classList.toggle('hidden', !hasUnits);
 }
 
 // ── Exploration tap handler (called from renderer.js) ───────────────────────
 
 export function handleExplorationTap(raycaster, mouse, camera) {
     raycaster.setFromCamera(mouse, camera);
+
+    // Raycast against tank (if deployed)
+    if (planetState.tankMesh) {
+        const tankHits = raycaster.intersectObjects([planetState.tankMesh], true);
+        if (tankHits.length > 0) {
+            _switchToTank();
+            _hideBuildingInfo();
+            return;
+        }
+    }
 
     // Raycast against soldiers first (smaller targets, higher priority)
     if (soldierMeshes.length > 0) {
@@ -182,8 +252,24 @@ export function handleExplorationTap(raycaster, mouse, camera) {
         }
     }
 
-    // Nothing relevant hit — dismiss tooltip
+    // Raycast against quest markers
+    if (planetState.questGroup && planetState.questGroup.children.length > 0) {
+        const questHits = raycaster.intersectObjects(planetState.questGroup.children, true);
+        if (questHits.length > 0) {
+            let obj = questHits[0].object;
+            while (obj) {
+                if (obj.userData && obj.userData.isQuestMarker) {
+                    showQuestTooltip(obj.userData.questId);
+                    return;
+                }
+                obj = obj.parent;
+            }
+        }
+    }
+
+    // Nothing relevant hit — dismiss tooltips
     _hideBuildingInfo();
+    hideQuestTooltip();
 }
 
 // ── Scene assembly ──────────────────────────────────────────────────────────
@@ -201,6 +287,12 @@ export function createPlanetVisuals(planetData, group) {
     planetState.grassData = null;
     planetState.lakeMeshes = [];
     planetState.dustMesh = null;
+    planetState.tankMesh = null;
+    planetState.tankProjectiles = [];
+    planetState._tankFireCooldown = 0;
+    planetState._tankDeployed = false;
+    planetState.quests = [];
+    planetState.questGroup = null;
     planetState.currentPlanetData = planetData;
     planetState.explorationGroup = group;
     disposeGroup(group);
@@ -209,6 +301,25 @@ export function createPlanetVisuals(planetData, group) {
     const backBtn = document.getElementById('btn-back-to-drone');
     if (backBtn) {
         backBtn.onclick = () => _switchToDrone();
+    }
+
+    // Wire deploy tank button
+    const deployBtn = document.getElementById('btn-deploy-tank');
+    if (deployBtn) {
+        deployBtn.textContent = 'Deploy Tank';
+        deployBtn.disabled = false;
+        deployBtn.classList.remove('deployed');
+        deployBtn.onclick = () => _deployTank();
+        deployBtn.classList.toggle('hidden', !gameState.colonies[planetData.id]);
+    }
+
+    // Wire tank fire button
+    const fireBtn = document.getElementById('tank-fire-btn');
+    if (fireBtn) {
+        fireBtn.classList.add('hidden');
+        fireBtn.onpointerdown = () => { planetState.keyState['_fire'] = true; };
+        fireBtn.onpointerup = () => { planetState.keyState['_fire'] = false; };
+        fireBtn.onpointerleave = () => { planetState.keyState['_fire'] = false; };
     }
 
     const isDark = ['Barren', 'Tomb', 'Molten', 'Ice', 'Arctic'].includes(planetData.type);
@@ -368,6 +479,13 @@ export function createPlanetVisuals(planetData, group) {
         c.userData.shadowMesh = creatureShadow;
         planetState.creatures.push(c);
     });
+
+    // 7b. Surface quests
+    planetState.quests = generatePlanetQuests(planetData);
+    planetState.questGroup = new THREE.Group();
+    group.add(planetState.questGroup);
+    createQuestMarkers(planetState.quests, planetState.questGroup);
+    updateQuestTrackerUI();
 
     // 8. Lights
     const sunColor = isDark ? 0xffbb88 : 0xffffff;

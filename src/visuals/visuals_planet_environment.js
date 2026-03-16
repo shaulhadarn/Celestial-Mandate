@@ -1154,12 +1154,12 @@ export function createAtmosphericHaze(skyColor, planetType) {
 
 // Planet types that can have lakes
 const LAKE_TYPES = {
-    'Terran':      { waterColor: 0x1a6a8a, waterEmissive: 0x051520, shoreVeg: true },
-    'Continental': { waterColor: 0x1a7a6a, waterEmissive: 0x051a18, shoreVeg: true },
-    'Ocean':       { waterColor: 0x0a4a7a, waterEmissive: 0x041222, shoreVeg: true },
-    'Ice':         { waterColor: 0x4a8aaa, waterEmissive: 0x0a1a2a, shoreVeg: false },
-    'Arctic':      { waterColor: 0x3a7a9a, waterEmissive: 0x081828, shoreVeg: false },
-    'Desert':      { waterColor: 0x2a6a5a, waterEmissive: 0x081a14, shoreVeg: true },
+    'Terran':      { waterColor: 0x1a7acc, waterEmissive: 0x0a3066, shoreVeg: true },
+    'Continental': { waterColor: 0x2088bb, waterEmissive: 0x0c3560, shoreVeg: true },
+    'Ocean':       { waterColor: 0x1060cc, waterEmissive: 0x082858, shoreVeg: true },
+    'Ice':         { waterColor: 0x60aadd, waterEmissive: 0x1a4060, shoreVeg: false },
+    'Arctic':      { waterColor: 0x50a0cc, waterEmissive: 0x183858, shoreVeg: false },
+    'Desert':      { waterColor: 0x2a8878, waterEmissive: 0x0c3828, shoreVeg: true },
     // Lava lakes — bright orange/red, strong emissive glow
     'Molten':      { waterColor: 0xcc3300, waterEmissive: 0xff4400, emissiveIntensity: 0.8, opacity: 0.95, roughness: 0.35, metalness: 0.2, shoreVeg: false, shoreColor: 0x2a1a0a },
     // Chemical/mineral pools — murky grey-brown
@@ -1170,15 +1170,16 @@ const LAKE_TYPES = {
 
 /**
  * Generates lake positions. Uses seeded pseudo-random so lakes are consistent
- * per planet but varied. One lake is always near the player start area.
+ * per planet but varied. All lakes are guaranteed to be far from the colony at origin.
  */
+const COLONY_EXCLUSION = 65; // Colony buildings extend to ~22, safe zone to ~40; add generous buffer
 function _generateLakePositions(planetType) {
     const lakes = [];
     const count = isMobileDevice ? 2 : 3;
 
-    // Scenic lake — far enough from colony (origin) to avoid flooding the base
+    // Scenic lake
     const nearAngle = 0.8 + Math.sin(planetType.length * 1.7) * 0.6;
-    const nearDist  = 110 + Math.abs(Math.sin(planetType.length * 2.3)) * 40;
+    const nearDist  = 130 + Math.abs(Math.sin(planetType.length * 2.3)) * 40;
     lakes.push({
         x: Math.cos(nearAngle) * nearDist,
         z: Math.sin(nearAngle) * nearDist,
@@ -1189,14 +1190,20 @@ function _generateLakePositions(planetType) {
     const seed = planetType.charCodeAt(0) * 137;
     for (let i = 1; i < count; i++) {
         const angle = (seed + i * 2.4) % (Math.PI * 2);
-        const dist = 120 + ((seed * i * 7) % 130);
+        const dist = 140 + ((seed * i * 7) % 110);
+        const r = 14 + ((seed * i) % 12);
         lakes.push({
             x: Math.cos(angle) * dist,
             z: Math.sin(angle) * dist,
-            radius: 14 + ((seed * i) % 12),
+            radius: r,
         });
     }
-    return lakes;
+
+    // Safety: reject any lake whose edge comes within COLONY_EXCLUSION of origin
+    return lakes.filter(lake => {
+        const centerDist = Math.sqrt(lake.x * lake.x + lake.z * lake.z);
+        return (centerDist - lake.radius) >= COLONY_EXCLUSION;
+    });
 }
 
 /**
@@ -1226,8 +1233,8 @@ export function createLakes(planetType, group, heightFn) {
         // ── Water surface disc ──
         const segments = isMobileDevice ? 24 : 48;
         const waterGeo = new THREE.CircleGeometry(lake.radius, segments);
-        const lakeOpacity = conf.opacity || 0.82;
-        const lakeEmissiveStr = conf.emissiveIntensity || 0.25;
+        const lakeOpacity = conf.opacity || 0.88;
+        const lakeEmissiveStr = conf.emissiveIntensity || 0.4;
         const lakeRoughness = conf.roughness ?? 0.08;
         const lakeMetalness = conf.metalness ?? 0.6;
         const waterMat = isMobileDevice

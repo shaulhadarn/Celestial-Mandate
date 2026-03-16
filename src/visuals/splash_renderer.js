@@ -32,6 +32,8 @@ let animationId;
 let lastTime = performance.now();
 let globalFade = 0;
 const FADE_DURATION = 1.5;
+const FADE_OUT_DURATION = 0.8;
+let _fadingOut = false;
 const ships = [];
 let satellites = [];
 let trailTexture;
@@ -55,10 +57,11 @@ export function initSplashPlanet(containerId) {
     if (!container) return;
 
     if (renderer) {
-        stopSplashPlanet();
+        _doStopSplashPlanet();
     }
 
     const compactScene = isMobile;
+    _fadingOut = false;
     globalFade = 0;
     lastTime = performance.now();
     ships.length = 0;
@@ -197,7 +200,15 @@ function animate(currentTime) {
     lastTime = currentTime;
     const timeSeconds = currentTime * 0.001;
 
-    globalFade = Math.min(1, globalFade + dt / FADE_DURATION);
+    if (_fadingOut) {
+        globalFade = Math.max(0, globalFade - dt / FADE_OUT_DURATION);
+        if (globalFade <= 0) {
+            _doStopSplashPlanet();
+            return;
+        }
+    } else {
+        globalFade = Math.min(1, globalFade + dt / FADE_DURATION);
+    }
 
     // Planet rotation (safe if planet not yet loaded)
     if (planet) {
@@ -686,6 +697,18 @@ function disposeSceneResources(root) {
 }
 
 export function stopSplashPlanet() {
+    // If animation is running, trigger a smooth fade-out first
+    if (animationId && !_fadingOut && globalFade > 0) {
+        _fadingOut = true;
+        return;
+    }
+    // If already fading or no animation, do immediate cleanup
+    _doStopSplashPlanet();
+}
+
+function _doStopSplashPlanet() {
+    _fadingOut = false;
+
     if (animationId) {
         cancelAnimationFrame(animationId);
         animationId = null;

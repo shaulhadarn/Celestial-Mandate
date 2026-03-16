@@ -1,0 +1,197 @@
+/* ── Quest Tracker Panel ──────────────────────────────────────────────────── */
+#quest-tracker {
+    position: fixed;
+    top: 110px;
+    left: 16px;
+    width: 240px;
+    background: linear-gradient(170deg, rgba(4, 10, 22, 0.92) 0%, rgba(2, 6, 14, 0.96) 100%);
+    border: 1px solid rgba(0, 242, 255, 0.15);
+    border-radius: 6px;
+    z-index: 400;
+    font-family: 'Rajdhani', sans-serif;
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+#quest-tracker.hidden {
+    display: none;
+}
+
+.qt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px 8px;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.08);
+}
+
+.qt-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: rgba(0, 242, 255, 0.7);
+}
+
+.qt-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    font-variant-numeric: tabular-nums;
+}
+
+#qt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px 10px;
+}
+
+/* ── Quest Item ──────────────────────────────────────────────────────────── */
+.qt-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 6px;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+}
+
+.qt-item:hover {
+    background: rgba(0, 242, 255, 0.04);
+}
+
+.qt-item.qt-complete {
+    opacity: 0.5;
+}
+
+.qt-item-dot {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    border-radius: 50%;
+    background: rgba(0, 242, 255, 0.6);
+    box-shadow: 0 0 6px rgba(0, 242, 255, 0.3);
+    margin-top: 4px;
+}
+
+.qt-dot-done {
+    background: rgba(255, 170, 0, 0.7);
+    box-shadow: 0 0 6px rgba(255, 170, 0, 0.3);
+}
+
+.qt-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.qt-item-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(208, 228, 240, 0.9);
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.qt-complete .qt-item-label {
+    text-decoration: line-through;
+    color: rgba(208, 228, 240, 0.5);
+}
+
+.qt-item-progress-wrap {
+    width: 100%;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-bottom: 2px;
+}
+
+.qt-item-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(0, 242, 255, 0.5), rgba(0, 242, 255, 0.8));
+    border-radius: 1px;
+    transition: width 0.3s ease;
+}
+
+.qt-complete .qt-item-progress-bar {
+    background: rgba(255, 170, 0, 0.5);
+}
+
+.qt-item-meta {
+    font-size: 10px;
+    color: rgba(136, 187, 221, 0.5);
+}
+
+.qt-item-reward {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255, 170, 0, 0.7);
+    white-space: nowrap;
+    margin-top: 3px;
+}
+
+/* ── Quest Tap Tooltip ───────────────────────────────────────────────────── */
+#quest-tap-tooltip {
+    position: fixed;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(170deg, rgba(4, 10, 22, 0.94) 0%, rgba(2, 6, 14, 0.97) 100%);
+    border: 1px solid rgba(0, 242, 255, 0.2);
+    border-radius: 6px;
+    padding: 12px 18px;
+    z-index: 500;
+    font-family: 'Rajdhani', sans-serif;
+    text-align: center;
+    min-width: 200px;
+    max-width: 320px;
+    pointer-events: none;
+}
+
+#quest-tap-tooltip.hidden {
+    display: none;
+}
+
+#quest-tap-icon {
+    font-size: 20px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+#quest-tap-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(0, 242, 255, 0.9);
+    margin-bottom: 4px;
+}
+
+#quest-tap-desc {
+    font-size: 12px;
+    color: rgba(136, 187, 221, 0.7);
+    margin-bottom: 6px;
+    line-height: 1.3;
+}
+
+#quest-tap-reward {
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255, 170, 0, 0.85);
+}
+
+/* ── Mobile adjustments ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    #quest-tracker {
+        width: 200px;
+        top: 100px;
+        left: 8px;
+    }
+
+    .qt-item-label {
+        font-size: 11px;
+    }
+
+    .qt-item-reward {
+        font-size: 9px;
+    }
+}
