@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { gameState, BUILDINGS } from '../core/state.js';
 import { textures } from '../core/assets.js';
 import { createShadowSprite } from './visuals_planet_drone.js';
+import planetState from './visuals_planet_state.js';
 
 export let harvesterGroups = [];
 export let soldierMeshes = [];
@@ -69,7 +70,7 @@ function _buildConnectionTube(group, angle, heightFn, borderColor) {
     const cosA = Math.cos(angle);
     const sinA = Math.sin(angle);
     const startR = 10;  // hub entrance tunnel end
-    const endR = 26;    // building platform edge
+    const endR = 34;    // building platform edge
     const SEGS = 6;
     const tubeW = 2.0;
     const tubeH = 0.4;
@@ -1437,7 +1438,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
     colony.buildings.forEach((bKey, i) => {
         const buildingData = BUILDINGS[bKey];
         const angle = (i / 5) * Math.PI * 2;
-        const dist = 30;
+        const dist = 38;
         const x = Math.cos(angle) * dist;
         const z = Math.sin(angle) * dist;
         const y = heightFn(x, z);
@@ -1682,7 +1683,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         const soldier = _buildSoldierMesh();
         // Each soldier patrols a distinct zone spread around the colony
         const patrolAngle = (si / 3) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
-        const patrolDist = 14 + Math.random() * 10;
+        const patrolDist = 24 + Math.random() * 12;
         const centerX = Math.cos(patrolAngle) * patrolDist;
         const centerZ = Math.sin(patrolAngle) * patrolDist;
         const sy = heightFn(centerX, centerZ);
@@ -1723,6 +1724,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
             waitTimer: Math.random() * 1.5,
             walkPhase: 0,
             speed: 2.5 + Math.random() * 1.5,
+            fireCooldown: 0,
             shadowMesh: sShadow,
             trailMarks,
             trailIndex: 0,
@@ -1731,4 +1733,234 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         group.add(soldier);
         soldierMeshes.push(soldier);
     }
+
+    // ── Alien hives (hostile spawn points) ──
+    _spawnAlienHives(group, heightFn);
+}
+
+// ── Alien Hive Structure ────────────────────────────────────────────────────
+
+function _buildAlienHiveMesh() {
+    const g = new THREE.Group();
+
+    const hiveMat = new THREE.MeshStandardMaterial({
+        color: 0x3a1a2a, roughness: 0.7, metalness: 0.3,
+        emissive: 0x440011, emissiveIntensity: 0.15
+    });
+    const membraneMat = new THREE.MeshStandardMaterial({
+        color: 0x661133, roughness: 0.4, metalness: 0.2,
+        emissive: 0xff2244, emissiveIntensity: 0.3,
+        transparent: true, opacity: 0.7
+    });
+    const spineMat = new THREE.MeshStandardMaterial({
+        color: 0x2a0a1a, roughness: 0.5, metalness: 0.6
+    });
+
+    // Main mound (organic dome)
+    const mound = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), hiveMat);
+    mound.scale.set(1, 0.65, 1);
+    mound.castShadow = true;
+    g.add(mound);
+
+    // Secondary smaller mound
+    const mound2 = new THREE.Mesh(new THREE.SphereGeometry(3, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hiveMat);
+    mound2.position.set(3.5, 0, 2);
+    mound2.scale.set(1, 0.55, 1);
+    g.add(mound2);
+
+    // Entrance orifice (glowing membrane)
+    const orifice = new THREE.Mesh(new THREE.CircleGeometry(1.8, 8), membraneMat);
+    orifice.position.set(4.5, 1.2, 0);
+    orifice.rotation.y = Math.PI / 2;
+    orifice.rotation.x = -0.3;
+    g.add(orifice);
+
+    // Organic spines/tendrils
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const r = 4 + Math.random() * 1.5;
+        const h = 2 + Math.random() * 3;
+        const spine = new THREE.Mesh(
+            new THREE.ConeGeometry(0.3, h, 4),
+            spineMat
+        );
+        spine.position.set(Math.cos(angle) * r, h / 2, Math.sin(angle) * r);
+        spine.rotation.x = (Math.random() - 0.5) * 0.4;
+        spine.rotation.z = (Math.random() - 0.5) * 0.4;
+        g.add(spine);
+    }
+
+    // Pulsing glow core (sprite)
+    const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glowSoft,
+        color: 0xff2244,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0.4,
+    }));
+    glowSprite.position.set(0, 2, 0);
+    glowSprite.scale.set(10, 10, 1);
+    g.add(glowSprite);
+    g.userData.glowSprite = glowSprite;
+
+    // Ground-level fleshy tendrils (flat spreads)
+    for (let i = 0; i < 5; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 5 + Math.random() * 3;
+        const tendril = new THREE.Mesh(
+            new THREE.BoxGeometry(0.4, 0.15, 2 + Math.random() * 2),
+            hiveMat
+        );
+        tendril.position.set(Math.cos(angle) * r * 0.6, 0.1, Math.sin(angle) * r * 0.6);
+        tendril.rotation.y = angle;
+        g.add(tendril);
+    }
+
+    return g;
+}
+
+function _spawnAlienHives(group, heightFn) {
+    planetState.alienHives = [];
+    const hiveCount = 1 + Math.floor(Math.random() * 2); // 1-2 hives
+
+    for (let i = 0; i < hiveCount; i++) {
+        const angle = (i / hiveCount) * Math.PI * 2 + Math.random() * 1.0;
+        const dist = 90 + Math.random() * 40; // 90-130 units from center
+        const hx = Math.cos(angle) * dist;
+        const hz = Math.sin(angle) * dist;
+        const hy = heightFn(hx, hz);
+
+        const hive = _buildAlienHiveMesh();
+        hive.position.set(hx, hy - 0.5, hz);
+        hive.rotation.y = Math.random() * Math.PI * 2;
+        group.add(hive);
+
+        planetState.alienHives.push({
+            mesh: hive,
+            x: hx, z: hz,
+            spawnTimer: 3 + Math.random() * 5, // first spawn in 3-8s
+            spawnInterval: 8 + Math.random() * 4, // 8-12s between spawns
+            maxActive: 6,
+            activeCount: 0,
+        });
+    }
+}
+
+// ── Hostile Alien Creature ──────────────────────────────────────────────────
+
+export function buildHostileAlienMesh() {
+    const g = new THREE.Group();
+
+    const bodyMat = new THREE.MeshStandardMaterial({
+        color: 0x661122, roughness: 0.5, metalness: 0.4,
+        emissive: 0x330000, emissiveIntensity: 0.1
+    });
+    const chitin = new THREE.MeshStandardMaterial({
+        color: 0x441111, roughness: 0.3, metalness: 0.7
+    });
+    const eyeMat = new THREE.MeshStandardMaterial({
+        color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.9,
+        roughness: 0.1, metalness: 0.8
+    });
+    const mandibleMat = new THREE.MeshStandardMaterial({
+        color: 0x2a0a0a, roughness: 0.4, metalness: 0.8
+    });
+
+    // Body (elongated, forward-leaning)
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 1.2), bodyMat);
+    body.position.y = 0.6;
+    body.rotation.x = -0.15; // aggressive forward lean
+    body.castShadow = true;
+    g.add(body);
+
+    // Armored back plates
+    const backPlate = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 0.9), chitin);
+    backPlate.position.set(0, 0.95, -0.1);
+    g.add(backPlate);
+
+    // Spines on back
+    for (let si = 0; si < 3; si++) {
+        const spine = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.4, 4), chitin);
+        spine.position.set(0, 1.05, -0.3 + si * 0.3);
+        spine.rotation.x = -0.3;
+        g.add(spine);
+    }
+
+    // Head pivot
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 0.7, 0.7);
+    g.add(headGroup);
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.4), bodyMat);
+    head.castShadow = true;
+    headGroup.add(head);
+
+    // Eyes (glowing red)
+    [-1, 1].forEach(side => {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4), eyeMat);
+        eye.position.set(side * 0.18, 0.08, 0.18);
+        headGroup.add(eye);
+    });
+
+    // Mandibles (animated)
+    const mandibleL = new THREE.Group();
+    mandibleL.position.set(-0.15, -0.08, 0.2);
+    headGroup.add(mandibleL);
+    const mL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mandibleMat);
+    mL.position.z = 0.15;
+    mandibleL.add(mL);
+
+    const mandibleR = new THREE.Group();
+    mandibleR.position.set(0.15, -0.08, 0.2);
+    headGroup.add(mandibleR);
+    const mR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.3), mandibleMat);
+    mR.position.z = 0.15;
+    mandibleR.add(mR);
+
+    // Legs (6 legs, 3 per side)
+    const legJoints = [];
+    [-1, 1].forEach(side => {
+        for (let li = 0; li < 3; li++) {
+            const hipGroup = new THREE.Group();
+            hipGroup.position.set(side * 0.35, 0.45, 0.3 - li * 0.4);
+            g.add(hipGroup);
+
+            const upperLeg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.08), chitin);
+            upperLeg.position.set(side * 0.12, -0.17, 0);
+            hipGroup.add(upperLeg);
+
+            const kneeGroup = new THREE.Group();
+            kneeGroup.position.set(side * 0.12, -0.35, 0);
+            hipGroup.add(kneeGroup);
+
+            const lowerLeg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.06), chitin);
+            lowerLeg.position.y = -0.15;
+            kneeGroup.add(lowerLeg);
+
+            legJoints.push({ hip: hipGroup, knee: kneeGroup, side });
+        }
+    });
+
+    // Shadow
+    const shadow = createShadowSprite();
+    shadow.scale.set(1.8, 1.8, 1);
+    shadow.position.set(0, 0.05, 0);
+    g.add(shadow);
+
+    g.userData = {
+        isHostile: true,
+        hp: 3,
+        speed: 4 + Math.random() * 2,
+        phase: Math.random() * Math.PI * 2,
+        bodyScale: 1.0,
+        shadowMesh: shadow,
+        joints: {
+            head: headGroup,
+            mandibleL, mandibleR,
+            legs: legJoints,
+        },
+    };
+
+    return g;
 }

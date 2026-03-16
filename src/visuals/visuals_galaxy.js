@@ -537,7 +537,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     // ── Planets ────────────────────────────────────────────────────────────
     sys.planets.forEach((p, pi) => {
       const hasColony = !!gameState.colonies[p.id];
-      const orbitDist = 5 + pi * 1.8;
+      const orbitDist = 7 + pi * 3.5;
       const size = hasColony ? 1.2 : 0.8;
 
       let tex = textures.barren;

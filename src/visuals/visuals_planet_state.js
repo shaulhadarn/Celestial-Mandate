@@ -63,6 +63,10 @@ const planetState = {
     cameraHeightOffset: 2,     // dynamic, lerped toward target
     targetCameraHeightOffset: 2,
 
+    // Hostile alien wave system
+    alienHives: [],
+    hostileAliens: [],
+
     // Quest system (transient — rebuilt on each landing)
     quests: [],
     questGroup: null,

@@ -85,6 +85,106 @@ const QUEST_TYPES = {
         triggerRadius: 10,
         needsColony: true,
     },
+    water_sample: {
+        label: 'Collect Water Sample',
+        desc: 'Fly to the water body and extract a sample for analysis.',
+        icon: '💧',
+        target: 1,
+        reward: { energy: 0, minerals: 20, food: 70 },
+        triggerRadius: 12,
+        favorsTypes: ['Ocean', 'Terran', 'Continental', 'Ice', 'Arctic'],
+    },
+    geological_core: {
+        label: 'Extract Core Sample',
+        desc: 'Drill at the geological site to extract a deep core sample.',
+        icon: '🪨',
+        target: 1,
+        reward: { energy: 0, minerals: 100, food: 0 },
+        triggerRadius: 10,
+        markerDistMin: 50,
+        markerDistMax: 100,
+    },
+    flora_catalog: {
+        label: 'Catalog Native Flora',
+        desc: 'Visit vegetation clusters to document native plant species.',
+        icon: '🌿',
+        target: 3,
+        reward: { energy: 0, minerals: 0, food: 90 },
+        triggerRadius: 12,
+        isSequential: true,
+        needsCreatures: true, // proxy for "has vegetation" — Barren/Tomb excluded
+    },
+    energy_anomaly: {
+        label: 'Investigate Energy Anomaly',
+        desc: 'Locate the source of an unusual energy signature.',
+        icon: '⚡',
+        target: 1,
+        reward: { energy: 90, minerals: 0, food: 0 },
+        triggerRadius: 10,
+        favorsTypes: ['Molten', 'Tomb'],
+        markerDistMin: 55,
+        markerDistMax: 110,
+    },
+    artifact_recovery: {
+        label: 'Recover Alien Artifact',
+        desc: 'Excavate the buried artifact detected by orbital scans.',
+        icon: '🏺',
+        target: 1,
+        reward: { energy: 40, minerals: 60, food: 0 },
+        triggerRadius: 10,
+        markerDistMin: 45,
+        markerDistMax: 95,
+    },
+    terrain_mapping: {
+        label: 'Map Terrain Features',
+        desc: 'Visit elevated terrain points to complete the surface map.',
+        icon: '🗺️',
+        target: 3,
+        reward: { energy: 30, minerals: 50, food: 0 },
+        triggerRadius: 12,
+        isSequential: true,
+    },
+    comms_relay: {
+        label: 'Establish Comms Relay',
+        desc: 'Deploy a communications relay at a strategic high point.',
+        icon: '📶',
+        target: 1,
+        reward: { energy: 70, minerals: 30, food: 0 },
+        triggerRadius: 10,
+        needsColony: true,
+        markerDistMin: 70,
+        markerDistMax: 130,
+    },
+    seismic_scan: {
+        label: 'Seismic Activity Scan',
+        desc: 'Deploy sensors at the fault line to measure tectonic activity.',
+        icon: '📊',
+        target: 2,
+        reward: { energy: 40, minerals: 70, food: 0 },
+        triggerRadius: 11,
+        isSequential: true,
+        favorsTypes: ['Molten', 'Barren', 'Desert'],
+    },
+    supply_cache: {
+        label: 'Locate Supply Cache',
+        desc: 'Retrieve a supply cache dropped during an earlier expedition.',
+        icon: '📦',
+        target: 1,
+        reward: { energy: 30, minerals: 30, food: 30 },
+        triggerRadius: 10,
+        markerDistMin: 35,
+        markerDistMax: 80,
+    },
+    bio_hazard: {
+        label: 'Neutralize Bio-Hazard',
+        desc: 'Fly to the contamination zone and deploy decontaminant.',
+        icon: '☣️',
+        target: 1,
+        reward: { energy: 50, minerals: 0, food: 50 },
+        triggerRadius: 10,
+        needsCreatures: true,
+        favorsTypes: ['Terran', 'Continental', 'Ocean'],
+    },
 };
 
 // ── Seeded random from planet ID ────────────────────────────────────────────
@@ -128,9 +228,9 @@ export function generatePlanetQuests(planetData) {
         pool.push({ typeKey, def, weight, sortVal: rand() * weight });
     }
 
-    // Sort by weighted random and pick 2-3
+    // Sort by weighted random and pick 3-4
     pool.sort((a, b) => b.sortVal - a.sortVal);
-    const count = pool.length >= 3 ? 3 : pool.length;
+    const count = pool.length >= 4 ? (rand() < 0.5 ? 4 : 3) : Math.min(pool.length, 3);
     const quests = [];
 
     for (let i = 0; i < count; i++) {

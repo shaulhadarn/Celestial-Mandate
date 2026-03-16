@@ -1,5 +1,5 @@
 /* Updated: Use shared openShipModal from ui_fleets.js instead of duplicate inline code */
-import { gameState, BUILDINGS, buildBuilding, buildHarvester, HARVESTER_YIELDS, getPlanet, RACE_SHIPS, buildShip } from '../core/state.js';
+import { gameState, BUILDINGS, buildBuilding, upgradeBuilding, buildHarvester, HARVESTER_YIELDS, getPlanet, RACE_SHIPS, buildShip, MAX_BUILDING_LEVEL, getBuildingLevelMult, getUpgradeCost, getUpgradeTime } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
 import { getShipSvg } from './ship_icons.js';
 import { openShipModal } from './ui_fleets.js';
@@ -126,7 +126,9 @@ export function renderColonyView(planetId) {
     if(!colony.construction) colony.construction = [];
 
     const totalSlots = 5;
-    const occupiedSlots = colony.buildings.length + colony.construction.length;
+    if (!colony.buildingLevels) colony.buildingLevels = colony.buildings.map(() => 1);
+    const pendingNew = colony.construction.filter(c => !c.isUpgrade).length;
+    const occupiedSlots = colony.buildings.length + pendingNew;
 
     const popEl = document.getElementById('col-pop');
     popEl.innerHTML = `${colony.population}`;
@@ -144,39 +146,47 @@ export function renderColonyView(planetId) {
     if (!bList) return;
     bList.innerHTML = '';
 
-    // 1. Completed Buildings
-    colony.buildings.forEach(bKey => {
+    // 1. Completed Buildings (with level badges)
+    colony.buildings.forEach((bKey, idx) => {
         const b = BUILDINGS[bKey];
         const el = document.createElement('div');
         el.className = 'building-slot';
         if (b) {
+            const level = colony.buildingLevels[idx] || 1;
+            const mult = getBuildingLevelMult(level);
+            const isUpgrading = colony.construction.some(c => c.isUpgrade && c.buildingIndex === idx);
             el.style.backgroundColor = b.color;
             el.style.borderColor = b.borderColor;
-            
+
             let traits = [];
-            if(b.production.energy) traits.push(`+${b.production.energy}⚡`);
-            if(b.production.minerals) traits.push(`+${b.production.minerals}💎`);
-            if(b.production.food) traits.push(`+${b.production.food}🍏`);
+            if(b.production.energy) traits.push(`+${Math.floor(b.production.energy * mult)}⚡`);
+            if(b.production.minerals) traits.push(`+${Math.floor(b.production.minerals * mult)}💎`);
+            if(b.production.food) traits.push(`+${Math.floor(b.production.food * mult)}🍏`);
             if(traits.length === 0) traits.push("Unique");
 
+            const levelClass = level >= MAX_BUILDING_LEVEL ? 'building-level-max' : '';
+            const upgradingTag = isUpgrading ? '<span class="building-upgrading-tag">⬆</span>' : '';
+
             el.innerHTML = `
+                <span class="building-level-badge ${levelClass}">Lv.${level}</span>
+                ${upgradingTag}
                 <span class="building-icon">${b.icon}</span>
                 <div class="building-traits">${traits.join(' ')}</div>
             `;
-            el.title = b.name;
+            el.title = `${b.name} (Level ${level})`;
         }
         bList.appendChild(el);
     });
 
-    // 2. Under Construction
-    colony.construction.forEach(item => {
+    // 2. Under Construction (only new builds — upgrades show on their building slot)
+    colony.construction.filter(c => !c.isUpgrade).forEach(item => {
         const b = BUILDINGS[item.buildingKey];
         const pct = Math.floor((item.progress / item.total) * 100);
-        
+
         const el = document.createElement('div');
         el.className = 'building-slot';
         el.style.borderStyle = 'dashed';
-        
+
         el.innerHTML = `
             <span class="building-icon" style="opacity:0.5">${b ? b.icon : '🏗️'}</span>
             <div class="construction-overlay">
@@ -267,6 +277,85 @@ export function renderColonyView(planetId) {
         });
     } else {
         cList.innerHTML = '<div style="color:#666;text-align:center;padding:15px;border:1px dashed #444;">No empty building slots</div>';
+    }
+
+    // ── Upgrade Section ──────────────────────────────────────────────────────
+    const existingUpgSec = document.getElementById('colony-upgrade-section');
+    if (existingUpgSec) existingUpgSec.remove();
+
+    const upgradeable = colony.buildings.map((bKey, idx) => {
+        const level = colony.buildingLevels[idx] || 1;
+        const isUpgrading = colony.construction.some(c => c.isUpgrade && c.buildingIndex === idx);
+        return { bKey, idx, level, isUpgrading };
+    }).filter(u => u.level < MAX_BUILDING_LEVEL && !u.isUpgrading);
+
+    if (upgradeable.length > 0) {
+        const upgSec = document.createElement('div');
+        upgSec.id = 'colony-upgrade-section';
+        upgSec.style.cssText = 'margin-top:12px;border-top:1px solid rgba(0,242,255,0.15);padding-top:10px;';
+
+        let upgradeHtml = `<div style="font-size:10px;letter-spacing:2px;color:#00f2ff;text-transform:uppercase;margin-bottom:8px;">⬆ Upgrade Buildings</div>`;
+
+        upgradeable.forEach(({ bKey, idx, level }) => {
+            const b = BUILDINGS[bKey];
+            if (!b) return;
+            const nextLevel = level + 1;
+            const curMult = getBuildingLevelMult(level);
+            const nxtMult = getBuildingLevelMult(nextLevel);
+            const costNormal = getUpgradeCost(bKey, level);
+            const costInstant = costNormal * 2;
+            const time = getUpgradeTime(bKey, level);
+            const currentMinerals = gameState.resources.minerals;
+
+            // Build production preview
+            let preview = '';
+            if (b.production.energy) preview += `+${Math.floor(b.production.energy * curMult)}→+${Math.floor(b.production.energy * nxtMult)}⚡ `;
+            if (b.production.minerals) preview += `+${Math.floor(b.production.minerals * curMult)}→+${Math.floor(b.production.minerals * nxtMult)}💎 `;
+            if (b.production.food) preview += `+${Math.floor(b.production.food * curMult)}→+${Math.floor(b.production.food * nxtMult)}🍏 `;
+            if (bKey === 'research_lab') preview += `+${Math.floor(5 * curMult)}→+${Math.floor(5 * nxtMult)}🔬 `;
+            if (!preview) preview = 'Reduced downtime';
+
+            upgradeHtml += `
+                <div class="build-option" style="border-left:2px solid ${b.borderColor || '#00f2ff'};">
+                    <div class="build-header">
+                        <div class="build-title">
+                            <span>${b.icon}</span> ${b.name} <span style="color:#ffaa00;font-size:11px;">Lv.${level} → Lv.${nextLevel}</span>
+                        </div>
+                    </div>
+                    <div class="build-header" style="margin-bottom:10px;">
+                        <div class="build-stats-preview">${preview}</div>
+                    </div>
+                    <div class="build-actions">
+                        <button class="btn-build-action btn-build-normal btn-upgrade" data-idx="${idx}" data-instant="0" ${currentMinerals < costNormal ? 'disabled' : ''}>
+                            <span>Upgrade (${time}s)</span>
+                            <span class="cost-display">💎${costNormal}</span>
+                        </button>
+                        <button class="btn-build-action btn-build-instant btn-upgrade" data-idx="${idx}" data-instant="1" ${currentMinerals < costInstant ? 'disabled' : ''}>
+                            <span>Instant</span>
+                            <span class="cost-display">💎${costInstant}</span>
+                        </button>
+                    </div>
+                </div>`;
+        });
+
+        upgSec.innerHTML = upgradeHtml;
+        cList.parentElement.appendChild(upgSec);
+
+        // Wire upgrade buttons
+        upgSec.querySelectorAll('.btn-upgrade').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.idx);
+                const isInstant = btn.dataset.instant === '1';
+                if (upgradeBuilding(planetId, idx, isInstant)) {
+                    const bKey = colony.buildings[idx];
+                    const b = BUILDINGS[bKey];
+                    showNotification(isInstant ? `${b.icon} ${b.name} upgraded!` : `${b.icon} ${b.name} upgrade started!`, isInstant ? 'success' : 'info');
+                    renderColonyView(planetId);
+                } else {
+                    showNotification('Insufficient Minerals', 'alert');
+                }
+            });
+        });
     }
 
     // ── Harvester Section ──────────────────────────────────────────────────────
@@ -380,13 +469,13 @@ export function updateColonyDynamicState(planetId) {
         popEl.innerHTML = content;
     }
 
-    // Update Construction Progress
+    // Update Construction Progress (only non-upgrade items map to construction-fill slots)
     const fills = document.querySelectorAll('#colony-building-list .construction-fill');
-    colony.construction.forEach((item, i) => {
+    const newBuilds = colony.construction.filter(c => !c.isUpgrade);
+    newBuilds.forEach((item, i) => {
         if(fills[i]) {
             const pct = Math.floor((item.progress / item.total) * 100);
             fills[i].style.width = `${pct}%`;
-            // Update percentage text (sibling span in construction-overlay)
             const text = fills[i].closest('.construction-overlay')?.querySelector('span');
             if(text) text.innerText = `${pct}%`;
         }

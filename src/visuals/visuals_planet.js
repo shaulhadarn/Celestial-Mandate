@@ -291,6 +291,8 @@ export function createPlanetVisuals(planetData, group) {
     planetState.tankProjectiles = [];
     planetState._tankFireCooldown = 0;
     planetState._tankDeployed = false;
+    planetState.alienHives = [];
+    planetState.hostileAliens = [];
     planetState.quests = [];
     planetState.questGroup = null;
     planetState.currentPlanetData = planetData;

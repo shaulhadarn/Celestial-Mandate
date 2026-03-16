@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { gameState, HARVESTER_YIELDS, HARVESTER_YIELD_DEFAULT } from '../core/state.js';
 import { getTerrainHeight, getTerrainHeightFast } from './visuals_planet_terrain.js';
-import { harvesterGroups, soldierMeshes, hubGroup, buildingAnims, renderColonyGroundBuildings } from './visuals_planet_colony.js';
+import { harvesterGroups, soldierMeshes, hubGroup, buildingAnims, renderColonyGroundBuildings, buildHostileAlienMesh } from './visuals_planet_colony.js';
 import { getOrCreateHarvesterHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 import { updateGrass } from './visuals_planet_grass.js';
@@ -90,44 +90,26 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     }
 
     if (controlTarget && controlTarget.userData.isTank) {
-        // --- 2b/3b. Tank ground movement (no strafe, tank steering) ---
-        const tankSpeed = 25;
-        const tankDrag = 0.90;
-        const tankTurnRate = 2.0;
+        // --- 2b/3b. Tank movement (camera-relative, same as soldier) ---
+        const tankSpeed = 35;
+        const tankDrag = 0.88;
         const tVel = controlTarget.userData.velocity;
 
-        // A/D rotate the hull
-        if (keyState['a']) controlTarget.rotation.y += tankTurnRate * dt;
-        if (keyState['d']) controlTarget.rotation.y -= tankTurnRate * dt;
-
-        // W/S drive forward/backward along tank's facing direction
-        const tankFwdX = Math.sin(controlTarget.rotation.y);
-        const tankFwdZ = Math.cos(controlTarget.rotation.y);
-        if (keyState['w']) {
-            tVel.x += tankFwdX * tankSpeed * dt;
-            tVel.z += tankFwdZ * tankSpeed * dt;
-        }
-        if (keyState['s']) {
-            tVel.x -= tankFwdX * tankSpeed * 0.6 * dt;
-            tVel.z -= tankFwdZ * tankSpeed * 0.6 * dt;
-        }
-        // Also support joystick
-        if (Math.abs(joystickInput.y) > 0.1) {
-            tVel.x += tankFwdX * tankSpeed * joystickInput.y * dt;
-            tVel.z += tankFwdZ * tankSpeed * joystickInput.y * dt;
-        }
-        if (Math.abs(joystickInput.x) > 0.1) {
-            controlTarget.rotation.y -= joystickInput.x * tankTurnRate * dt;
+        // Use the pre-computed camera-relative _inputDir (WASD/joystick)
+        if (_inputDir.lengthSq() > 0) {
+            _inputDir.normalize();
+            tVel.x += _inputDir.x * tankSpeed * dt;
+            tVel.z += _inputDir.z * tankSpeed * dt;
         }
 
-        // Gravity (heavier)
+        // Gravity
         tVel.y -= 35 * dt;
 
         controlTarget.position.x += tVel.x * dt;
         controlTarget.position.z += tVel.z * dt;
         controlTarget.position.y += tVel.y * dt;
 
-        // Ground collision (hull sits on terrain)
+        // Ground collision
         const tankGroundH = getTerrainHeightFast(controlTarget.position.x, controlTarget.position.z);
         if (controlTarget.position.y <= tankGroundH) {
             controlTarget.position.y = tankGroundH;
@@ -137,17 +119,26 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         tVel.x *= tankDrag;
         tVel.z *= tankDrag;
 
+        // Hull auto-rotates to face velocity direction (smooth lerp)
+        const tankSpd = Math.sqrt(tVel.x * tVel.x + tVel.z * tVel.z);
+        if (tankSpd > 0.3) {
+            const targetRot = Math.atan2(tVel.x, tVel.z);
+            let diff = targetRot - controlTarget.rotation.y;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            controlTarget.rotation.y += diff * 8 * dt;
+        }
+
         // Turret tracks camera yaw independently
         const turretPivot = controlTarget.userData.turretPivot;
         if (turretPivot) {
-            // Camera yaw is in world space; turret rotation is relative to hull
             let turretTarget = cameraYaw - controlTarget.rotation.y + Math.PI;
             while (turretTarget > Math.PI) turretTarget -= Math.PI * 2;
             while (turretTarget < -Math.PI) turretTarget += Math.PI * 2;
             let turretDiff = turretTarget - turretPivot.rotation.y;
             while (turretDiff > Math.PI) turretDiff -= Math.PI * 2;
             while (turretDiff < -Math.PI) turretDiff += Math.PI * 2;
-            turretPivot.rotation.y += turretDiff * 6 * dt;
+            turretPivot.rotation.y += turretDiff * 8 * dt;
         }
 
         // Shadow
@@ -161,53 +152,77 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         planetState._tankFireCooldown = Math.max(0, planetState._tankFireCooldown - dt);
         const wantFire = keyState['f'] || keyState['_fire'];
         if (wantFire && planetState._tankFireCooldown <= 0 && controlTarget.userData.muzzlePoint) {
-            planetState._tankFireCooldown = 0.4;
+            planetState._tankFireCooldown = 0.35;
             const muzzle = controlTarget.userData.muzzlePoint;
             const worldPos = new THREE.Vector3();
             muzzle.getWorldPosition(worldPos);
 
             // Fire direction = turret facing in world space
-            const turretWorldRot = controlTarget.rotation.y + turretPivot.rotation.y;
+            const turretWorldRot = controlTarget.rotation.y + (turretPivot ? turretPivot.rotation.y : 0);
             const fireDir = new THREE.Vector3(
                 Math.sin(turretWorldRot),
-                0,
+                -0.03,
                 Math.cos(turretWorldRot)
-            );
+            ).normalize();
 
-            // Create projectile
-            const projMat = new THREE.MeshStandardMaterial({
-                color: 0xffaa00, emissive: 0xffaa00, emissiveIntensity: 1.2,
-                transparent: true, opacity: 0.9
+            // Projectile — glowing shell with tracer trail
+            const projGroup = new THREE.Group();
+            projGroup.position.copy(worldPos);
+
+            // Core shell (bright)
+            const shellMat = new THREE.MeshBasicMaterial({
+                color: 0xffdd44, transparent: true, opacity: 1.0,
             });
-            const projMesh = new THREE.Mesh(
-                new THREE.SphereGeometry(0.2, 6, 4),
-                projMat
-            );
-            projMesh.position.copy(worldPos);
-            planetState.explorationGroup.add(projMesh);
+            const shellMesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), shellMat);
+            projGroup.add(shellMesh);
+
+            // Glow sprite around shell
+            const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+                color: 0xffaa00, transparent: true, opacity: 0.6,
+                blending: THREE.AdditiveBlending, depthWrite: false,
+            }));
+            glowSprite.scale.set(1.8, 1.8, 1);
+            projGroup.add(glowSprite);
+
+            // Tracer trail (stretched sprite behind)
+            const tracerMat = new THREE.SpriteMaterial({
+                color: 0xffcc33, transparent: true, opacity: 0.5,
+                blending: THREE.AdditiveBlending, depthWrite: false,
+            });
+            const tracer = new THREE.Sprite(tracerMat);
+            tracer.scale.set(0.4, 2.5, 1);
+            tracer.position.set(-fireDir.x * 1.2, -fireDir.y * 1.2, -fireDir.z * 1.2);
+            projGroup.add(tracer);
+
+            planetState.explorationGroup.add(projGroup);
 
             planetState.tankProjectiles.push({
-                mesh: projMesh,
-                velocity: fireDir.multiplyScalar(80),
-                life: 2.0,
+                mesh: projGroup,
+                velocity: fireDir.clone().multiplyScalar(100),
+                life: 2.5,
+                tracerMat,
+                glowSprite,
             });
 
-            // Muzzle flash sprite
+            // Muzzle flash — bigger, brighter
             const flash = new THREE.Sprite(new THREE.SpriteMaterial({
-                color: 0xffcc44, transparent: true, opacity: 0.8,
+                color: 0xffdd55, transparent: true, opacity: 1.0,
                 blending: THREE.AdditiveBlending, depthWrite: false,
             }));
             flash.position.copy(worldPos);
-            flash.scale.set(3, 3, 1);
+            flash.scale.set(4, 4, 1);
             planetState.explorationGroup.add(flash);
-            // Fade out quickly
             const _fadeFlash = () => {
-                flash.material.opacity -= 0.06;
-                flash.scale.multiplyScalar(0.92);
+                flash.material.opacity -= 0.08;
+                flash.scale.multiplyScalar(0.9);
                 if (flash.material.opacity > 0.05) requestAnimationFrame(_fadeFlash);
                 else { flash.removeFromParent(); flash.material.dispose(); }
             };
             requestAnimationFrame(_fadeFlash);
+
+            // Recoil nudge (slight backward push)
+            tVel.x -= fireDir.x * 3;
+            tVel.z -= fireDir.z * 3;
         }
 
     } else if (controlTarget) {
@@ -1186,29 +1201,34 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         proj.mesh.position.y += proj.velocity.y * dt;
         proj.mesh.position.z += proj.velocity.z * dt;
         // Slight gravity on projectile
-        proj.velocity.y -= 5 * dt;
+        proj.velocity.y -= 4 * dt;
+
+        // Fade tracer as projectile ages
+        if (proj.tracerMat) proj.tracerMat.opacity = Math.min(0.5, proj.life * 0.3);
+        if (proj.glowSprite) proj.glowSprite.material.opacity = Math.min(0.6, proj.life * 0.4);
 
         // Hit detection against creatures
         let hit = false;
+        const pp = proj.mesh.position;
         for (let ci = 0; ci < creatures.length; ci++) {
             const c = creatures[ci];
-            const dx = proj.mesh.position.x - c.position.x;
-            const dy = proj.mesh.position.y - c.position.y;
-            const dz = proj.mesh.position.z - c.position.z;
+            const dx = pp.x - c.position.x;
+            const dy = pp.y - c.position.y;
+            const dz = pp.z - c.position.z;
             const distSq = dx * dx + dy * dy + dz * dz;
-            if (distSq < 6.25) { // 2.5^2
+            if (distSq < 9) { // 3^2 — slightly larger hit radius
                 hit = true;
-                // Impact flash
+                // Impact flash — bigger, brighter
                 const impactFlash = new THREE.Sprite(new THREE.SpriteMaterial({
-                    color: 0xff6600, transparent: true, opacity: 0.9,
+                    color: 0xff6600, transparent: true, opacity: 1.0,
                     blending: THREE.AdditiveBlending, depthWrite: false,
                 }));
-                impactFlash.position.copy(proj.mesh.position);
-                impactFlash.scale.set(4, 4, 1);
+                impactFlash.position.copy(pp);
+                impactFlash.scale.set(5, 5, 1);
                 planetState.explorationGroup.add(impactFlash);
                 const _fadeImpact = () => {
-                    impactFlash.material.opacity -= 0.08;
-                    impactFlash.scale.multiplyScalar(0.93);
+                    impactFlash.material.opacity -= 0.06;
+                    impactFlash.scale.multiplyScalar(0.94);
                     if (impactFlash.material.opacity > 0.05) requestAnimationFrame(_fadeImpact);
                     else { impactFlash.removeFromParent(); impactFlash.material.dispose(); }
                 };
@@ -1228,14 +1248,11 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 });
 
                 // Make creature flee away from impact
-                const fleeAngle = Math.atan2(
-                    c.position.x - proj.mesh.position.x,
-                    c.position.z - proj.mesh.position.z
-                );
+                const fleeAngle = Math.atan2(c.position.x - pp.x, c.position.z - pp.z);
                 const fleeDist = 20 + Math.random() * 15;
                 c.userData.originX = c.position.x + Math.cos(fleeAngle) * fleeDist;
                 c.userData.originZ = c.position.z + Math.sin(fleeAngle) * fleeDist;
-                c.userData.speed *= 3; // temporarily faster
+                c.userData.speed *= 3;
                 setTimeout(() => { c.userData.speed = Math.max(0.3, c.userData.speed / 3); }, 3000);
                 break;
             }
@@ -1243,20 +1260,20 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
         // Hit ground
         if (!hit) {
-            const projGroundH = getTerrainHeightFast(proj.mesh.position.x, proj.mesh.position.z);
-            if (proj.mesh.position.y <= projGroundH) {
+            const projGroundH = getTerrainHeightFast(pp.x, pp.z);
+            if (pp.y <= projGroundH) {
                 hit = true;
-                // Ground impact spark
+                // Ground impact — bigger spark + dust ring
                 const spark = new THREE.Sprite(new THREE.SpriteMaterial({
-                    color: 0xffaa00, transparent: true, opacity: 0.7,
+                    color: 0xffaa00, transparent: true, opacity: 0.9,
                     blending: THREE.AdditiveBlending, depthWrite: false,
                 }));
-                spark.position.set(proj.mesh.position.x, projGroundH + 0.5, proj.mesh.position.z);
-                spark.scale.set(2, 2, 1);
+                spark.position.set(pp.x, projGroundH + 0.5, pp.z);
+                spark.scale.set(3.5, 3.5, 1);
                 planetState.explorationGroup.add(spark);
                 const _fadeSpark = () => {
-                    spark.material.opacity -= 0.07;
-                    spark.scale.multiplyScalar(0.94);
+                    spark.material.opacity -= 0.05;
+                    spark.scale.multiplyScalar(0.95);
                     if (spark.material.opacity > 0.05) requestAnimationFrame(_fadeSpark);
                     else { spark.removeFromParent(); spark.material.dispose(); }
                 };
@@ -1265,12 +1282,253 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
 
         if (hit || proj.life <= 0) {
+            // Dispose all children in the projectile group
+            proj.mesh.traverse(child => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
             proj.mesh.removeFromParent();
-            proj.mesh.geometry.dispose();
-            proj.mesh.material.dispose();
             projs.splice(pi, 1);
         }
     }
+
+    // --- 9e. Hostile alien wave system (hive spawning + march + soldier combat) ---
+    const hives = planetState.alienHives;
+    const hostiles = planetState.hostileAliens;
+
+    // Hive spawn logic
+    for (let hi = 0; hi < hives.length; hi++) {
+        const hive = hives[hi];
+
+        // Animate hive glow pulse
+        if (hive.mesh.userData.glowSprite) {
+            const pulse = 0.3 + Math.sin(time * 1.5 + hi) * 0.15;
+            hive.mesh.userData.glowSprite.material.opacity = pulse;
+            const gs = 8 + Math.sin(time * 1.2 + hi) * 2;
+            hive.mesh.userData.glowSprite.scale.set(gs, gs, 1);
+        }
+
+        // Count active aliens from this hive
+        let alive = 0;
+        for (let ai = 0; ai < hostiles.length; ai++) {
+            if (hostiles[ai].userData.hiveIdx === hi) alive++;
+        }
+        hive.activeCount = alive;
+
+        hive.spawnTimer -= dt;
+        if (hive.spawnTimer <= 0 && alive < hive.maxActive) {
+            hive.spawnTimer = hive.spawnInterval;
+            // Spawn hostile alien near hive entrance
+            const alien = buildHostileAlienMesh();
+            const spawnAngle = Math.random() * Math.PI * 2;
+            const spawnR = 6 + Math.random() * 3;
+            const ax = hive.x + Math.cos(spawnAngle) * spawnR;
+            const az = hive.z + Math.sin(spawnAngle) * spawnR;
+            const ay = getTerrainHeightFast(ax, az);
+            alien.position.set(ax, ay, az);
+            alien.userData.hiveIdx = hi;
+            alien.userData.originX = ax;
+            alien.userData.originZ = az;
+            planetState.explorationGroup.add(alien);
+            hostiles.push(alien);
+        }
+    }
+
+    // Hostile alien march + animation
+    for (let ai = hostiles.length - 1; ai >= 0; ai--) {
+        const alien = hostiles[ai];
+        const ud = alien.userData;
+
+        // March toward colony center (0, 0)
+        const dx = -alien.position.x;
+        const dz = -alien.position.z;
+        const distToCenter = Math.sqrt(dx * dx + dz * dz);
+
+        if (distToCenter < 8) {
+            // Reached colony — flash hub red and remove alien
+            if (hubGroup) {
+                hubGroup.traverse(child => {
+                    if (child.isMesh && child.material && child.material.emissive) {
+                        const orig = child.material.emissive.getHex();
+                        child.material.emissive.set(0xff0000);
+                        child.material.emissiveIntensity = 0.8;
+                        setTimeout(() => {
+                            child.material.emissive.set(orig);
+                            child.material.emissiveIntensity = 0.1;
+                        }, 400);
+                    }
+                });
+            }
+            alien.removeFromParent();
+            if (ud.shadowMesh) ud.shadowMesh.removeFromParent();
+            hostiles.splice(ai, 1);
+            continue;
+        }
+
+        // Move toward center
+        const nx = dx / distToCenter;
+        const nz = dz / distToCenter;
+        const step = ud.speed * dt;
+        alien.position.x += nx * step;
+        alien.position.z += nz * step;
+        alien.position.y = getTerrainHeightFast(alien.position.x, alien.position.z);
+
+        // Face movement direction
+        alien.rotation.y = Math.atan2(nx, nz);
+
+        // Walk animation (phase-based leg swing)
+        ud.phase += step * 5;
+        const wp = ud.phase;
+        const walkSin = Math.sin(wp);
+        alien.position.y += Math.abs(walkSin) * 0.06;
+
+        const jts = ud.joints;
+        if (jts && jts.legs) {
+            for (let li = 0; li < jts.legs.length; li++) {
+                const leg = jts.legs[li];
+                const offset = (li / jts.legs.length) * Math.PI * 2;
+                const swing = Math.sin(wp * 1.2 + offset);
+                leg.hip.rotation.x = swing * 0.5;
+                leg.knee.rotation.x = Math.max(0, -swing) * 0.7;
+            }
+        }
+
+        // Head bob + mandible snap
+        if (jts && jts.head) {
+            jts.head.rotation.x = Math.sin(wp * 2) * 0.08;
+            jts.head.rotation.y = Math.sin(time * 1.5 + ai) * 0.1;
+        }
+        if (jts && jts.mandibleL && jts.mandibleR) {
+            const snap = Math.sin(time * 3 + ai * 2) * 0.2;
+            jts.mandibleL.rotation.y = -Math.abs(snap);
+            jts.mandibleR.rotation.y = Math.abs(snap);
+        }
+
+        // Shadow
+        if (ud.shadowMesh) {
+            const gH = getTerrainHeightFast(alien.position.x, alien.position.z) + 0.1;
+            ud.shadowMesh.position.set(alien.position.x, gH, alien.position.z);
+            ud.shadowMesh.material.opacity = 0.45;
+        }
+
+        // Death animation (shrinking)
+        if (ud._dying) {
+            ud._deathTimer = (ud._deathTimer || 0) + dt;
+            const t = ud._deathTimer / 0.4; // 0.4s death
+            alien.scale.setScalar(Math.max(0, 1 - t));
+            if (t >= 1) {
+                alien.removeFromParent();
+                if (ud.shadowMesh) ud.shadowMesh.removeFromParent();
+                hostiles.splice(ai, 1);
+            }
+            continue; // skip combat checks for dying aliens
+        }
+    }
+
+    // --- 9f. Soldier auto-combat (defend colony) ---
+    soldierMeshes.forEach(s => {
+        const ud = s.userData;
+        if (!ud.isSoldier || ud._playerControlled) return;
+
+        // Decrement fire cooldown
+        ud.fireCooldown = Math.max(0, (ud.fireCooldown || 0) - dt);
+
+        // Find nearest hostile in range
+        let nearestHostile = null;
+        let nearestDist = 25; // detection range
+        for (let ai = 0; ai < hostiles.length; ai++) {
+            const alien = hostiles[ai];
+            if (alien.userData._dying) continue;
+            const hdx = alien.position.x - s.position.x;
+            const hdz = alien.position.z - s.position.z;
+            const hDist = Math.sqrt(hdx * hdx + hdz * hdz);
+            if (hDist < nearestDist) {
+                nearestDist = hDist;
+                nearestHostile = alien;
+            }
+        }
+
+        if (nearestHostile) {
+            // Face the target
+            const tdx = nearestHostile.position.x - s.position.x;
+            const tdz = nearestHostile.position.z - s.position.z;
+            const targetRot = Math.atan2(tdx, tdz);
+            let rdiff = targetRot - s.rotation.y;
+            while (rdiff > Math.PI) rdiff -= Math.PI * 2;
+            while (rdiff < -Math.PI) rdiff += Math.PI * 2;
+            s.rotation.y += rdiff * 8 * dt;
+
+            // Aim rifle (arm rotation)
+            const pj = ud.joints;
+            if (pj) {
+                pj.leftArm.rotation.x = -0.8;
+                pj.leftElbow.rotation.x = -0.4;
+                pj.rightArm.rotation.x = -0.3;
+            }
+
+            // Fire when cooldown ready
+            if (ud.fireCooldown <= 0) {
+                ud.fireCooldown = 1.2 + Math.random() * 0.6; // 1.2-1.8s
+
+                // Muzzle flash
+                if (pj && pj.muzzle) {
+                    pj.muzzle.material.opacity = 0.8;
+                    setTimeout(() => { if (pj.muzzle) pj.muzzle.material.opacity = 0; }, 100);
+                }
+
+                // Muzzle world position for tracer
+                const muzzleWorldPos = new THREE.Vector3();
+                if (pj && pj.muzzle) {
+                    pj.muzzle.getWorldPosition(muzzleWorldPos);
+                } else {
+                    muzzleWorldPos.copy(s.position).y += 1.4;
+                }
+
+                // Tracer sprite (fast line from soldier to target)
+                const tracerMat = new THREE.SpriteMaterial({
+                    color: 0xffaa00, transparent: true, opacity: 0.7,
+                    blending: THREE.AdditiveBlending, depthWrite: false,
+                });
+                const tracer = new THREE.Sprite(tracerMat);
+                const midX = (muzzleWorldPos.x + nearestHostile.position.x) / 2;
+                const midY = (muzzleWorldPos.y + nearestHostile.position.y + 0.5) / 2;
+                const midZ = (muzzleWorldPos.z + nearestHostile.position.z) / 2;
+                tracer.position.set(midX, midY, midZ);
+                const tracerLen = nearestDist * 0.4;
+                tracer.scale.set(tracerLen, 0.15, 1);
+                planetState.explorationGroup.add(tracer);
+                const _fadeTracer = () => {
+                    tracerMat.opacity -= 0.12;
+                    if (tracerMat.opacity > 0.05) requestAnimationFrame(_fadeTracer);
+                    else { tracer.removeFromParent(); tracerMat.dispose(); }
+                };
+                requestAnimationFrame(_fadeTracer);
+
+                // Damage the hostile
+                nearestHostile.userData.hp -= 1;
+
+                // Red flash on hit
+                nearestHostile.traverse(child => {
+                    if (child.isMesh && child.material && child.material.emissive) {
+                        child.material.emissive.set(0xff0000);
+                        child.material.emissiveIntensity = 1.0;
+                        setTimeout(() => {
+                            if (child.material) {
+                                child.material.emissive.set(0x330000);
+                                child.material.emissiveIntensity = 0.1;
+                            }
+                        }, 200);
+                    }
+                });
+
+                // Check for death
+                if (nearestHostile.userData.hp <= 0) {
+                    nearestHostile.userData._dying = true;
+                    nearestHostile.userData._deathTimer = 0;
+                }
+            }
+        }
+    });
 
     // --- 10. Drone proximity to harvesters ---
     if (!planetState.placementMode) {
