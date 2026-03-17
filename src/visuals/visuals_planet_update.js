@@ -121,9 +121,10 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         tVel.z *= tankDrag;
 
         // Hull auto-rotates to face velocity direction (smooth lerp)
+        // Tank mesh front is along local +X, so use atan2(-vz, vx)
         const tankSpd = Math.sqrt(tVel.x * tVel.x + tVel.z * tVel.z);
         if (tankSpd > 0.3) {
-            const targetRot = Math.atan2(tVel.x, tVel.z);
+            const targetRot = Math.atan2(-tVel.z, tVel.x);
             let diff = targetRot - controlTarget.rotation.y;
             while (diff > Math.PI) diff -= Math.PI * 2;
             while (diff < -Math.PI) diff += Math.PI * 2;
@@ -131,11 +132,10 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         }
 
         // Turret aims at camera direction (independent of hull)
+        // Cannon extends along +X of turret pivot, so add π/2 offset
         const turretPivot = controlTarget.userData.turretPivot;
         if (turretPivot) {
-            // Turret needs to point at cameraYaw in world space;
-            // since it's a child of hull, subtract hull rotation
-            let targetTurretY = cameraYaw - controlTarget.rotation.y;
+            let targetTurretY = cameraYaw - controlTarget.rotation.y + Math.PI / 2;
             while (targetTurretY > Math.PI) targetTurretY -= Math.PI * 2;
             while (targetTurretY < -Math.PI) targetTurretY += Math.PI * 2;
             let tDiff = targetTurretY - turretPivot.rotation.y;
@@ -183,11 +183,12 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                     idle.sprite.visible = true;
                     idle.sprite.material.opacity = 0.6;
                     idle.sprite.scale.set(0.3, 0.3, 0.3);
-                    const backDir = -controlTarget.rotation.y;
+                    // Tank rear is -X local; backward direction = (-cos(θ), 0, sin(θ))
+                    const rot = controlTarget.rotation.y;
                     const speedFactor = Math.min(tankSpd * 0.2, 4);
-                    idle.vx = Math.sin(backDir) * (speedFactor + 1) + (Math.random() - 0.5) * 0.4;
+                    idle.vx = -Math.cos(rot) * (speedFactor + 1) + (Math.random() - 0.5) * 0.4;
                     idle.vy = 0.5 + Math.random() * 0.5;
-                    idle.vz = Math.cos(backDir) * (speedFactor + 1) + (Math.random() - 0.5) * 0.4;
+                    idle.vz = Math.sin(rot) * (speedFactor + 1) + (Math.random() - 0.5) * 0.4;
                     if (!idle.added && exGroup) {
                         exGroup.add(idle.sprite);
                         idle.added = true;
@@ -213,25 +214,31 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             }
         }
 
-        // --- Hover energy trail marks on ground ---
+        // --- Hover energy trail marks on ground (dual tracks from hover pods) ---
         const trailMarks = controlTarget.userData.trailMarks;
         if (trailMarks) {
             const exGroup = planetState.explorationGroup;
-            if (tankSpd > 2) {
+            if (tankSpd > 1.5) {
                 controlTarget.userData.trailTimer = (controlTarget.userData.trailTimer || 0) + dt;
-                if (controlTarget.userData.trailTimer > 0.1) {
+                const emitInterval = Math.max(0.04, 0.12 - tankSpd * 0.003);
+                if (controlTarget.userData.trailTimer > emitInterval) {
                     controlTarget.userData.trailTimer = 0;
-                    const idle = trailMarks.find(p => p.life <= 0);
-                    if (idle) {
-                        const tx = controlTarget.position.x;
-                        const tz = controlTarget.position.z;
-                        const ty = getTerrainHeightFast(tx, tz) + 0.06;
-                        idle.sprite.position.set(tx, ty, tz);
-                        idle.sprite.material.rotation = controlTarget.rotation.y;
+                    const rot = controlTarget.rotation.y;
+                    // Two trail lines from left and right hover pod rows (z = ±1.4)
+                    const sideOffsets = [-1.4, 1.4];
+                    for (const sideZ of sideOffsets) {
+                        const idle = trailMarks.find(p => p.life <= 0);
+                        if (!idle) break;
+                        // Rear center of each side in local space (-0.5, 0, ±1.4)
+                        const localTrail = new THREE.Vector3(-0.5, 0, sideZ);
+                        controlTarget.localToWorld(localTrail);
+                        const ty = getTerrainHeightFast(localTrail.x, localTrail.z) + 0.05;
+                        idle.sprite.position.set(localTrail.x, ty, localTrail.z);
+                        idle.sprite.material.rotation = rot;
                         idle.life = idle.maxLife;
                         idle.sprite.visible = true;
-                        idle.sprite.material.opacity = 0.3;
-                        idle.sprite.scale.set(2.0, 0.5, 1);
+                        idle.sprite.material.opacity = 0.45;
+                        idle.sprite.scale.set(1.8, 0.4, 1);
                         if (!idle.added && exGroup) {
                             exGroup.add(idle.sprite);
                             idle.added = true;
@@ -243,7 +250,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 if (tm.life <= 0) continue;
                 tm.life -= dt;
                 const frac = tm.life / tm.maxLife;
-                tm.sprite.material.opacity = 0.3 * frac;
+                tm.sprite.material.opacity = 0.45 * frac;
                 if (tm.life <= 0) tm.sprite.visible = false;
             }
         }
@@ -258,11 +265,12 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             muzzle.getWorldPosition(worldPos);
 
             // Fire direction = turret world facing (hull rotation + turret local rotation)
+            // Cannon extends along +X of turret, so direction is (cos, 0, -sin) of compound angle
             const turretWorldY = controlTarget.rotation.y + (turretPivot ? turretPivot.rotation.y : 0);
             const fireDir = new THREE.Vector3(
-                Math.sin(turretWorldY),
+                Math.cos(turretWorldY),
                 -0.02,
-                Math.cos(turretWorldY)
+                -Math.sin(turretWorldY)
             ).normalize();
 
             // Energy bolt projectile
@@ -700,8 +708,25 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         const ip     = ud.idlePhase;
 
         // ── Movement (roaming circle) ──
-        const targetX = ud.originX + Math.cos(p) * roam;
-        const targetZ = ud.originZ + Math.sin(p) * roam;
+        let targetX = ud.originX + Math.cos(p) * roam;
+        let targetZ = ud.originZ + Math.sin(p) * roam;
+
+        // Lake avoidance — push creature out if target falls inside a lake
+        const lakes = planetState.lakeDefs;
+        if (lakes) {
+            for (let li = 0; li < lakes.length; li++) {
+                const lk = lakes[li];
+                const ldx = targetX - lk.x;
+                const ldz = targetZ - lk.z;
+                const lDist = Math.sqrt(ldx * ldx + ldz * ldz);
+                const margin = lk.radius + 2;
+                if (lDist < margin) {
+                    const pushDir = lDist > 0.01 ? 1 / lDist : 1;
+                    targetX = lk.x + ldx * pushDir * margin;
+                    targetZ = lk.z + ldz * pushDir * margin;
+                }
+            }
+        }
 
         c.position.x = THREE.MathUtils.lerp(c.position.x, targetX, 0.5 * dt);
         c.position.z = THREE.MathUtils.lerp(c.position.z, targetZ, 0.5 * dt);
@@ -821,6 +846,29 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         planetState.lakeMeshes.forEach(lm => {
             lm.userData.time += dt;
             lm.position.y = lm.userData.baseY + Math.sin(lm.userData.time * 0.6) * 0.15;
+        });
+    }
+
+    // --- 8b2. Alien fish animation ---
+    if (planetState.lakeFish) {
+        planetState.lakeFish.forEach(f => {
+            const ud = f.userData;
+            ud.swimPhase += dt * ud.swimSpeed;
+            const phase = ud.swimPhase;
+            // Circular swimming path within lake
+            const fx = ud.lakeX + Math.cos(phase) * ud.swimRadius;
+            const fz = ud.lakeZ + Math.sin(phase) * ud.swimRadius;
+            f.position.x = fx;
+            f.position.z = fz;
+            // Gentle vertical bob below water surface
+            f.position.y = ud.waterY - ud.depthOffset + Math.sin(phase * 2.5) * 0.15;
+            // Face swimming direction
+            f.rotation.y = -phase + Math.PI / 2;
+            // Tail wiggle
+            if (ud.tail || f.children[1]) {
+                const tail = ud.tail || f.children[1];
+                tail.rotation.y = Math.sin(phase * 8) * 0.35;
+            }
         });
     }
 
@@ -1646,8 +1694,28 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         const nx = dx / distToCenter;
         const nz = dz / distToCenter;
         const step = ud.speed * dt;
-        alien.position.x += nx * step;
-        alien.position.z += nz * step;
+        let newAX = alien.position.x + nx * step;
+        let newAZ = alien.position.z + nz * step;
+
+        // Lake avoidance — steer around lakes
+        const aLakes = planetState.lakeDefs;
+        if (aLakes) {
+            for (let li = 0; li < aLakes.length; li++) {
+                const lk = aLakes[li];
+                const aldx = newAX - lk.x;
+                const aldz = newAZ - lk.z;
+                const alDist = Math.sqrt(aldx * aldx + aldz * aldz);
+                const aMargin = lk.radius + 2;
+                if (alDist < aMargin && alDist > 0.01) {
+                    // Push out to lake edge + steer tangentially
+                    newAX = lk.x + (aldx / alDist) * aMargin;
+                    newAZ = lk.z + (aldz / alDist) * aMargin;
+                }
+            }
+        }
+
+        alien.position.x = newAX;
+        alien.position.z = newAZ;
         alien.position.y = getTerrainHeightFast(alien.position.x, alien.position.z);
 
         // Face movement direction

@@ -327,6 +327,16 @@ export function createPlanetProps(planetType, group, heightFn) {
     const propMat = mat(propColor, 0, 0, false, 1, 0.9);
     const crystalMat = mat(0x00f2ff, 0x0044aa, 0.5, true, 0.8, 0.2);
 
+    // Lake exclusion — no rocks/vegetation inside lakes
+    const lakeDefs = _generateLakePositions(planetType);
+    const _insideLake = (px, pz) => {
+        for (const lk of lakeDefs) {
+            const dx = px - lk.x, dz = pz - lk.z;
+            if (dx * dx + dz * dz < (lk.radius + 3) * (lk.radius + 3)) return true;
+        }
+        return false;
+    };
+
     const propCount = isMobileDevice ? 80 : 150;
     const propGeo   = new THREE.DodecahedronGeometry(1, 0);
     const crystalGeo = new THREE.ConeGeometry(0.5, 3, 4);
@@ -341,6 +351,7 @@ export function createPlanetProps(planetType, group, heightFn) {
         const theta = Math.random() * Math.PI * 2;
         const x = r * Math.cos(theta);
         const z = r * Math.sin(theta);
+        if (_insideLake(x, z)) continue;
         const yBase = heightFn(x, z);
 
         const isCrystal = Math.random() > 0.9;
@@ -425,6 +436,7 @@ export function createPlanetProps(planetType, group, heightFn) {
             const theta = Math.random() * Math.PI * 2;
             const x = r * Math.cos(theta);
             const z = r * Math.sin(theta);
+            if (_insideLake(x, z)) continue;
             const yBase = heightFn(x, z);
             const roll = Math.random();
             const scale = 0.5 + Math.random() * 0.8;
@@ -1174,7 +1186,7 @@ const LAKE_TYPES = {
  * per planet but varied. All lakes are guaranteed to be far from the colony at origin.
  */
 const COLONY_EXCLUSION = 65; // Colony buildings extend to ~22, safe zone to ~40; add generous buffer
-function _generateLakePositions(planetType) {
+export function _generateLakePositions(planetType) {
     const lakes = [];
     const count = isMobileDevice ? 2 : 3;
 
@@ -1184,7 +1196,7 @@ function _generateLakePositions(planetType) {
     lakes.push({
         x: Math.cos(nearAngle) * nearDist,
         z: Math.sin(nearAngle) * nearDist,
-        radius: 18 + (planetType.length % 3) * 4,
+        radius: 28 + (planetType.length % 3) * 6,
     });
 
     // Additional lakes scattered around the map
@@ -1192,7 +1204,7 @@ function _generateLakePositions(planetType) {
     for (let i = 1; i < count; i++) {
         const angle = (seed + i * 2.4) % (Math.PI * 2);
         const dist = 140 + ((seed * i * 7) % 110);
-        const r = 14 + ((seed * i) % 12);
+        const r = 24 + ((seed * i) % 14);
         lakes.push({
             x: Math.cos(angle) * dist,
             z: Math.sin(angle) * dist,
@@ -1208,17 +1220,63 @@ function _generateLakePositions(planetType) {
 }
 
 /**
- * Creates lake water meshes, shore vegetation, and returns collision data.
+ * Builds a small alien fish mesh — bioluminescent body with tail fin.
+ */
+function _buildAlienFish(bodyColor, glowColor, scale) {
+    const g = new THREE.Group();
+    const bodyGeo = new THREE.SphereGeometry(0.3 * scale, 6, 5);
+    bodyGeo.scale(1.8, 1, 1);
+    g.add(new THREE.Mesh(bodyGeo, mat(bodyColor, glowColor, 0.6, false, 1, 0.4)));
+    // Tail fin
+    const tailGeo = new THREE.ConeGeometry(0.25 * scale, 0.5 * scale, 4);
+    tailGeo.rotateZ(Math.PI / 2);
+    const tail = new THREE.Mesh(tailGeo, mat(bodyColor, glowColor, 0.3, true, 0.8, 0.5));
+    tail.position.x = -0.45 * scale;
+    g.add(tail);
+    // Dorsal fin
+    const finGeo = new THREE.ConeGeometry(0.12 * scale, 0.3 * scale, 3);
+    const fin = new THREE.Mesh(finGeo, mat(bodyColor, glowColor, 0.4, true, 0.7, 0.5));
+    fin.position.y = 0.25 * scale;
+    g.add(fin);
+    // Bioluminescent eye spots
+    const eyeGeo = new THREE.SphereGeometry(0.06 * scale, 4, 4);
+    const eyeMat = mat(glowColor, glowColor, 1.0, false, 1, 0.2);
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(0.35 * scale, 0.08 * scale, 0.12 * scale);
+    g.add(eyeL);
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeR.position.set(0.35 * scale, 0.08 * scale, -0.12 * scale);
+    g.add(eyeR);
+    g.userData.tail = tail;
+    return g;
+}
+
+const FISH_COLORS = {
+    'Terran':      { body: 0x22aa88, glow: 0x44ffcc },
+    'Continental': { body: 0x3388aa, glow: 0x55ccff },
+    'Ocean':       { body: 0x2266cc, glow: 0x44aaff },
+    'Ice':         { body: 0x88bbdd, glow: 0xaaddff },
+    'Arctic':      { body: 0x77aacc, glow: 0x99ccee },
+    'Desert':      { body: 0x44aa77, glow: 0x66ddaa },
+    'Molten':      { body: 0xcc4400, glow: 0xff6600 },
+    'Barren':      { body: 0x666655, glow: 0x998877 },
+    'Tomb':        { body: 0x33aa22, glow: 0x55ff33 },
+};
+
+/**
+ * Creates lake water meshes, shore vegetation, fish, and returns collision data.
  * Carves basins into the terrain mesh so water is visible above the ground.
  */
 export function createLakes(planetType, group, heightFn, terrainMesh) {
     const conf = LAKE_TYPES[planetType];
-    if (!conf) return { meshes: [], collisions: [] };
+    if (!conf) return { meshes: [], collisions: [], fish: [], lakeDefs: [] };
 
     const lakeDefs = _generateLakePositions(planetType);
     const meshes = [];
     const collisions = [];
+    const fish = [];
     const vegCfg = getVegetationConfig(planetType);
+    const fishCfg = FISH_COLORS[planetType] || FISH_COLORS['Terran'];
 
     // Carve basins into the terrain so lake beds are below the water surface
     if (terrainMesh) carveLakeBasins(terrainMesh, lakeDefs);
@@ -1331,11 +1389,35 @@ export function createLakes(planetType, group, heightFn, terrainMesh) {
             }
         }
 
+        // ── Alien fish swimming in the lake ──
+        const fishCount = isMobileDevice ? 3 : 6;
+        for (let fi = 0; fi < fishCount; fi++) {
+            const fScale = 0.6 + Math.random() * 0.8;
+            const fishMesh = _buildAlienFish(fishCfg.body, fishCfg.glow, fScale);
+            const swimRadius = 3 + Math.random() * (lake.radius * 0.6);
+            const startAngle = Math.random() * Math.PI * 2;
+            fishMesh.position.set(
+                lake.x + Math.cos(startAngle) * swimRadius,
+                waterY - 0.3 - Math.random() * 0.8,
+                lake.z + Math.sin(startAngle) * swimRadius
+            );
+            fishMesh.userData.lakeX = lake.x;
+            fishMesh.userData.lakeZ = lake.z;
+            fishMesh.userData.lakeRadius = lake.radius;
+            fishMesh.userData.waterY = waterY;
+            fishMesh.userData.swimRadius = swimRadius;
+            fishMesh.userData.swimPhase = startAngle;
+            fishMesh.userData.swimSpeed = 0.3 + Math.random() * 0.4;
+            fishMesh.userData.depthOffset = 0.3 + Math.random() * 0.8;
+            group.add(fishMesh);
+            fish.push(fishMesh);
+        }
+
         // Collision: treat the whole lake as a large circular obstacle
         collisions.push({ x: lake.x, z: lake.z, r: lake.radius, topY: waterY + 0.5 });
     }
 
-    return { meshes, collisions };
+    return { meshes, collisions, fish, lakeDefs };
 }
 
 /**

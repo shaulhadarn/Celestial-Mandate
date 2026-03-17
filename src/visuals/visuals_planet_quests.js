@@ -554,21 +554,64 @@ export function updateQuestProximity(dt) {
 
 // ── Quest Tracker UI ────────────────────────────────────────────────────────
 
+const _isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+let _mobileQuestOpen = false;
+
+// Wire mobile toggle button once
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('quest-toggle-btn');
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _mobileQuestOpen = !_mobileQuestOpen;
+                const tracker = document.getElementById('quest-tracker');
+                if (tracker) {
+                    if (_mobileQuestOpen) {
+                        tracker.classList.remove('mobile-collapsed');
+                    } else {
+                        tracker.classList.add('mobile-collapsed');
+                    }
+                }
+            });
+        }
+    });
+}
+
 export function updateQuestTrackerUI() {
     const tracker = document.getElementById('quest-tracker');
     if (!tracker) return;
 
     const quests = planetState.quests || [];
+    const toggleBtn = document.getElementById('quest-toggle-btn');
+
     if (quests.length === 0) {
         tracker.classList.add('hidden');
+        if (toggleBtn) toggleBtn.classList.add('hidden');
         return;
     }
 
     tracker.classList.remove('hidden');
 
+    // Mobile: show toggle button, collapse tracker by default
+    if (_isMobile) {
+        if (toggleBtn) toggleBtn.classList.remove('hidden');
+        if (!_mobileQuestOpen) {
+            tracker.classList.add('mobile-collapsed');
+        }
+    }
+
     const completedCount = quests.filter(q => q.status === 'complete').length;
+    const activeCount = quests.length - completedCount;
+
     const countEl = document.getElementById('qt-count');
     if (countEl) countEl.textContent = `${completedCount}/${quests.length}`;
+
+    // Update mobile badge
+    if (toggleBtn) {
+        const badge = document.getElementById('quest-toggle-badge');
+        if (badge) badge.textContent = activeCount > 0 ? activeCount : '';
+    }
 
     const listEl = document.getElementById('qt-list');
     if (!listEl) return;
@@ -599,6 +642,15 @@ export function updateQuestTrackerUI() {
         `;
         listEl.appendChild(item);
     }
+}
+
+/** Hide quest UI elements (called when leaving planet) */
+export function hideQuestTracker() {
+    const tracker = document.getElementById('quest-tracker');
+    if (tracker) tracker.classList.add('hidden');
+    const toggleBtn = document.getElementById('quest-toggle-btn');
+    if (toggleBtn) toggleBtn.classList.add('hidden');
+    _mobileQuestOpen = false;
 }
 
 // ── Quest info tooltip (on tap) ─────────────────────────────────────────────

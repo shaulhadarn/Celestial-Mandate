@@ -20,6 +20,8 @@ const planetState = {
     hazeMesh: null,
     grassData: null,
     lakeMeshes: [],
+    lakeFish: [],
+    lakeDefs: [],
 
     // Camera orbit parameters (written by input handlers, read by update loop)
     cameraYaw: Math.PI,

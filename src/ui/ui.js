@@ -254,6 +254,8 @@ export function initUI() {
             if (exH) exH.classList.add('hidden');
             const uP = document.getElementById('unit-panel');
             if (uP) uP.classList.add('hidden');
+            const tfb = document.getElementById('tank-fire-btn');
+            if (tfb) tfb.classList.add('hidden');
             const qT = document.getElementById('quest-tracker');
             if (qT) qT.classList.add('hidden');
         }
@@ -485,6 +487,8 @@ async function returnToSystemViewFromPlanet() {
     if (unitPanel) unitPanel.classList.add('hidden');
     const soldierBar = document.getElementById('soldier-control-bar');
     if (soldierBar) soldierBar.classList.add('hidden');
+    const tankFireBtn = document.getElementById('tank-fire-btn');
+    if (tankFireBtn) tankFireBtn.classList.add('hidden');
     const questTracker = document.getElementById('quest-tracker');
     if (questTracker) questTracker.classList.add('hidden');
     const questTooltip = document.getElementById('quest-tap-tooltip');

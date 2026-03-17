@@ -16,7 +16,7 @@ import { createDroneMesh, createShadowSprite } from './visuals_planet_drone.js';
 import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers, createGroundMist, createAtmosphericHaze, createLakes } from './visuals_planet_environment.js';
 import { hasGrass, createGrassMesh } from './visuals_planet_grass.js';
 import { renderColonyGroundBuildings, soldierMeshes, buildTankMesh } from './visuals_planet_colony.js';
-import { generatePlanetQuests, createQuestMarkers, updateQuestTrackerUI, showQuestTooltip, hideQuestTooltip } from './visuals_planet_quests.js';
+import { generatePlanetQuests, createQuestMarkers, updateQuestTrackerUI, showQuestTooltip, hideQuestTooltip, hideQuestTracker } from './visuals_planet_quests.js';
 
 // Sub-modules — import also registers the mouse/touch listeners (self-invoking init)
 import { handleInput, setJoystickInput } from './visuals_planet_input.js';
@@ -128,7 +128,8 @@ function _deployTank() {
     const gz = drone.position.z;
     const gy = getTerrainHeight(gx, gz);
     tank.position.set(gx, gy, gz);
-    tank.rotation.y = planetState.cameraYaw;
+    // Tank front is +X; offset by π/2 so it faces away from camera
+    tank.rotation.y = planetState.cameraYaw + Math.PI / 2;
     planetState.explorationGroup.add(tank);
     planetState.tankMesh = tank;
     planetState._tankDeployed = true;
@@ -277,6 +278,7 @@ export function handleExplorationTap(raycaster, mouse, camera) {
 export function createPlanetVisuals(planetData, group) {
     exitPlacementMode();
     resetCachedDOM();
+    hideQuestTracker();
     _switchToDrone();                 // reset soldier control on planet change
     _hideBuildingInfo();
     planetState.planetProps = [];
@@ -286,6 +288,8 @@ export function createPlanetVisuals(planetData, group) {
     planetState.hazeMesh = null;
     planetState.grassData = null;
     planetState.lakeMeshes = [];
+    planetState.lakeFish = [];
+    planetState.lakeDefs = [];
     planetState.dustMesh = null;
     planetState.tankMesh = null;
     planetState.tankProjectiles = [];
@@ -387,6 +391,8 @@ export function createPlanetVisuals(planetData, group) {
     // 4b. Lakes (water bodies with shore vegetation) — pass terrainMesh so basins can be carved
     const lakeResult = createLakes(planetData.type, group, getTerrainHeight, planetState.terrainMesh);
     planetState.lakeMeshes = lakeResult.meshes;
+    planetState.lakeFish = lakeResult.fish || [];
+    planetState.lakeDefs = lakeResult.lakeDefs || [];
     // Add lake shore vegetation collisions to prop list
     lakeResult.collisions.forEach(c => planetState.planetProps.push(c));
 

@@ -419,14 +419,14 @@ export function updateShipFlight(dt, camera) {
         // Normalize to [-PI, PI]
         while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
         while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-        // Smooth turn — faster at higher speed
-        const turnSpeed = Math.min(1, 5 * dt);
+        // Smooth turn — gentle for a premium space-flight feel
+        const turnSpeed = Math.min(1, 2 * dt);
         _euler.y += yawDelta * turnSpeed;
     }
 
     // Banking based on angular change
-    const bankTarget = THREE.MathUtils.clamp(-yawDelta * 0.5, -0.6, 0.6);
-    systemShipState.bankAngle = THREE.MathUtils.lerp(systemShipState.bankAngle, bankTarget, 5 * dt);
+    const bankTarget = THREE.MathUtils.clamp(-yawDelta * 0.35, -0.45, 0.45);
+    systemShipState.bankAngle = THREE.MathUtils.lerp(systemShipState.bankAngle, bankTarget, 3 * dt);
 
     // Apply orientation (level ship — no pitch, auto-yaw, visual bank)
     _euler.x = 0;

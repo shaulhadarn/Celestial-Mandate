@@ -179,12 +179,77 @@
     color: rgba(255, 170, 0, 0.85);
 }
 
+/* ── Quest Toggle Button (mobile only) ─────────────────────────────────── */
+#quest-toggle-btn {
+    display: none;
+}
+
+#quest-toggle-btn.hidden {
+    display: none !important;
+}
+
 /* ── Mobile adjustments ──────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+    #quest-toggle-btn {
+        display: flex;
+        position: fixed;
+        top: 100px;
+        left: 10px;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: rgba(4, 10, 22, 0.88);
+        border: 1px solid rgba(0, 242, 255, 0.25);
+        color: #fff;
+        font-size: 18px;
+        align-items: center;
+        justify-content: center;
+        z-index: 450;
+        cursor: pointer;
+        pointer-events: auto;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+        -webkit-tap-highlight-color: transparent;
+        padding: 0;
+    }
+
+    #quest-toggle-btn.hidden {
+        display: none !important;
+    }
+
+    #quest-toggle-btn:active {
+        background: rgba(0, 242, 255, 0.15);
+    }
+
+    #quest-toggle-badge {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        min-width: 16px;
+        height: 16px;
+        font-size: 9px;
+        font-weight: bold;
+        line-height: 16px;
+        text-align: center;
+        background: rgba(0, 242, 255, 0.8);
+        color: #000;
+        border-radius: 8px;
+        padding: 0 3px;
+        font-family: 'Rajdhani', sans-serif;
+    }
+
+    #quest-toggle-badge:empty {
+        display: none;
+    }
+
+    /* On mobile, quest tracker is hidden by default and shown via toggle */
     #quest-tracker {
-        width: 200px;
+        width: 220px;
         top: 100px;
         left: 8px;
+    }
+
+    #quest-tracker.mobile-collapsed {
+        display: none;
     }
 
     .qt-item-label {

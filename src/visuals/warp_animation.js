@@ -137,7 +137,10 @@ export function playWarpAnimation({ onPrepare, onFlash } = {}) {
                     const trailKeep = 0.06 + (1 - (t - P_ENGAGE) / (P_FLASH - P_ENGAGE)) * 0.18;
                     ctx.fillStyle = 'rgba(1,3,8,' + trailKeep + ')';
                 } else {
-                    ctx.fillStyle = 'rgba(1,3,8,0.55)';
+                    // Smoothly ramp from 0.06 to 0.55 over the flash phase
+                    const flashU = (t - P_FLASH) / (P_PEAK - P_FLASH);
+                    const trailAlpha = 0.06 + flashU * 0.49;
+                    ctx.fillStyle = 'rgba(1,3,8,' + trailAlpha + ')';
                 }
                 ctx.fillRect(0, 0, w, h);
 
@@ -254,15 +257,22 @@ export function playWarpAnimation({ onPrepare, onFlash } = {}) {
                 // ── Central engine glow ─────────────────────────────────
                 if (t > P_IDLE) {
                     const u = Math.min((t - P_IDLE) / (P_FLASH - P_IDLE), 1);
+                    // Fade out smoothly during flash phase so it blends into the white
+                    let glowFade = 1;
+                    if (t >= P_FLASH) {
+                        glowFade = 1 - easeOutQuint((t - P_FLASH) / (P_PEAK - P_FLASH));
+                    }
                     const radius = 20 + u * u * diag * 0.22;
-                    const alpha = u * u * 0.35;
-                    ctx.globalCompositeOperation = 'lighter';
-                    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-                    grad.addColorStop(0, 'rgba(200,230,255,' + alpha + ')');
-                    grad.addColorStop(0.3, 'rgba(80,180,255,' + (alpha * 0.5) + ')');
-                    grad.addColorStop(1, 'rgba(0,40,100,0)');
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(0, 0, w, h);
+                    const alpha = u * u * 0.35 * glowFade;
+                    if (alpha > 0.002) {
+                        ctx.globalCompositeOperation = 'lighter';
+                        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+                        grad.addColorStop(0, 'rgba(200,230,255,' + alpha + ')');
+                        grad.addColorStop(0.3, 'rgba(80,180,255,' + (alpha * 0.5) + ')');
+                        grad.addColorStop(1, 'rgba(0,40,100,0)');
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(0, 0, w, h);
+                    }
                 }
 
                 // ── Flash build-up ──────────────────────────────────────

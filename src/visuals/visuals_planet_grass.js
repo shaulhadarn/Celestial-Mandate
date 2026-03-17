@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { isMobile as isMobileDevice } from '../core/device.js';
 import { getTerrainHeightFast } from './visuals_planet_terrain.js';
+import { _generateLakePositions } from './visuals_planet_environment.js';
 
 // ── Grass configuration per planet type ─────────────────────────────────────
 
@@ -135,26 +136,50 @@ export function createGrassMesh(planetType) {
     const halfRootAngleCoses = new Float32Array(instances);
     const phases             = new Float32Array(instances); // per-blade random phase to break wind sync
 
+    // Lake exclusion — no grass inside lakes
+    const lakeDefs = _generateLakePositions(planetType);
+    const _insideLake = (px, pz) => {
+        for (const lk of lakeDefs) {
+            const dx = px - lk.x, dz = pz - lk.z;
+            if (dx * dx + dz * dz < (lk.radius + 2) * (lk.radius + 2)) return true;
+        }
+        return false;
+    };
+
     const minTilt = -0.25;
     const maxTilt =  0.25;
 
     for (let i = 0; i < instances; i++) {
         // Random position within scatter square
-        const ox = Math.random() * width - width / 2;
-        const oz = Math.random() * width - width / 2;
+        let ox = Math.random() * width - width / 2;
+        let oz = Math.random() * width - width / 2;
 
         // Skip blades that fall inside the flattened center (colony area)
         const dist = Math.sqrt(ox * ox + oz * oz);
         if (dist < 30) {
-            // Push blade further out
             const angle = Math.atan2(oz, ox);
             const pushDist = 30 + Math.random() * 5;
-            offsets[i * 3]     = Math.cos(angle) * pushDist;
-            offsets[i * 3 + 2] = Math.sin(angle) * pushDist;
-        } else {
-            offsets[i * 3]     = ox;
-            offsets[i * 3 + 2] = oz;
+            ox = Math.cos(angle) * pushDist;
+            oz = Math.sin(angle) * pushDist;
         }
+
+        // Push blades out of lakes
+        if (_insideLake(ox, oz)) {
+            for (const lk of lakeDefs) {
+                const dx = ox - lk.x, dz = oz - lk.z;
+                const d = Math.sqrt(dx * dx + dz * dz);
+                if (d < lk.radius + 2) {
+                    const a = Math.atan2(dz, dx);
+                    const pushR = lk.radius + 2 + Math.random() * 3;
+                    ox = lk.x + Math.cos(a) * pushR;
+                    oz = lk.z + Math.sin(a) * pushR;
+                    break;
+                }
+            }
+        }
+
+        offsets[i * 3]     = ox;
+        offsets[i * 3 + 2] = oz;
         // Y will be set from terrain height
         offsets[i * 3 + 1] = getTerrainHeightFast(offsets[i * 3], offsets[i * 3 + 2]);
 

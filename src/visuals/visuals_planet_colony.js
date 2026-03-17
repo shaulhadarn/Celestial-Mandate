@@ -1144,24 +1144,24 @@ export function buildTankMesh() {
         });
     }
 
-    // ── Hover trail marks (energy scorch on ground) ──
+    // ── Hover trail marks (energy scorch on ground — dual tracks) ──
     const trailMarks = [];
-    for (let ti = 0; ti < 20; ti++) {
+    for (let ti = 0; ti < 50; ti++) {
         const tMat = new THREE.SpriteMaterial({
             map: smokeTex,
-            color: 0x1a3050,
+            color: 0x2288bb,
             transparent: true,
             opacity: 0,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
         });
         const tsp = new THREE.Sprite(tMat);
-        tsp.scale.set(2.0, 0.5, 1);
+        tsp.scale.set(1.8, 0.4, 1);
         tsp.visible = false;
         trailMarks.push({
             sprite: tsp,
             life: 0,
-            maxLife: 2.0,
+            maxLife: 2.5,
             added: false,
         });
     }
@@ -1834,8 +1834,8 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
 // ── Colony Shield Dome ──────────────────────────────────────────────────────
 
 function _buildColonyShield(group) {
-    const SHIELD_RADIUS = 22;
-    const SHIELD_MAX_HP = 100;
+    const SHIELD_RADIUS = 38;
+    const SHIELD_MAX_HP = 120;
 
     // Inner translucent dome
     const domeMat = new THREE.MeshStandardMaterial({
