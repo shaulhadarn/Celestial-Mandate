@@ -90,9 +90,9 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     }
 
     if (controlTarget && controlTarget.userData.isTank) {
-        // --- 2b/3b. Tank movement (camera-relative, same as soldier) ---
-        const tankSpeed = 35;
-        const tankDrag = 0.88;
+        // --- 2b/3b. Space tank movement (camera-relative) ---
+        const tankSpeed = 38;
+        const tankDrag = 0.90;
         const tVel = controlTarget.userData.velocity;
 
         // Use the pre-computed camera-relative _inputDir (WASD/joystick)
@@ -109,10 +109,11 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         controlTarget.position.z += tVel.z * dt;
         controlTarget.position.y += tVel.y * dt;
 
-        // Ground collision
+        // Ground collision — hover 0.3 above terrain
         const tankGroundH = getTerrainHeightFast(controlTarget.position.x, controlTarget.position.z);
-        if (controlTarget.position.y <= tankGroundH) {
-            controlTarget.position.y = tankGroundH;
+        const hoverH = tankGroundH + 0.3;
+        if (controlTarget.position.y <= hoverH) {
+            controlTarget.position.y = hoverH;
             tVel.y = 0;
         }
 
@@ -126,98 +127,111 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             let diff = targetRot - controlTarget.rotation.y;
             while (diff > Math.PI) diff -= Math.PI * 2;
             while (diff < -Math.PI) diff += Math.PI * 2;
-            controlTarget.rotation.y += diff * 8 * dt;
+            controlTarget.rotation.y += diff * 6 * dt;
         }
 
-        // Turret aligns with hull (faces movement direction)
+        // Turret aims at camera direction (independent of hull)
         const turretPivot = controlTarget.userData.turretPivot;
         if (turretPivot) {
-            turretPivot.rotation.y += -turretPivot.rotation.y * 10 * dt;
+            // Turret needs to point at cameraYaw in world space;
+            // since it's a child of hull, subtract hull rotation
+            let targetTurretY = cameraYaw - controlTarget.rotation.y;
+            while (targetTurretY > Math.PI) targetTurretY -= Math.PI * 2;
+            while (targetTurretY < -Math.PI) targetTurretY += Math.PI * 2;
+            let tDiff = targetTurretY - turretPivot.rotation.y;
+            while (tDiff > Math.PI) tDiff -= Math.PI * 2;
+            while (tDiff < -Math.PI) tDiff += Math.PI * 2;
+            turretPivot.rotation.y += tDiff * 10 * dt;
+        }
+
+        // Hover bob effect
+        controlTarget.userData.hoverTime = (controlTarget.userData.hoverTime || 0) + dt;
+        const hoverBob = Math.sin(controlTarget.userData.hoverTime * 3.0) * 0.08;
+        controlTarget.position.y += hoverBob;
+
+        // Animate hover pod glow intensity
+        const hoverPods = controlTarget.userData.hoverPods;
+        if (hoverPods) {
+            const pulse = 0.7 + Math.sin(controlTarget.userData.hoverTime * 5) * 0.3;
+            hoverPods.forEach(pod => { pod.material.emissiveIntensity = pulse; });
         }
 
         // Shadow
         if (controlTarget.userData.shadowMesh) {
             const sm = controlTarget.userData.shadowMesh;
-            sm.position.set(controlTarget.position.x, tankGroundH + 0.1, controlTarget.position.z);
-            sm.material.opacity = 0.5;
+            sm.position.set(controlTarget.position.x, tankGroundH + 0.05, controlTarget.position.z);
+            sm.material.opacity = 0.45;
         }
 
-        // --- Exhaust smoke from rear pipes ---
+        // --- Thruster exhaust from rear vents ---
         const exhaustParts = controlTarget.userData.exhaustParticles;
         if (exhaustParts) {
             const exGroup = planetState.explorationGroup;
-            // Emit smoke when moving (or idle puffs at lower rate)
-            const emitRate = tankSpd > 1 ? 0.04 : 0.25;
+            const emitRate = tankSpd > 1 ? 0.03 : 0.2;
             controlTarget.userData.exhaustTimer = (controlTarget.userData.exhaustTimer || 0) + dt;
             if (controlTarget.userData.exhaustTimer > emitRate) {
                 controlTarget.userData.exhaustTimer = 0;
-                // Emit from both exhaust pipes
-                for (let ei = 0; ei < 2; ei++) {
+                // Emit from 3 rear thruster vents
+                const vents = [-0.6, 0, 0.6];
+                for (let ei = 0; ei < vents.length; ei++) {
                     const idle = exhaustParts.find(p => p.life <= 0);
                     if (!idle) break;
-                    // Exhaust pipe positions in local space: (-1.95, 0.9, ±0.4)
-                    const localPos = new THREE.Vector3(-1.95, 0.9, ei === 0 ? -0.4 : 0.4);
+                    const localPos = new THREE.Vector3(-2.5, 0.75, vents[ei]);
                     controlTarget.localToWorld(localPos);
                     idle.sprite.position.copy(localPos);
                     idle.life = idle.maxLife;
                     idle.sprite.visible = true;
-                    idle.sprite.material.opacity = 0.5;
-                    idle.sprite.scale.set(0.4, 0.4, 0.4);
-                    // Drift upward and slightly backward
+                    idle.sprite.material.opacity = 0.6;
+                    idle.sprite.scale.set(0.3, 0.3, 0.3);
                     const backDir = -controlTarget.rotation.y;
-                    const speedFactor = Math.min(tankSpd * 0.15, 3);
-                    idle.vx = Math.sin(backDir) * speedFactor + (Math.random() - 0.5) * 0.5;
-                    idle.vy = 1.5 + Math.random() * 1.0;
-                    idle.vz = Math.cos(backDir) * speedFactor + (Math.random() - 0.5) * 0.5;
+                    const speedFactor = Math.min(tankSpd * 0.2, 4);
+                    idle.vx = Math.sin(backDir) * (speedFactor + 1) + (Math.random() - 0.5) * 0.4;
+                    idle.vy = 0.5 + Math.random() * 0.5;
+                    idle.vz = Math.cos(backDir) * (speedFactor + 1) + (Math.random() - 0.5) * 0.4;
                     if (!idle.added && exGroup) {
                         exGroup.add(idle.sprite);
                         idle.added = true;
                     }
                 }
             }
-            // Update live particles
             for (const p of exhaustParts) {
                 if (p.life <= 0) continue;
                 p.life -= dt;
-                const t = 1 - p.life / p.maxLife; // 0→1 over lifetime
+                const t = 1 - p.life / p.maxLife;
                 p.sprite.position.x += p.vx * dt;
                 p.sprite.position.y += p.vy * dt;
                 p.sprite.position.z += p.vz * dt;
-                p.vy *= 0.97; // slow vertical drift
-                const s = 0.4 + t * 2.0; // grow from 0.4 to 2.4
+                p.vy *= 0.95;
+                const s = 0.3 + t * 1.5;
                 p.sprite.scale.set(s, s, s);
-                p.sprite.material.opacity = Math.max(0, 0.45 * (1 - t));
-                // Lighten color as smoke dissipates
-                const gray = 0.33 + t * 0.4;
-                p.sprite.material.color.setRGB(gray, gray, gray);
-                if (p.life <= 0) {
-                    p.sprite.visible = false;
-                }
+                p.sprite.material.opacity = Math.max(0, 0.5 * (1 - t));
+                // Fade from blue to white
+                const r = 0.2 + t * 0.6;
+                const gb = 0.5 + t * 0.4;
+                p.sprite.material.color.setRGB(r, gb, 1.0);
+                if (p.life <= 0) p.sprite.visible = false;
             }
         }
 
-        // --- Track trail marks on ground ---
+        // --- Hover energy trail marks on ground ---
         const trailMarks = controlTarget.userData.trailMarks;
         if (trailMarks) {
             const exGroup = planetState.explorationGroup;
-            // Only emit trails when actually moving
             if (tankSpd > 2) {
                 controlTarget.userData.trailTimer = (controlTarget.userData.trailTimer || 0) + dt;
-                const trailRate = 0.08;
-                if (controlTarget.userData.trailTimer > trailRate) {
+                if (controlTarget.userData.trailTimer > 0.1) {
                     controlTarget.userData.trailTimer = 0;
                     const idle = trailMarks.find(p => p.life <= 0);
                     if (idle) {
                         const tx = controlTarget.position.x;
                         const tz = controlTarget.position.z;
-                        const ty = getTerrainHeightFast(tx, tz) + 0.08;
+                        const ty = getTerrainHeightFast(tx, tz) + 0.06;
                         idle.sprite.position.set(tx, ty, tz);
-                        // Rotate trail to match tank heading
                         idle.sprite.material.rotation = controlTarget.rotation.y;
                         idle.life = idle.maxLife;
                         idle.sprite.visible = true;
-                        idle.sprite.material.opacity = 0.25;
-                        idle.sprite.scale.set(2.5, 0.6, 1);
+                        idle.sprite.material.opacity = 0.3;
+                        idle.sprite.scale.set(2.0, 0.5, 1);
                         if (!idle.added && exGroup) {
                             exGroup.add(idle.sprite);
                             idle.added = true;
@@ -225,92 +239,90 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                     }
                 }
             }
-            // Fade existing trail marks
-            for (const t of trailMarks) {
-                if (t.life <= 0) continue;
-                t.life -= dt;
-                const frac = t.life / t.maxLife;
-                t.sprite.material.opacity = 0.25 * frac;
-                if (t.life <= 0) {
-                    t.sprite.visible = false;
-                }
+            for (const tm of trailMarks) {
+                if (tm.life <= 0) continue;
+                tm.life -= dt;
+                const frac = tm.life / tm.maxLife;
+                tm.sprite.material.opacity = 0.3 * frac;
+                if (tm.life <= 0) tm.sprite.visible = false;
             }
         }
 
-        // --- Tank firing ---
+        // --- Tank firing (turret-aimed, energy bolts) ---
         planetState._tankFireCooldown = Math.max(0, planetState._tankFireCooldown - dt);
         const wantFire = keyState['f'] || keyState['_fire'];
         if (wantFire && planetState._tankFireCooldown <= 0 && controlTarget.userData.muzzlePoint) {
-            planetState._tankFireCooldown = 0.35;
+            planetState._tankFireCooldown = 0.25;
             const muzzle = controlTarget.userData.muzzlePoint;
             const worldPos = new THREE.Vector3();
             muzzle.getWorldPosition(worldPos);
 
-            // Fire direction = hull facing direction
+            // Fire direction = turret world facing (hull rotation + turret local rotation)
+            const turretWorldY = controlTarget.rotation.y + (turretPivot ? turretPivot.rotation.y : 0);
             const fireDir = new THREE.Vector3(
-                Math.sin(controlTarget.rotation.y),
-                -0.03,
-                Math.cos(controlTarget.rotation.y)
+                Math.sin(turretWorldY),
+                -0.02,
+                Math.cos(turretWorldY)
             ).normalize();
 
-            // Projectile — glowing shell with tracer trail
+            // Energy bolt projectile
             const projGroup = new THREE.Group();
             projGroup.position.copy(worldPos);
 
-            // Core shell (bright)
+            // Core bolt (bright cyan)
             const shellMat = new THREE.MeshBasicMaterial({
-                color: 0xffdd44, transparent: true, opacity: 1.0,
+                color: 0x44ddff, transparent: true, opacity: 1.0,
             });
-            const shellMesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), shellMat);
+            const shellMesh = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 4), shellMat);
             projGroup.add(shellMesh);
 
-            // Glow sprite around shell
+            // Glow sprite
             const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-                color: 0xffaa00, transparent: true, opacity: 0.6,
+                color: 0x00ccff, transparent: true, opacity: 0.7,
                 blending: THREE.AdditiveBlending, depthWrite: false,
             }));
-            glowSprite.scale.set(1.8, 1.8, 1);
+            glowSprite.scale.set(2.0, 2.0, 1);
             projGroup.add(glowSprite);
 
-            // Tracer trail (stretched sprite behind)
+            // Energy tracer trail
             const tracerMat = new THREE.SpriteMaterial({
-                color: 0xffcc33, transparent: true, opacity: 0.5,
+                color: 0x2299ff, transparent: true, opacity: 0.5,
                 blending: THREE.AdditiveBlending, depthWrite: false,
             });
             const tracer = new THREE.Sprite(tracerMat);
-            tracer.scale.set(0.4, 2.5, 1);
-            tracer.position.set(-fireDir.x * 1.2, -fireDir.y * 1.2, -fireDir.z * 1.2);
+            tracer.scale.set(0.3, 2.8, 1);
+            tracer.position.set(-fireDir.x * 1.4, -fireDir.y * 1.4, -fireDir.z * 1.4);
             projGroup.add(tracer);
 
             planetState.explorationGroup.add(projGroup);
 
             planetState.tankProjectiles.push({
                 mesh: projGroup,
-                velocity: fireDir.clone().multiplyScalar(100),
+                velocity: fireDir.clone().multiplyScalar(120),
                 life: 2.5,
                 tracerMat,
                 glowSprite,
             });
 
-            // Muzzle flash — bigger, brighter
+            // Muzzle flash — cyan energy burst
             const flash = new THREE.Sprite(new THREE.SpriteMaterial({
-                color: 0xffdd55, transparent: true, opacity: 1.0,
+                color: 0x44eeff, transparent: true, opacity: 1.0,
                 blending: THREE.AdditiveBlending, depthWrite: false,
             }));
             flash.position.copy(worldPos);
-            flash.scale.set(4, 4, 1);
+            flash.scale.set(3.5, 3.5, 1);
             planetState.explorationGroup.add(flash);
             const _fadeFlash = () => {
-                flash.material.opacity -= 0.08;
-                flash.scale.multiplyScalar(0.9);
+                flash.material.opacity -= 0.1;
+                flash.scale.multiplyScalar(0.88);
                 if (flash.material.opacity > 0.05) requestAnimationFrame(_fadeFlash);
                 else { flash.removeFromParent(); flash.material.dispose(); }
             };
             requestAnimationFrame(_fadeFlash);
 
-            // Recoil nudge (slight backward push)
-            tVel.x -= fireDir.x * 3;
-            tVel.z -= fireDir.z * 3;
+            // Minimal recoil (energy weapon, no heavy kickback)
+            tVel.x -= fireDir.x * 0.8;
+            tVel.z -= fireDir.z * 0.8;
         }
 
     } else if (controlTarget) {

@@ -934,196 +934,234 @@ function _buildDefault(g, borderColor) {
 export function buildTankMesh() {
     const g = new THREE.Group();
 
-    // Materials
-    const hullMat = _mat('tankHull', { color: 0x3a4a3a, roughness: 0.5, metalness: 0.75 });
-    const trackMat = _mat('tankTrack', { color: 0x1a1a1a, roughness: 0.9, metalness: 0.3 });
-    const turretMat = _mat('tankTurret', { color: 0x2a3a2a, roughness: 0.4, metalness: 0.8 });
-    const cannonMat = _mat('tankCannon', { color: 0x222222, roughness: 0.3, metalness: 0.9 });
-    const detailMat = _mat('tankDetail', { color: 0x444444, roughness: 0.5, metalness: 0.6 });
+    // ── Space tank materials ──
+    const hullMat = _mat('tankHull', { color: 0x0c1420, roughness: 0.3, metalness: 0.9 });
+    const armorMat = _mat('tankArmor', { color: 0x141e2a, roughness: 0.35, metalness: 0.85 });
+    const frameMat = _mat('tankFrame', { color: 0x0a0f18, roughness: 0.25, metalness: 0.95 });
+    const turretMat = _mat('tankTurret', { color: 0x10182a, roughness: 0.3, metalness: 0.9 });
+    const cannonMat = _mat('tankCannon', { color: 0x080c14, roughness: 0.15, metalness: 0.95 });
     const glowMat = new THREE.MeshStandardMaterial({
-        color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.6,
-        transparent: true, opacity: 0.7
+        color: 0x00ddff, emissive: 0x00ddff, emissiveIntensity: 0.8,
+        transparent: true, opacity: 0.85,
+    });
+    const glowDimMat = new THREE.MeshStandardMaterial({
+        color: 0x0088cc, emissive: 0x0088cc, emissiveIntensity: 0.4,
+        transparent: true, opacity: 0.6,
+    });
+    const engineGlowMat = new THREE.MeshStandardMaterial({
+        color: 0x3399ff, emissive: 0x2266ff, emissiveIntensity: 1.0,
+        transparent: true, opacity: 0.9,
     });
 
-    // Hull body (main box with sloped front)
-    const hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.0, 2.4), hullMat);
-    hull.position.y = 0.8;
+    // ── Main hull — angular, low-profile wedge shape ──
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.8, 3.0), hullMat);
+    hull.position.y = 0.7;
     hull.castShadow = true;
     g.add(hull);
 
-    // Sloped front plate
-    const frontPlate = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 2.2), hullMat);
-    frontPlate.position.set(1.8, 0.7, 0);
-    frontPlate.rotation.z = -0.35;
-    frontPlate.castShadow = true;
-    g.add(frontPlate);
+    // Angled front armor (wedge)
+    const frontWedge = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 2.8), armorMat);
+    frontWedge.position.set(2.2, 0.65, 0);
+    frontWedge.rotation.z = -0.4;
+    frontWedge.castShadow = true;
+    g.add(frontWedge);
 
-    // Rear plate
-    const rearPlate = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.7, 2.2), detailMat);
-    rearPlate.position.set(-1.75, 0.7, 0);
-    g.add(rearPlate);
+    // Rear engine block
+    const rearBlock = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 2.6), armorMat);
+    rearBlock.position.set(-2.0, 0.75, 0);
+    g.add(rearBlock);
 
-    // Side skirts (armor plates over tracks)
+    // ── Side armor fins (angular wing-like panels) ──
     [-1, 1].forEach(side => {
-        const skirt = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.5, 0.15), detailMat);
-        skirt.position.set(0, 0.55, side * 1.3);
-        g.add(skirt);
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.12, 0.6), armorMat);
+        fin.position.set(0.3, 0.9, side * 1.7);
+        fin.rotation.z = side * -0.08;
+        fin.castShadow = true;
+        g.add(fin);
+
+        // Side armor plates (layered)
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.55, 0.15), frameMat);
+        plate.position.set(0, 0.65, side * 1.55);
+        g.add(plate);
+
+        // Glow strip along side
+        const sideGlow = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.04, 0.06), glowDimMat);
+        sideGlow.position.set(0.2, 0.95, side * 1.58);
+        g.add(sideGlow);
     });
 
-    // Tracks (two dark strips with wheel bumps)
-    [-1, 1].forEach(side => {
-        const track = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.5, 0.5), trackMat);
-        track.position.set(0, 0.3, side * 1.35);
-        track.castShadow = true;
-        g.add(track);
-
-        // Road wheels
-        for (let w = -1.4; w <= 1.4; w += 0.7) {
-            const wheel = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.22, 0.22, 0.18, 8),
-                detailMat
-            );
-            wheel.rotation.x = Math.PI / 2;
-            wheel.position.set(w, 0.3, side * 1.55);
-            g.add(wheel);
-        }
-
-        // Drive sprocket (front) and idler (rear)
-        [1.6, -1.6].forEach(wx => {
-            const sprocket = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.28, 0.28, 0.2, 8),
-                cannonMat
-            );
-            sprocket.rotation.x = Math.PI / 2;
-            sprocket.position.set(wx, 0.35, side * 1.55);
-            g.add(sprocket);
-        });
+    // ── Hover engine pods (replace tracks) ──
+    const hoverPositions = [
+        { x: 1.2, z: -1.4 }, { x: -1.2, z: -1.4 },
+        { x: 1.2, z: 1.4 },  { x: -1.2, z: 1.4 },
+    ];
+    const hoverPods = [];
+    hoverPositions.forEach(hp => {
+        const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 0.25, 8), frameMat);
+        pod.position.set(hp.x, 0.2, hp.z);
+        g.add(pod);
+        // Glow ring underneath
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.15, 0.4, 8), engineGlowMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(hp.x, 0.06, hp.z);
+        g.add(ring);
+        hoverPods.push(ring);
     });
 
-    // Hull details — viewport slit, front light
-    const viewport = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 1.2), glowMat);
-    viewport.position.set(1.3, 1.15, 0);
-    g.add(viewport);
+    // ── Hull details ──
+    // Front sensor array (visor slit)
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 1.8), glowMat);
+    visor.position.set(1.6, 1.0, 0);
+    g.add(visor);
 
-    // Headlights
+    // Front headlights (bright energy lamps)
+    [-0.7, 0.7].forEach(zoff => {
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), glowMat);
+        lamp.position.set(2.6, 0.7, zoff);
+        g.add(lamp);
+    });
+
+    // Rear thruster vents (engine exhaust)
+    [-0.6, 0, 0.6].forEach(zoff => {
+        const vent = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.3, 0.35), frameMat);
+        vent.position.set(-2.4, 0.75, zoff);
+        g.add(vent);
+        const ventGlow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.28), engineGlowMat);
+        ventGlow.position.set(-2.47, 0.75, zoff);
+        g.add(ventGlow);
+    });
+
+    // Hull top panel lines
     [-0.5, 0.5].forEach(zoff => {
-        const light = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 8), glowMat);
-        light.rotation.z = Math.PI / 2;
-        light.position.set(2.1, 0.8, zoff);
-        g.add(light);
+        const line = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.03, 0.03), glowDimMat);
+        line.position.set(-0.2, 1.12, zoff);
+        g.add(line);
     });
 
-    // Exhaust pipes on rear
-    [-0.4, 0.4].forEach(zoff => {
-        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.4, 6), cannonMat);
-        pipe.rotation.z = Math.PI / 2;
-        pipe.position.set(-1.95, 0.9, zoff);
-        g.add(pipe);
-    });
+    // Antenna / sensor mast on hull rear
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.8, 4), frameMat);
+    antenna.position.set(-1.6, 1.5, 0.6);
+    g.add(antenna);
+    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 4, 4), glowMat);
+    antennaTip.position.set(-1.6, 1.95, 0.6);
+    g.add(antennaTip);
 
     // ── Turret pivot (rotates independently) ──
     const turretPivot = new THREE.Group();
-    turretPivot.position.set(-0.2, 1.35, 0);
+    turretPivot.position.set(0.1, 1.15, 0);
     g.add(turretPivot);
 
-    // Turret base ring
-    const turretRing = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.0, 0.15, 12), detailMat);
-    turretPivot.add(turretRing);
+    // Turret base — octagonal ring
+    const turretBase = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 0.12, 8), frameMat);
+    turretPivot.add(turretBase);
 
-    // Turret body
-    const turretBody = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.7, 1.4), turretMat);
-    turretBody.position.set(0.2, 0.42, 0);
+    // Turret body — angular, wider at base
+    const turretBody = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 1.3), turretMat);
+    turretBody.position.set(0.3, 0.38, 0);
     turretBody.castShadow = true;
     turretPivot.add(turretBody);
 
     // Turret sloped front
-    const turretFront = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.2), turretMat);
-    turretFront.position.set(1.1, 0.35, 0);
-    turretFront.rotation.z = -0.3;
+    const turretFront = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 1.15), turretMat);
+    turretFront.position.set(1.3, 0.32, 0);
+    turretFront.rotation.z = -0.25;
     turretPivot.add(turretFront);
 
-    // Commander hatch
-    const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 8), detailMat);
-    hatch.position.set(-0.3, 0.8, 0.3);
-    turretPivot.add(hatch);
+    // Turret top sensor dome
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), frameMat);
+    dome.position.set(-0.3, 0.72, 0);
+    turretPivot.add(dome);
+    const domeGlow = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 4), glowMat);
+    domeGlow.position.set(-0.3, 0.85, 0);
+    turretPivot.add(domeGlow);
 
-    // Turret side stowage boxes
+    // Turret side energy vanes
     [-1, 1].forEach(side => {
-        const box = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.15), detailMat);
-        box.position.set(0, 0.35, side * 0.82);
-        turretPivot.add(box);
+        const vane = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 0.12), glowDimMat);
+        vane.position.set(0.1, 0.55, side * 0.78);
+        turretPivot.add(vane);
     });
 
-    // ── Cannon ──
-    const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.0, 8), cannonMat);
-    cannon.rotation.z = Math.PI / 2;
-    cannon.position.set(2.3, 0.42, 0);
-    turretPivot.add(cannon);
+    // Turret glow accent line
+    const tGlow = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.03, 0.03), glowMat);
+    tGlow.position.set(0.5, 0.7, 0);
+    turretPivot.add(tGlow);
 
-    // Muzzle brake
-    const brake = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.25, 8), cannonMat);
-    brake.rotation.z = Math.PI / 2;
-    brake.position.set(3.7, 0.42, 0);
-    turretPivot.add(brake);
+    // ── Dual energy cannons ──
+    [-0.22, 0.22].forEach(zoff => {
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.2, 8), cannonMat);
+        barrel.rotation.z = Math.PI / 2;
+        barrel.position.set(2.6, 0.38, zoff);
+        turretPivot.add(barrel);
 
-    // Muzzle point (projectile spawn)
+        // Energy coil rings along barrel
+        for (let ci = 0; ci < 3; ci++) {
+            const coil = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.015, 4, 8), glowDimMat);
+            coil.rotation.y = Math.PI / 2;
+            coil.position.set(1.4 + ci * 0.7, 0.38, zoff);
+            turretPivot.add(coil);
+        }
+
+        // Muzzle tip glow
+        const muzzleTip = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.15, 8), glowMat);
+        muzzleTip.rotation.z = Math.PI / 2;
+        muzzleTip.position.set(4.15, 0.38, zoff);
+        turretPivot.add(muzzleTip);
+    });
+
+    // Muzzle point (projectile spawn — centered between dual barrels)
     const muzzlePoint = new THREE.Object3D();
-    muzzlePoint.position.set(3.9, 0.42, 0);
+    muzzlePoint.position.set(4.3, 0.38, 0);
     turretPivot.add(muzzlePoint);
-
-    // Turret glow accents
-    const turretGlow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 1.0), glowMat);
-    turretGlow.position.set(0.95, 0.78, 0);
-    turretPivot.add(turretGlow);
 
     // Shadow sprite
     const shadow = createShadowSprite();
-    shadow.scale.set(4, 4, 1);
-    shadow.position.set(0, 0.05, 0);
+    shadow.scale.set(5, 5, 1);
+    shadow.position.set(0, 0.02, 0);
     g.add(shadow);
 
-    // ── Exhaust smoke particles (pooled sprites, emitted from rear pipes) ──
+    // ── Exhaust / thruster particles (pooled sprites) ──
     const smokeTex = _getSmokeTexture();
     const exhaustParticles = [];
-    for (let pi = 0; pi < 12; pi++) {
+    for (let pi = 0; pi < 14; pi++) {
         const spMat = new THREE.SpriteMaterial({
             map: smokeTex,
-            color: 0x555555,
+            color: 0x4488cc,
             transparent: true,
             opacity: 0,
             depthWrite: false,
-            blending: THREE.NormalBlending,
+            blending: THREE.AdditiveBlending,
         });
         const sp = new THREE.Sprite(spMat);
-        sp.scale.set(0.4, 0.4, 0.4);
+        sp.scale.set(0.3, 0.3, 0.3);
         sp.visible = false;
         exhaustParticles.push({
             sprite: sp,
             life: 0,
-            maxLife: 0.8 + Math.random() * 0.6,
+            maxLife: 0.6 + Math.random() * 0.4,
             vx: 0, vy: 0, vz: 0,
             added: false,
         });
     }
 
-    // ── Track trail marks (pooled sprites on ground behind tank) ─────────
+    // ── Hover trail marks (energy scorch on ground) ──
     const trailMarks = [];
     for (let ti = 0; ti < 20; ti++) {
         const tMat = new THREE.SpriteMaterial({
             map: smokeTex,
-            color: 0x3a3020,
+            color: 0x1a3050,
             transparent: true,
             opacity: 0,
             depthWrite: false,
-            blending: THREE.NormalBlending,
+            blending: THREE.AdditiveBlending,
         });
         const tsp = new THREE.Sprite(tMat);
-        tsp.scale.set(2.5, 0.6, 1);
+        tsp.scale.set(2.0, 0.5, 1);
         tsp.visible = false;
         trailMarks.push({
             sprite: tsp,
             life: 0,
-            maxLife: 3.0,
+            maxLife: 2.0,
             added: false,
         });
     }
@@ -1138,6 +1176,8 @@ export function buildTankMesh() {
         exhaustTimer: 0,
         trailMarks,
         trailTimer: 0,
+        hoverPods,
+        hoverTime: 0,
     };
 
     return g;
