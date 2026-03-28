@@ -2,6 +2,8 @@ import { events, applyEventChoice, scheduleChainStep } from '../core/state.js';
 import { showNotification } from './ui_notifications.js';
 
 let _modal = null;
+let _modalOpen = false;
+const _eventQueue = [];
 
 /* ── Category display config ────────────────────────────────────────────── */
 const CATEGORY_META = {
@@ -135,6 +137,7 @@ function _ensureModal() {
 
 function _openModal() {
     if (!_modal) return;
+    _modalOpen = true;
     // Remove display:none, start invisible, then fade in
     _modal.classList.remove('evt-no-display');
     _modal.classList.add('hidden');
@@ -145,6 +148,19 @@ function _openModal() {
 
 function _closeModal() {
     if (!_modal) return;
+
+    // If there are queued events, show the next one instead of fully closing
+    if (_eventQueue.length > 0) {
+        const next = _eventQueue.shift();
+        if (next.type === 'pirate') {
+            _showPirateConvoStep(next.step);
+        } else {
+            _showEvent(next.event, next.chainInfo);
+        }
+        return;
+    }
+
+    _modalOpen = false;
     const box = _modal.querySelector('.evt-box');
     if (box) {
         box.classList.remove('evt-enter');
@@ -163,6 +179,12 @@ function _closeModal() {
 
 /* ── Show event (random or chain step) ──────────────────────────────────── */
 function _showEvent(evt, chainInfo) {
+    // Queue if a modal is already visible
+    if (_modalOpen) {
+        _eventQueue.push({ type: 'event', event: evt, chainInfo });
+        return;
+    }
+
     const modal = _ensureModal();
     const cat = CATEGORY_META[evt.category] || CATEGORY_META.discovery;
 
@@ -321,6 +343,12 @@ const _pirateConvo = [
 function _showPirateConvoStep(stepIdx) {
     const step = _pirateConvo[stepIdx];
     if (!step) return;
+
+    // Queue if a modal is already visible (only for the first step — subsequent steps replace in-place)
+    if (_modalOpen && stepIdx === 0) {
+        _eventQueue.push({ type: 'pirate', step: 0 });
+        return;
+    }
 
     const isPirate = step.speaker === 'pirate';
     const evt = {

@@ -2226,10 +2226,15 @@ export function updateSystemAnimations(time, dt, group) {
             const dz = _trailWorldPos.z - ts._prevPos.z;
             const hasValid = ts._prevPos.lengthSq() > 0.001;
             ts._prevPos.copy(_trailWorldPos);
-            if (hasValid) {
+            if (hasValid && Math.random() < 0.65) {
+                const spread = 0.12;
                 _spawnSatTrail(
-                    _trailWorldPos.x, _trailWorldPos.y, _trailWorldPos.z,
-                    -dx * 2, -dy * 2, -dz * 2
+                    _trailWorldPos.x + (Math.random() - 0.5) * spread,
+                    _trailWorldPos.y + (Math.random() - 0.5) * spread,
+                    _trailWorldPos.z + (Math.random() - 0.5) * spread,
+                    -dx * 2 + (Math.random() - 0.5) * 1.5,
+                    -dy * 2 + (Math.random() - 0.5) * 1.5,
+                    -dz * 2 + (Math.random() - 0.5) * 1.5
                 );
             }
         }

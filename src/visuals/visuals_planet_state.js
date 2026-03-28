@@ -79,7 +79,7 @@ const planetState = {
 
 // Constants
 export const CAMERA_DISTANCE_MIN = 5;
-export const CAMERA_DISTANCE_MAX = 60;
+export const CAMERA_DISTANCE_MAX = 120;
 export const CAMERA_HEIGHT_OFFSET = 2;
 export const JOYSTICK_ZONE_WIDTH_RATIO = 0.42;
 

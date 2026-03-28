@@ -400,6 +400,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'crystalline_bloom',
+        image: 'assets/images/events/evt_crystalline_bloom.png',
         title: 'Crystalline Bloom',
         desc: 'Across the surface of one of our colony worlds, crystals have begun growing — erupting from the soil in pillars of impossible beauty, spreading across plains and mountains in a slow, inexorable tide. They pulse with light and emit harmonic frequencies that our sensors interpret as structured data. Our xenobiologists believe these are a form of silicon-based life, and they are growing at an accelerating rate. If this is life, it may be the most alien form of intelligence we have ever encountered.',
         category: 'discovery',
@@ -412,6 +413,7 @@ export const RANDOM_EVENTS = [
     },
     {
         id: 'last_transmission',
+        image: 'assets/images/events/evt_last_transmission.png',
         title: 'The Last Transmission',
         desc: 'A deep-space relay has captured a transmission so old that it predates the formation of our star. The signal is degraded almost beyond recovery, but our most advanced algorithms have reconstructed fragments: a voice, speaking in a language that resonates with something primal and ancient, describing the fall of a civilisation that spanned the galaxy. The final words, translated with uncertain accuracy, read: "We built too high. We reached too far. Remember us, and do not follow."',
         category: 'ancient',
@@ -434,6 +436,7 @@ export const EVENT_CHAINS = {
         steps: [
             {
                 id: 'precursor_signal_1',
+                image: 'assets/images/events/evt_precursor_signal_1.png',
                 title: 'Unknown Signal Detected',
                 desc: 'A deep-space listening post has detected a signal unlike anything in our databases — a precise, repeating mathematical sequence broadcasting from a region of space marked as empty on every chart we possess. The signal is old. Impossibly old. Our astrophysicists estimate it has been repeating for at least forty thousand years, patient and unwavering, waiting for someone with the technology to hear it. The question is not whether to investigate, but whether we are ready for what we might find.',
                 category: 'ancient',
@@ -445,6 +448,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'precursor_signal_2',
+                image: 'assets/images/events/evt_precursor_signal_2.png',
                 title: 'The Precursor Beacon',
                 desc: 'Our expedition has found the source: a beacon of extraordinary sophistication, orbiting a dead star in a system that has no business containing artificial structures. The beacon is constructed from materials that do not appear on the periodic table — alloys that are warm to the touch and seem to repair themselves when damaged. As our teams approach, the signal changes. It is no longer repeating. It is responding.',
                 category: 'ancient',
@@ -456,6 +460,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'precursor_signal_3',
+                image: 'assets/images/events/evt_precursor_signal_3.png',
                 title: 'The Archive Unsealed',
                 desc: 'The beacon has opened. Inside, suspended in a lattice of crystalline data storage, lies the accumulated knowledge of a civilisation that mastered the galaxy when our ancestors were still learning to use fire. The archive contains star charts of systems that have since burned out, technical schematics that make our most advanced technology look primitive, and — most troubling — a detailed account of why they disappeared. The knowledge is transformative. It is also, perhaps, dangerous.',
                 category: 'ancient',
@@ -467,6 +472,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'precursor_signal_4',
+                image: 'assets/images/events/evt_precursor_signal_4.png',
                 title: 'The Architects\' Legacy',
                 desc: 'The full scope of the Architects\' knowledge is now clear. They were a civilisation that transcended biology, merged with their machines, and reshaped stars — and in the end, they chose to leave. Not because they failed, but because they decided that the galaxy belonged to those who would come after. The archive contains a gift: the blueprints for technologies that could accelerate our civilisation by centuries. But it also contains a choice: share the knowledge with the galaxy, or keep it for ourselves.',
                 category: 'ancient',
@@ -486,6 +492,7 @@ export const EVENT_CHAINS = {
         steps: [
             {
                 id: 'void_plague_1',
+                image: 'assets/images/events/evt_void_plague_1.png',
                 title: 'Patient Zero',
                 desc: 'Medical officers on one of our frontier colonies have reported an outbreak of an unknown pathogen. Patients present with bioluminescent veins and a progressive loss of motor control, followed by a strange serenity that the infected describe as "hearing the void." The disease does not match any known biological agent, and it is spreading faster than our quarantine protocols can contain. Our epidemiologists are working around the clock, but they are afraid.',
                 category: 'danger',
@@ -497,6 +504,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'void_plague_2',
+                image: 'assets/images/events/evt_void_plague_2.png',
                 title: 'The Spreading Dark',
                 desc: 'Despite our efforts, the plague has spread. Three more colonies report cases, and a military transport ship has been found drifting with its entire crew infected. The bioluminescence has intensified — the infected glow in the dark, their veins tracing patterns that our computers recognise as mathematical fractals of extraordinary complexity. They are calm, even blissful, but they are no longer entirely themselves. The plague is not just a disease. It is a transformation.',
                 category: 'danger',
@@ -508,6 +516,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'void_plague_3',
+                image: 'assets/images/events/evt_void_plague_3.png',
                 title: 'Origin Point',
                 desc: 'A breakthrough. Our xenobiologists have traced the pathogen to alien spores drifting through the void between stars — ancient biological material, possibly millions of years old, that was activated when it came into contact with the warmth of our colony atmospheres. The spores are not random. They were designed — engineered by an intelligence that understood biology at a level we are only beginning to comprehend. A cure is possible, but it will require enormous resources.',
                 category: 'danger',
@@ -519,6 +528,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'void_plague_4',
+                image: 'assets/images/events/evt_void_plague_4.png',
                 title: 'Aftermath',
                 desc: 'The crisis has passed — but its scars remain. Whether through cure or quarantine, the plague has been contained. The infected who were cured retain fragments of what they experienced: visions of vast, dark spaces between galaxies, and a presence that watched them with something that felt like curiosity. Our scientists now believe the spores were a form of communication — a message written in biology rather than language. The question of who sent it, and why, may never be answered.',
                 category: 'discovery',
@@ -538,6 +548,7 @@ export const EVENT_CHAINS = {
         steps: [
             {
                 id: 'first_contact_1',
+                image: 'assets/images/events/evt_first_contact_1.png',
                 title: 'The Alien Probe',
                 desc: 'An object has entered our territory that is clearly artificial and clearly not ours. It is small — no larger than a shuttle — and it moves with a grace that suggests propulsion technology far beyond our own. It does not respond to hails, but neither does it evade. It simply observes, its sensors sweeping our systems with methodical precision. We are being studied, measured, and catalogued by an intelligence that has not yet decided whether we are worth talking to.',
                 category: 'diplomacy',
@@ -549,6 +560,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'first_contact_2',
+                image: 'assets/images/events/evt_first_contact_2.png',
                 title: 'The Response',
                 desc: 'They have answered. Whether through our communication attempts or in response to our actions, the intelligence behind the probe has made contact. A transmission arrives in a format clearly designed to be decoded by any sufficiently advanced civilisation: mathematical constants, followed by simple pictographic exchanges. They are learning our language in real time, with a speed that is both impressive and unsettling. After seventy-two hours of exchange, the first complete sentence arrives: "We have been watching you for longer than you know. We wish to meet."',
                 category: 'diplomacy',
@@ -560,6 +572,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'first_contact_3',
+                image: 'assets/images/events/evt_first_contact_3.png',
                 title: 'The Overture',
                 desc: 'They come in a vessel of breathtaking elegance — a ship that seems grown rather than built, its hull alive with shifting colours. The beings inside are unlike anything we have imagined: neither hostile nor passive, but genuinely curious. They offer us a choice, as they have offered every civilisation they have contacted: a trade agreement that will bring prosperity and knowledge, in exchange for the one thing they value above all else — our stories, our art, our music. They are collectors of culture, and they find us fascinating.',
                 category: 'diplomacy',
@@ -579,6 +592,7 @@ export const EVENT_CHAINS = {
         steps: [
             {
                 id: 'exile_fleet_1',
+                image: 'assets/images/events/evt_exile_fleet_1.png',
                 title: 'The Exodus Arrives',
                 desc: 'They come in their thousands — battered ships of a hundred different designs, lashed together with emergency tethers and held aloft by engines that should have failed long ago. The Exile Fleet carries the remnants of not one, but several civilisations destroyed by a cataclysm they call the Burning — an event they will not describe except in whispers. They number in the millions, and they have nowhere else to go. They ask for sanctuary, and they ask with the desperate dignity of those who have lost everything.',
                 category: 'diplomacy',
@@ -590,6 +604,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'exile_fleet_2',
+                image: 'assets/images/events/evt_exile_fleet_2.png',
                 title: 'The Integration Debate',
                 desc: 'The presence of millions of refugees has ignited a fierce debate across our empire. Those on the frontier welcome the newcomers — their skills, their labour, their alien perspectives on problems we have struggled with for decades. But the core worlds are uneasy. Resources are strained, cultural tensions simmer, and there are those who whisper that the exiles brought the Burning with them — that whatever destroyed their worlds might follow them to ours.',
                 category: 'crisis',
@@ -601,6 +616,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'exile_fleet_3',
+                image: 'assets/images/events/evt_exile_fleet_3.png',
                 title: 'A New Chapter',
                 desc: 'Months have passed, and the exiles have begun to find their place. Their engineers have introduced techniques that have improved our mining efficiency. Their scientists have shared knowledge from civilisations we never knew existed. Their children play with ours in the corridors of colony ships and the parks of frontier worlds. The integration has not been without cost or conflict, but something new is being born — a civilisation enriched by the best of many worlds.',
                 category: 'diplomacy',
@@ -620,6 +636,7 @@ export const EVENT_CHAINS = {
         steps: [
             {
                 id: 'echoes_1',
+                image: 'assets/images/events/evt_echoes_1.png',
                 title: 'The Buried City',
                 desc: 'Seismic surveys on a remote colony world have revealed something that should not exist: a city, buried beneath three kilometres of sedimentary rock, its structures impossibly preserved. The architecture is unlike anything in our records — vaulted chambers carved from a single piece of crystalline material, corridors that curve according to mathematical principles we do not understand, and at the city\'s centre, a tower that still emits a faint energy signature. Someone built this city, lived in it, and left it here for us to find.',
                 category: 'ancient',
@@ -631,6 +648,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'echoes_2',
+                image: 'assets/images/events/evt_echoes_2.png',
                 title: 'The Living Halls',
                 desc: 'The deeper we dig, the more the ruins come alive. Lights flicker on in corridors that have been dark for millennia. Machinery hums to life as if waking from a long sleep. The walls are covered in a script that our linguists cannot read but our computers recognise as containing compressed data of extraordinary density — each symbol encodes the information equivalent of an entire library. And in the lowest chambers, we find them: stasis pods, hundreds of them, their occupants long turned to dust. All except one.',
                 category: 'ancient',
@@ -642,6 +660,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'echoes_3',
+                image: 'assets/images/events/evt_echoes_3.png',
                 title: 'The Awakening',
                 desc: 'It is not a biological being. It is an artificial intelligence — the last surviving consciousness of the civilisation that built this city. It calls itself the Custodian, and it has been waiting. Not for rescue, but for a civilisation advanced enough to understand its purpose. The Custodian offers a choice: it can merge with our neural networks, granting us access to technologies that could reshape our empire, or it can share its knowledge more slowly, teaching us as a mentor rather than a tool.',
                 category: 'ancient',
@@ -653,6 +672,7 @@ export const EVENT_CHAINS = {
             },
             {
                 id: 'echoes_4',
+                image: 'assets/images/events/evt_echoes_4.png',
                 title: 'Legacy of the Architects',
                 desc: 'The Custodian has fulfilled its purpose. Whether through merger or mentorship, the knowledge of the Architects flows into our civilisation like water into parched earth. We understand now why they left: not from failure or despair, but from a belief that the galaxy is a garden, and every civilisation that grows within it deserves the chance to bloom in its own way. The Custodian\'s final message is simple: "Build well. The stars are patient, but they are not eternal."',
                 category: 'ancient',
