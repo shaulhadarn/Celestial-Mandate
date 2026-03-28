@@ -26,6 +26,50 @@ export { showNotification };
 
 let activeJoystick = null;
 let _shipJoystickMode = false; // true = joystick is wired to ship, false = planet
+let _dpadWired = false;
+
+// ── Mobile D-Pad helpers ─────────────────────────────────────────────────────
+function _showMobileDpad() {
+    const dpad = document.getElementById('mobile-dpad');
+    if (!dpad) return;
+    dpad.classList.remove('hidden');
+
+    if (_dpadWired) return; // already wired
+    _dpadWired = true;
+
+    dpad.querySelectorAll('.dpad-btn[data-key]').forEach(btn => {
+        const key = btn.dataset.key;
+        if (!key) return;
+
+        const activate = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            planetState.keyState[key] = true;
+            btn.classList.add('pressed');
+        };
+        const deactivate = () => {
+            planetState.keyState[key] = false;
+            btn.classList.remove('pressed');
+        };
+
+        btn.addEventListener('touchstart', activate, { passive: false });
+        btn.addEventListener('touchend', deactivate);
+        btn.addEventListener('touchcancel', deactivate);
+        // Also handle pointer events for hybrid devices
+        btn.addEventListener('pointerdown', activate, { passive: false });
+        btn.addEventListener('pointerup', deactivate);
+        btn.addEventListener('pointerleave', deactivate);
+    });
+}
+
+function _hideMobileDpad() {
+    const dpad = document.getElementById('mobile-dpad');
+    if (dpad) dpad.classList.add('hidden');
+    // Clear all keys in case buttons were held
+    ['w', 'a', 's', 'd'].forEach(k => { planetState.keyState[k] = false; });
+    const btns = dpad ? dpad.querySelectorAll('.pressed') : [];
+    btns.forEach(b => b.classList.remove('pressed'));
+}
 
 // --- Scene Transition Helpers ---
 function getTransitionOverlay() {
@@ -207,35 +251,7 @@ export function initUI() {
             enterPlanetView(planet);
 
             if (window.innerWidth <= 768) {
-                try {
-                    const nipplejs = (await import('nipplejs')).default;
-                    const container = document.getElementById('joystick-container');
-                    container.classList.add('visible');
-
-                    if (activeJoystick) {
-                        activeJoystick.destroy();
-                    }
-
-                    activeJoystick = nipplejs.create({
-                        zone: container,
-                        mode: 'static',
-                        position: { left: '50%', top: '50%' },
-                        color: 'rgba(0,242,255,0.8)',
-                        size: Math.min(120, container.offsetWidth * 0.8)
-                    });
-
-                    activeJoystick.on('move', (evt, data) => {
-                        if (data.vector) {
-                            setJoystickInput(data.vector.x, data.vector.y);
-                        }
-                    });
-
-                    activeJoystick.on('end', () => {
-                        setJoystickInput(0, 0);
-                    });
-                } catch (e) {
-                    console.error("Failed to load joystick controls", e);
-                }
+                _showMobileDpad();
             }
 
             // Brief pause so scene has a frame to render
@@ -533,6 +549,7 @@ async function returnToSystemViewFromPlanet() {
     const container = document.getElementById('joystick-container');
     if (container) container.classList.remove('visible');
     setJoystickInput(0, 0);
+    _hideMobileDpad();
 
     document.getElementById('ui-layer').classList.remove('hidden-during-exploration');
     document.getElementById('btn-view-toggle').classList.remove('hidden');

@@ -3,6 +3,7 @@
 export const BUILDINGS = {
     'mining_network': {
         name: "Mining Network",
+        image: "assets/images/buildings/bld_mining_network.png",
         cost: { minerals: 150 },
         maintenance: { energy: 1 },
         production: { minerals: 4 },
@@ -13,6 +14,7 @@ export const BUILDINGS = {
     },
     'power_plant': {
         name: "Power Plant",
+        image: "assets/images/buildings/bld_power_plant.png",
         cost: { minerals: 100 },
         maintenance: {},
         production: { energy: 4 },
@@ -23,6 +25,7 @@ export const BUILDINGS = {
     },
     'hydroponics': {
         name: "Hydroponics",
+        image: "assets/images/buildings/bld_hydroponics.png",
         cost: { minerals: 100 },
         maintenance: { energy: 1 },
         production: { food: 4 },
@@ -33,6 +36,7 @@ export const BUILDINGS = {
     },
     'research_lab': {
         name: "Research Lab",
+        image: "assets/images/buildings/bld_research_lab.png",
         cost: { minerals: 200 },
         maintenance: { energy: 2 },
         production: {},
@@ -43,6 +47,7 @@ export const BUILDINGS = {
     },
     'shipyard': {
         name: "Shipyard",
+        image: "assets/images/buildings/bld_shipyard.png",
         cost: { minerals: 250 },
         maintenance: { energy: 3 },
         production: {},
@@ -53,6 +58,7 @@ export const BUILDINGS = {
     },
     'harvester': {
         name: "Resource Harvester",
+        image: "assets/images/buildings/bld_harvester.png",
         icon: "🏭",
         cost: { minerals: 120 },
         buildTime: 6,

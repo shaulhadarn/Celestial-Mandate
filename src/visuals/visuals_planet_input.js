@@ -79,7 +79,7 @@ function initExplorationMouseControls() {
     };
 
     // ── Touch ────────────────────────────────────────────────────────────────
-    const _isUITouch = (e) => e.target.closest('#exploration-header, #harvester-hud, .action-btn, button, #tank-fire-btn, #joystick-container');
+    const _isUITouch = (e) => e.target.closest('#exploration-header, #harvester-hud, .action-btn, button, #tank-fire-btn, #joystick-container, #mobile-dpad');
 
     const onTouchStart = (e) => {
         if (gameState.viewMode !== 'EXPLORATION') return;

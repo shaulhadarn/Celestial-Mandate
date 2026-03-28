@@ -29,8 +29,8 @@ function renderHarvesterSection(planetId, parentEl) {
     colony.harvesters.forEach((h, i) => {
         cardsHtml += `
             <div style="background:rgba(255,170,0,0.08);border:1px solid rgba(255,170,0,0.3);border-radius:6px;padding:10px;margin-bottom:6px;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:20px;">🏭</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width: 48px; height: 48px; border-radius: 4px; background-image: url('${BUILDINGS.harvester.image}'); background-size: cover; background-position: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);"></div>
                     <div>
                         <div style="color:#ffcc44;font-size:13px;font-weight:bold;">Harvester #${i + 1}</div>
                         <div style="color:#888;font-size:11px;">${planetType} yields</div>
@@ -49,8 +49,8 @@ function renderHarvesterSection(planetId, parentEl) {
         const pct = Math.floor((hc.progress / hc.total) * 100);
         cardsHtml += `
             <div style="background:rgba(255,170,0,0.05);border:1px dashed rgba(255,170,0,0.25);border-radius:6px;padding:10px;margin-bottom:6px;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:20px;opacity:0.5;">🏭</span>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width: 48px; height: 48px; border-radius: 4px; background-image: url('${BUILDINGS.harvester.image}'); background-size: cover; background-position: center; opacity: 0.4; filter: grayscale(100%);"></div>
                     <div style="flex:1;">
                         <div style="color:#ffaa00;font-size:12px;">Building Harvester...</div>
                         <div style="height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:4px;">
@@ -170,7 +170,7 @@ export function renderColonyView(planetId) {
             el.innerHTML = `
                 <span class="building-level-badge ${levelClass}">Lv.${level}</span>
                 ${upgradingTag}
-                <span class="building-icon">${b.icon}</span>
+                <div class="building-image-container" style="background-image: url('${b.image}'); background-size: cover; background-position: center; width: 100%; height: 50px; border-radius: 4px; margin-bottom: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);"></div>
                 <div class="building-traits">${traits.join(' ')}</div>
             `;
             el.title = `${b.name} (Level ${level})`;
@@ -188,7 +188,7 @@ export function renderColonyView(planetId) {
         el.style.borderStyle = 'dashed';
 
         el.innerHTML = `
-            <span class="building-icon" style="opacity:0.5">${b ? b.icon : '🏗️'}</span>
+            <div class="building-image-container" style="background-image: url('${b ? b.image : ''}'); background-size: cover; background-position: center; width: 100%; height: 50px; border-radius: 4px; margin-bottom: 4px; opacity: 0.4; filter: grayscale(100%);"></div>
             <div class="construction-overlay">
                 <span style="font-size:10px; color:#fff;">${pct}%</span>
                 <div class="construction-bar">
@@ -203,7 +203,7 @@ export function renderColonyView(planetId) {
     for(let i=occupiedSlots; i<totalSlots; i++) {
         const el = document.createElement('div');
         el.className = 'building-slot empty';
-        el.innerText = '+';
+        el.innerHTML = `<div style="font-size: 24px; color: rgba(255,255,255,0.2); width: 100%; height: 50px; display: flex; align-items: center; justify-content: center; border: 1px dashed rgba(255,255,255,0.1); border-radius: 4px; margin-bottom: 4px;">+</div><div class="building-traits" style="color: rgba(255,255,255,0.2);">Empty Slot</div>`;
         bList.appendChild(el);
     }
 
@@ -230,9 +230,10 @@ export function renderColonyView(planetId) {
             card.style.borderLeft = `2px solid ${b.borderColor || '#00f2ff'}`;
             
             card.innerHTML = `
-                <div class="build-header">
-                    <div class="build-title">
-                        <span>${b.icon}</span> ${b.name}
+                <div class="build-header" style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; border-radius: 4px; background-image: url('${b.image}'); background-size: cover; background-position: center; flex-shrink: 0; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></div>
+                    <div class="build-title" style="margin: 0;">
+                        ${b.name}
                     </div>
                 </div>
                 <div class="build-header" style="margin-bottom:10px;">
@@ -317,9 +318,10 @@ export function renderColonyView(planetId) {
 
             upgradeHtml += `
                 <div class="build-option" style="border-left:2px solid ${b.borderColor || '#00f2ff'};">
-                    <div class="build-header">
-                        <div class="build-title">
-                            <span>${b.icon}</span> ${b.name} <span style="color:#ffaa00;font-size:11px;">Lv.${level} → Lv.${nextLevel}</span>
+                    <div class="build-header" style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 40px; height: 40px; border-radius: 4px; background-image: url('${b.image}'); background-size: cover; background-position: center; flex-shrink: 0; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></div>
+                        <div class="build-title" style="margin: 0;">
+                            ${b.name} <span style="color:#ffaa00;font-size:11px; display: block; margin-top: 2px;">Lv.${level} → Lv.${nextLevel}</span>
                         </div>
                     </div>
                     <div class="build-header" style="margin-bottom:10px;">

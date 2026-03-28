@@ -65,6 +65,8 @@ export async function init() {
                target.closest('#scene-transition-overlay') || target.closest('#settings-panel') ||
                target.closest('#exploration-header') || target.closest('#harvester-hud') ||
                target.closest('#joystick-container') || target.closest('#ship-mobile-controls') ||
+               target.closest('#mobile-dpad') || target.closest('#tank-fire-btn') ||
+               target.closest('#soldier-control-bar') || target.closest('#unit-panel') ||
                target.closest('button');
     };
     window.addEventListener('touchmove', (e) => {
@@ -226,6 +228,8 @@ function handleTap(event) {
     if (target && target.closest && target.closest('#system-unit-panel')) return;
     if (target && target.closest && target.closest('#system-ship-control-bar')) return;
     if (target && target.closest && target.closest('#ship-mobile-controls')) return;
+    if (target && target.closest && target.closest('#mobile-dpad')) return;
+    if (target && target.closest && target.closest('#tank-fire-btn')) return;
     // Block clicks when event modal (or any overlay) is open
     if (target && target.closest && target.closest('#event-modal')) return;
     // Also block if the event modal is visible (backdrop covers screen)

@@ -1,4 +1,8 @@
 /* Updated: Mobile header optimized - date moved below top bar as floating badge, resources + buttons share full width */
+
+/* ── Base rules (all screen sizes) ─────────────────────────────────────────── */
+#mobile-dpad.hidden { display: none !important; }
+
 /* --- MOBILE OPTIMIZATION --- */
 @media (max-width: 768px) {
     /* Layout Adjustments */
@@ -787,6 +791,100 @@
         justify-content: center;
     }
 
+    /* ── Mobile D-Pad ──────────────────────────────────────────────────────── */
+    #mobile-dpad {
+        position: fixed;
+        bottom: 12px;
+        left: 12px;
+        width: 136px;
+        height: 136px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        gap: 3px;
+        z-index: 1000;
+        pointer-events: auto;
+        touch-action: none;
+    }
+    #mobile-dpad.hidden { display: none !important; }
+
+    .dpad-btn {
+        border: 1.5px solid rgba(0, 242, 255, 0.3);
+        border-radius: 8px;
+        background: rgba(5, 12, 24, 0.7);
+        color: rgba(0, 242, 255, 0.75);
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        padding: 0;
+        backdrop-filter: blur(4px);
+    }
+    .dpad-btn:active, .dpad-btn.pressed {
+        background: rgba(0, 242, 255, 0.2);
+        border-color: rgba(0, 242, 255, 0.7);
+        color: #00f2ff;
+    }
+
+    #dpad-up    { grid-column: 2; grid-row: 1; }
+    #dpad-left  { grid-column: 1; grid-row: 2; }
+    #dpad-center { grid-column: 2; grid-row: 2; pointer-events: none; border-color: rgba(0,242,255,0.1); background: rgba(0,242,255,0.03); }
+    #dpad-right { grid-column: 3; grid-row: 2; }
+    #dpad-down  { grid-column: 2; grid-row: 3; }
+
+    /* ── Mobile: Soldier control bar — above D-pad ─────────────────────────── */
+    #soldier-control-bar {
+        bottom: auto;
+        top: 44px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 12px;
+        font-size: 12px;
+        gap: 10px;
+        z-index: 210;
+    }
+    #soldier-control-bar span {
+        display: none;  /* hide "Controlling Soldier" text on mobile */
+    }
+    #btn-back-to-drone {
+        font-size: 12px;
+        padding: 6px 16px;
+    }
+
+    /* ── Mobile: Unit panel — right side, above fire button ───────────────── */
+    #unit-panel {
+        right: 8px;
+        top: auto;
+        bottom: 200px;
+        transform: none;
+    }
+    #unit-panel-list {
+        gap: 6px;
+    }
+    .unit-btn {
+        width: 44px;
+        height: 44px;
+    }
+    .unit-btn .unit-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+    .unit-btn .unit-label {
+        font-size: 7px;
+    }
+
+    /* ── Mobile: Tank fire button — right, above D-pad level ──────────────── */
+    #tank-fire-btn {
+        bottom: 30px;
+        right: 16px;
+        width: 60px;
+        height: 60px;
+    }
 
     /* ── Event Modal — Mobile Overrides ────────────────────────────────────── */
     .evt-box {
