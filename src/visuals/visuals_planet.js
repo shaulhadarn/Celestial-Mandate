@@ -17,6 +17,7 @@ import { getSkyColor, createPlanetProps, createCreatures, createCloudLayers, cre
 import { hasGrass, createGrassMesh } from './visuals_planet_grass.js';
 import { renderColonyGroundBuildings, soldierMeshes, buildTankMesh } from './visuals_planet_colony.js';
 import { generatePlanetQuests, createQuestMarkers, updateQuestTrackerUI, showQuestTooltip, hideQuestTooltip, hideQuestTracker } from './visuals_planet_quests.js';
+import { generatePlanetAnomalies, createAnomalyMeshes, handleAnomalyTap, hideDiscoveryPanel } from './visuals_planet_anomalies.js';
 
 // Sub-modules — import also registers the mouse/touch listeners (self-invoking init)
 import { handleInput, setJoystickInput } from './visuals_planet_input.js';
@@ -268,9 +269,13 @@ export function handleExplorationTap(raycaster, mouse, camera) {
         }
     }
 
+    // Raycast against anomaly markers / encounter deposits
+    if (handleAnomalyTap(raycaster)) return;
+
     // Nothing relevant hit — dismiss tooltips
     _hideBuildingInfo();
     hideQuestTooltip();
+    hideDiscoveryPanel();
 }
 
 // ── Scene assembly ──────────────────────────────────────────────────────────
@@ -300,6 +305,13 @@ export function createPlanetVisuals(planetData, group) {
     planetState.colonyShield = null;
     planetState.quests = [];
     planetState.questGroup = null;
+    planetState.anomalies = [];
+    planetState.anomalyGroup = null;
+    planetState._encounterTimer = 0;
+    planetState._encounterCooldown = 60;
+    planetState._encounterRand = null;
+    planetState._activeEncounter = null;
+    planetState._encounterMeshes = [];
     planetState.currentPlanetData = planetData;
     planetState.explorationGroup = group;
     disposeGroup(group);
@@ -495,6 +507,12 @@ export function createPlanetVisuals(planetData, group) {
     group.add(planetState.questGroup);
     createQuestMarkers(planetState.quests, planetState.questGroup);
     updateQuestTrackerUI();
+
+    // 7c. Anomalies & encounters
+    planetState.anomalies = generatePlanetAnomalies(planetData);
+    planetState.anomalyGroup = new THREE.Group();
+    group.add(planetState.anomalyGroup);
+    createAnomalyMeshes(planetState.anomalies, planetState.anomalyGroup);
 
     // 8. Lights
     const sunColor = isDark ? 0xffbb88 : 0xffffff;

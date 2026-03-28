@@ -11,6 +11,7 @@ import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 import { updateGrass } from './visuals_planet_grass.js';
 import { scene } from '../core/scene_config.js';
 import { updateQuestProximity, updateQuestMarkerAnims } from './visuals_planet_quests.js';
+import { updateAnomalyProximity, updateAnomalyAnims, updateEncounterTimer } from './visuals_planet_anomalies.js';
 
 // Dark space color for ascent sky-fade
 const _spaceColor = new THREE.Color(0x020408);
@@ -1940,6 +1941,11 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // --- 12. Quest proximity + marker animations ---
     updateQuestProximity(dt);
     updateQuestMarkerAnims(dt, _t);
+
+    // --- 12b. Anomaly proximity, animations & encounter timer ---
+    updateAnomalyProximity(dt);
+    updateAnomalyAnims(dt, _t);
+    updateEncounterTimer(dt);
 
     // --- 13. Final Camera Update (reuse cached trig from step 1) ---
     _finalCenter.copy(followTarget.position).add(_cameraOffset);

@@ -274,6 +274,8 @@ export function initUI() {
             if (tfb) tfb.classList.add('hidden');
             const qT = document.getElementById('quest-tracker');
             if (qT) qT.classList.add('hidden');
+            const dP = document.getElementById('discovery-panel');
+            if (dP) dP.classList.add('hidden');
         }
     });
 
@@ -509,6 +511,10 @@ async function returnToSystemViewFromPlanet() {
     if (questTracker) questTracker.classList.add('hidden');
     const questTooltip = document.getElementById('quest-tap-tooltip');
     if (questTooltip) questTooltip.classList.add('hidden');
+    const discoveryPanel = document.getElementById('discovery-panel');
+    if (discoveryPanel) discoveryPanel.classList.add('hidden');
+    const encounterFlash = document.getElementById('encounter-flash-overlay');
+    if (encounterFlash) { encounterFlash.classList.add('hidden'); encounterFlash.classList.remove('flash-active'); }
 
     // Dark space overlay — matches the sky darkening during ascent
     const overlay = getTransitionOverlay();
