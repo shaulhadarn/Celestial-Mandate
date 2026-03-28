@@ -75,6 +75,15 @@ const planetState = {
     // Quest system (transient — rebuilt on each landing)
     quests: [],
     questGroup: null,
+
+    // Anomaly & encounter system (transient — rebuilt on each landing)
+    anomalies: [],
+    anomalyGroup: null,
+    _encounterTimer: 0,
+    _encounterCooldown: 60,
+    _encounterRand: null,
+    _activeEncounter: null,
+    _encounterMeshes: [],
 };
 
 // Constants

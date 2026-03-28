@@ -227,28 +227,26 @@ export function renderColonyView(planetId) {
 
             const card = document.createElement('div');
             card.className = 'build-option';
-            card.style.borderLeft = `2px solid ${b.borderColor || '#00f2ff'}`;
-            
+            card.style.setProperty('--card-accent', b.borderColor || '#00f2ff');
+
             card.innerHTML = `
-                <div class="build-header" style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 40px; height: 40px; border-radius: 4px; background-image: url('${b.image}'); background-size: cover; background-position: center; flex-shrink: 0; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></div>
-                    <div class="build-title" style="margin: 0;">
-                        ${b.name}
+                <div class="build-card-img" style="background-image: url('${b.image}');">
+                    <div class="build-card-img-overlay">
+                        <span class="build-card-name">${b.name}</span>
                     </div>
                 </div>
-                <div class="build-header" style="margin-bottom:10px;">
-                     <div class="build-stats-preview">${traitsText}</div>
-                </div>
-                
-                <div class="build-actions">
-                    <button class="btn-build-action btn-build-normal" id="build-${key}">
-                        <span>Build (${b.buildTime}s)</span>
-                        <span class="cost-display">💎${costNormal}</span>
-                    </button>
-                    <button class="btn-build-action btn-build-instant" id="instant-${key}">
-                        <span>Instant</span>
-                        <span class="cost-display">💎${costInstant}</span>
-                    </button>
+                <div class="build-card-body">
+                    <div class="build-stats-preview">${traitsText}</div>
+                    <div class="build-actions">
+                        <button class="btn-build-action btn-build-normal" id="build-${key}">
+                            <span>Build (${b.buildTime}s)</span>
+                            <span class="cost-display">💎 ${costNormal}</span>
+                        </button>
+                        <button class="btn-build-action btn-build-instant" id="instant-${key}">
+                            <span>Instant</span>
+                            <span class="cost-display">💎 ${costInstant}</span>
+                        </button>
+                    </div>
                 </div>
             `;
 
@@ -317,25 +315,25 @@ export function renderColonyView(planetId) {
             if (!preview) preview = 'Reduced downtime';
 
             upgradeHtml += `
-                <div class="build-option" style="border-left:2px solid ${b.borderColor || '#00f2ff'};">
-                    <div class="build-header" style="display: flex; align-items: center; gap: 10px;">
-                        <div style="width: 40px; height: 40px; border-radius: 4px; background-image: url('${b.image}'); background-size: cover; background-position: center; flex-shrink: 0; box-shadow: inset 0 0 5px rgba(0,0,0,0.5);"></div>
-                        <div class="build-title" style="margin: 0;">
-                            ${b.name} <span style="color:#ffaa00;font-size:11px; display: block; margin-top: 2px;">Lv.${level} → Lv.${nextLevel}</span>
+                <div class="build-option" style="--card-accent: ${b.borderColor || '#00f2ff'};">
+                    <div class="build-card-img" style="background-image: url('${b.image}');">
+                        <div class="build-card-img-overlay">
+                            <span class="build-card-name">${b.name}</span>
+                            <span class="build-card-level">Lv.${level} → Lv.${nextLevel}</span>
                         </div>
                     </div>
-                    <div class="build-header" style="margin-bottom:10px;">
+                    <div class="build-card-body">
                         <div class="build-stats-preview">${preview}</div>
-                    </div>
-                    <div class="build-actions">
-                        <button class="btn-build-action btn-build-normal btn-upgrade" data-idx="${idx}" data-instant="0" ${currentMinerals < costNormal ? 'disabled' : ''}>
-                            <span>Upgrade (${time}s)</span>
-                            <span class="cost-display">💎${costNormal}</span>
-                        </button>
-                        <button class="btn-build-action btn-build-instant btn-upgrade" data-idx="${idx}" data-instant="1" ${currentMinerals < costInstant ? 'disabled' : ''}>
-                            <span>Instant</span>
-                            <span class="cost-display">💎${costInstant}</span>
-                        </button>
+                        <div class="build-actions">
+                            <button class="btn-build-action btn-build-normal btn-upgrade" data-idx="${idx}" data-instant="0" ${currentMinerals < costNormal ? 'disabled' : ''}>
+                                <span>Upgrade (${time}s)</span>
+                                <span class="cost-display">💎 ${costNormal}</span>
+                            </button>
+                            <button class="btn-build-action btn-build-instant btn-upgrade" data-idx="${idx}" data-instant="1" ${currentMinerals < costInstant ? 'disabled' : ''}>
+                                <span>Instant</span>
+                                <span class="cost-display">💎 ${costInstant}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>`;
         });
