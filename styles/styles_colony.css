@@ -122,6 +122,21 @@
     filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
 }
 
+.building-slot-img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background-size: cover;
+    background-position: center;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.building-slot-img-wip {
+    opacity: 0.4;
+    filter: grayscale(100%);
+}
+
 .building-traits {
     font-size: 9px;
     text-align: center;
@@ -417,4 +432,130 @@
     color: #ffffff;
     font-weight: 600;
     font-size: 14px;
+}
+
+/* ══ Mobile Colony Optimizations ════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* Remove nested scroll — let .panel-content handle scrolling */
+    .construction-list {
+        max-height: none;
+        overflow-y: visible;
+        gap: 8px;
+    }
+
+    /* Disable hover transform on mobile (interferes with touch) */
+    .build-option:hover {
+        transform: none;
+    }
+
+    /* ── Horizontal card layout for construction items ──────────────── */
+    .build-option {
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .build-card-img {
+        width: 72px;
+        height: auto;
+        min-height: 80px;
+        flex-shrink: 0;
+        border-bottom: none;
+        border-right: 1px solid rgba(0, 242, 255, 0.06);
+        border-radius: 8px 0 0 8px;
+    }
+
+    .build-card-img::before {
+        /* Move accent stripe to left edge */
+        width: 3px;
+        height: 100%;
+        right: auto;
+        bottom: auto;
+    }
+
+    .build-card-img-overlay {
+        padding: 6px 6px 4px;
+        background: linear-gradient(0deg, rgba(0,4,10,0.88) 0%, rgba(0,4,10,0.4) 70%, transparent 100%);
+    }
+
+    .build-card-name {
+        font-size: 10px;
+        letter-spacing: 0;
+    }
+
+    .build-card-level {
+        font-size: 9px;
+    }
+
+    .build-card-body {
+        flex: 1;
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+    }
+
+    .build-stats-preview {
+        font-size: 11px;
+        margin-bottom: 6px;
+        padding: 0;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    /* ── Larger, tappable build buttons ─────────────────────────────── */
+    .build-actions {
+        gap: 6px;
+    }
+
+    .btn-build-action {
+        min-height: 38px;
+        padding: 6px 8px;
+        font-size: 10px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
+    }
+
+    .btn-build-action:active:not(:disabled) {
+        transform: scale(0.96);
+    }
+
+    .btn-build-normal:active:not(:disabled) {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .btn-build-instant:active:not(:disabled) {
+        background: rgba(255, 170, 0, 0.15);
+        border-color: rgba(255, 170, 0, 0.6);
+    }
+
+    /* ── Building slots grid — 3 columns, compact ──────────────────── */
+    .building-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+
+    .building-slot {
+        padding: 4px;
+    }
+
+    /* ── Colony header stats compact ───────────────────────────────── */
+    .colony-header-stats {
+        margin: 8px 0;
+    }
+
+    .stat-box {
+        font-size: 12px;
+        padding: 8px 4px;
+    }
+
+    /* ── Section headers — tappable ────────────────────────────────── */
+    .colony-section-toggle {
+        padding: 8px 0;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(0, 242, 255, 0.1);
+    }
 }

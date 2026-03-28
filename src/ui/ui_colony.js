@@ -170,7 +170,7 @@ export function renderColonyView(planetId) {
             el.innerHTML = `
                 <span class="building-level-badge ${levelClass}">Lv.${level}</span>
                 ${upgradingTag}
-                <div class="building-image-container" style="background-image: url('${b.image}'); background-size: cover; background-position: center; width: 100%; height: 50px; border-radius: 4px; margin-bottom: 4px; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);"></div>
+                <div class="building-slot-img" style="background-image: url('${b.image}');"></div>
                 <div class="building-traits">${traits.join(' ')}</div>
             `;
             el.title = `${b.name} (Level ${level})`;
@@ -188,7 +188,7 @@ export function renderColonyView(planetId) {
         el.style.borderStyle = 'dashed';
 
         el.innerHTML = `
-            <div class="building-image-container" style="background-image: url('${b ? b.image : ''}'); background-size: cover; background-position: center; width: 100%; height: 50px; border-radius: 4px; margin-bottom: 4px; opacity: 0.4; filter: grayscale(100%);"></div>
+            <div class="building-slot-img building-slot-img-wip" style="background-image: url('${b ? b.image : ''}');"></div>
             <div class="construction-overlay">
                 <span style="font-size:10px; color:#fff;">${pct}%</span>
                 <div class="construction-bar">

@@ -265,16 +265,23 @@ function _showEvent(evt, chainInfo) {
             ${hasEffect ? `<div class="evt-choice-effects">${_formatEffect(choice.effect)}</div>` : ''}
         `;
         btn.addEventListener('click', () => {
-            if (choice.effect) applyEventChoice(choice.effect);
+            try {
+                if (choice.effect) applyEventChoice(choice.effect);
+            } catch (err) {
+                console.error('applyEventChoice error:', err);
+            }
             _closeModal();
             showNotification(`${evt.title}: ${choice.label}`, 'info');
 
             // If this is a chain event, schedule next step
-            if (chainInfo && choice.nextStep) {
-                scheduleChainStep(chainInfo.chainId, choice.nextStep, choice.delay || [30, 60]);
-            } else if (chainInfo && !choice.nextStep) {
-                // Chain ends with this choice
-                scheduleChainStep(chainInfo.chainId, null, [0, 0]);
+            try {
+                if (chainInfo && choice.nextStep) {
+                    scheduleChainStep(chainInfo.chainId, choice.nextStep, choice.delay || [30, 60]);
+                } else if (chainInfo && !choice.nextStep) {
+                    scheduleChainStep(chainInfo.chainId, null, [0, 0]);
+                }
+            } catch (err) {
+                console.error('scheduleChainStep error:', err);
             }
         });
         choicesEl.appendChild(btn);
