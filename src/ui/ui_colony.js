@@ -244,12 +244,18 @@ export function renderColonyView(planetId) {
                             ${traitsText ? `<span class="build-card-prod">${traitsText.trim()}</span>` : ''}
                             ${maintText ? `<span class="build-card-maint">${maintText.trim()}</span>` : ''}
                         </div>
+                        <div class="build-card-cost">
+                            <span class="build-cost-label">Cost:</span>
+                            <span class="build-cost-value">💎 ${costNormal}</span>
+                            <span class="build-cost-sep">·</span>
+                            <span class="build-cost-time">🕐 ${b.buildTime}s</span>
+                        </div>
                     </div>
                 </div>
                 <div class="build-card-body">
                     <div class="build-actions">
                         <button class="btn-build-action btn-build-normal" id="build-${key}">
-                            <span>Build (${b.buildTime}s)</span>
+                            <span>Build</span>
                             <span class="cost-display">💎 ${costNormal}</span>
                         </button>
                         <button class="btn-build-action btn-build-instant" id="instant-${key}">

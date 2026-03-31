@@ -292,6 +292,35 @@
     color: #cc8866;
 }
 
+.build-card-cost {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+    font-size: 11px;
+}
+
+.build-cost-label {
+    color: #6a8a9e;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+}
+
+.build-cost-value {
+    color: #33eeff;
+    font-weight: 700;
+}
+
+.build-cost-sep {
+    color: rgba(255, 255, 255, 0.15);
+}
+
+.build-cost-time {
+    color: #aabbcc;
+}
+
 .build-card-level {
     font-size: 10px;
     font-weight: 600;
