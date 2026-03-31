@@ -218,17 +218,14 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: 400px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 242, 255, 0.15) transparent;
+    overflow-y: visible;
 }
 
 .build-option {
     background: rgba(0, 6, 14, 0.6);
     border: 1px solid rgba(0, 242, 255, 0.08);
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
     transition: all 0.25s ease;
     position: relative;
     border-left: 3px solid var(--card-accent, #00f2ff);

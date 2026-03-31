@@ -405,7 +405,7 @@
     bottom: auto;
     transform-origin: top right;
     min-width: 360px;
-    max-height: 80vh;
+    max-height: calc(100vh - 130px);
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 242, 255, 0.2) transparent;
