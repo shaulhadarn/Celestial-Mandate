@@ -231,6 +231,7 @@
     overflow: hidden;
     transition: all 0.25s ease;
     position: relative;
+    border-left: 3px solid var(--card-accent, #00f2ff);
 }
 
 .build-option:hover {
@@ -239,45 +240,56 @@
     transform: translateY(-1px);
 }
 
-/* ── Card image banner ── */
-.build-card-img {
-    width: 100%;
-    height: 90px;
+/* ── Card horizontal row layout ── */
+.build-card-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 6px;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.04);
+}
+
+.build-card-thumb {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
     background-size: cover;
     background-position: center;
-    position: relative;
-    border-bottom: 1px solid rgba(0, 242, 255, 0.06);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
-.build-card-img::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--card-accent, #00f2ff);
-    opacity: 0.6;
-}
-
-.build-card-img-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 24px 12px 8px;
-    background: linear-gradient(0deg, rgba(0, 4, 10, 0.92) 0%, rgba(0, 4, 10, 0.5) 60%, transparent 100%);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+.build-card-info {
+    flex: 1;
+    min-width: 0;
 }
 
 .build-card-name {
     font-weight: 700;
     font-size: 13px;
     color: #e0f0ff;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.build-card-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 11px;
+}
+
+.build-card-prod {
+    color: #88ddbb;
+}
+
+.build-card-maint {
+    color: #cc8866;
 }
 
 .build-card-level {
@@ -289,7 +301,26 @@
 
 /* ── Card body ── */
 .build-card-body {
-    padding: 10px 12px 12px;
+    padding: 8px 12px 10px;
+}
+
+/* Legacy compat */
+.build-card-img {
+    width: 100%;
+    height: 90px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.06);
+}
+
+.build-card-img-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 24px 12px 8px;
+    background: linear-gradient(0deg, rgba(0, 4, 10, 0.92) 0%, rgba(0, 4, 10, 0.5) 60%, transparent 100%);
 }
 
 .build-stats-preview {
@@ -449,60 +480,24 @@
         transform: none;
     }
 
-    /* ── Horizontal card layout for construction items ──────────────── */
-    .build-option {
-        display: flex;
-        flex-direction: row;
-        align-items: stretch;
+    /* ── Compact card layout for mobile ──────────────── */
+    .build-card-row {
+        padding: 8px 10px 4px;
+        gap: 8px;
     }
 
-    .build-card-img {
-        width: 72px;
-        height: auto;
-        min-height: 80px;
-        flex-shrink: 0;
-        border-bottom: none;
-        border-right: 1px solid rgba(0, 242, 255, 0.06);
-        border-radius: 8px 0 0 8px;
-    }
-
-    .build-card-img::before {
-        /* Move accent stripe to left edge */
-        width: 3px;
-        height: 100%;
-        right: auto;
-        bottom: auto;
-    }
-
-    .build-card-img-overlay {
-        padding: 6px 6px 4px;
-        background: linear-gradient(0deg, rgba(0,4,10,0.88) 0%, rgba(0,4,10,0.4) 70%, transparent 100%);
+    .build-card-thumb {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
     }
 
     .build-card-name {
-        font-size: 10px;
-        letter-spacing: 0;
-    }
-
-    .build-card-level {
-        font-size: 9px;
+        font-size: 11px;
     }
 
     .build-card-body {
-        flex: 1;
-        padding: 8px 10px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        min-width: 0;
-    }
-
-    .build-stats-preview {
-        font-size: 11px;
-        margin-bottom: 6px;
-        padding: 0;
-        gap: 6px;
-        flex-wrap: wrap;
+        padding: 6px 10px 8px;
     }
 
     /* ── Larger, tappable build buttons ─────────────────────────────── */

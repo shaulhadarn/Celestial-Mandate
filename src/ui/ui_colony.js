@@ -229,14 +229,24 @@ export function renderColonyView(planetId) {
             card.className = 'build-option';
             card.style.setProperty('--card-accent', b.borderColor || '#00f2ff');
 
+            // Maintenance text
+            let maintText = '';
+            if(b.maintenance.energy) maintText += `-${b.maintenance.energy}⚡ `;
+            if(b.maintenance.minerals) maintText += `-${b.maintenance.minerals}💎 `;
+            if(b.maintenance.food) maintText += `-${b.maintenance.food}🍏 `;
+
             card.innerHTML = `
-                <div class="build-card-img" style="background-image: url('${b.image}');">
-                    <div class="build-card-img-overlay">
-                        <span class="build-card-name">${b.name}</span>
+                <div class="build-card-row">
+                    <div class="build-card-thumb" style="background-image: url('${b.image}');"></div>
+                    <div class="build-card-info">
+                        <div class="build-card-name">${b.icon} ${b.name}</div>
+                        <div class="build-card-stats">
+                            ${traitsText ? `<span class="build-card-prod">${traitsText.trim()}</span>` : ''}
+                            ${maintText ? `<span class="build-card-maint">${maintText.trim()}</span>` : ''}
+                        </div>
                     </div>
                 </div>
                 <div class="build-card-body">
-                    <div class="build-stats-preview">${traitsText}</div>
                     <div class="build-actions">
                         <button class="btn-build-action btn-build-normal" id="build-${key}">
                             <span>Build (${b.buildTime}s)</span>
