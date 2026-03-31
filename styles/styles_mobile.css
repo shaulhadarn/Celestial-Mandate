@@ -599,7 +599,7 @@
     }
 
     .build-option {
-        padding: 6px;
+        padding: 0;
     }
 
     .build-title {
@@ -607,9 +607,9 @@
     }
 
     .btn-build-action {
-        padding: 6px 4px;
-        font-size: 12px;
-        min-height: 36px;
+        padding: 8px 6px;
+        font-size: 11px;
+        min-height: 44px;
     }
     
     .building-slot {

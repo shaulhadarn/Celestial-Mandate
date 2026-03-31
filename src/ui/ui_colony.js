@@ -235,6 +235,8 @@ export function renderColonyView(planetId) {
             if(b.maintenance.minerals) maintText += `-${b.maintenance.minerals}💎 `;
             if(b.maintenance.food) maintText += `-${b.maintenance.food}🍏 `;
 
+            const canAfford = currentMinerals >= costNormal;
+
             card.innerHTML = `
                 <div class="build-card-row">
                     <div class="build-card-thumb" style="background-image: url('${b.image}');"></div>
@@ -246,7 +248,7 @@ export function renderColonyView(planetId) {
                         </div>
                         <div class="build-card-cost">
                             <span class="build-cost-label">Cost:</span>
-                            <span class="build-cost-value">💎 ${costNormal}</span>
+                            <span class="build-cost-value ${canAfford ? '' : 'insufficient'}">💎 ${costNormal}</span>
                             <span class="build-cost-sep">·</span>
                             <span class="build-cost-time">🕐 ${b.buildTime}s</span>
                         </div>
@@ -255,17 +257,19 @@ export function renderColonyView(planetId) {
                 <div class="build-card-body">
                     <div class="build-actions">
                         <button class="btn-build-action btn-build-normal" id="build-${key}">
-                            <span>Build</span>
+                            <span>🔨 Build</span>
                             <span class="cost-display">💎 ${costNormal}</span>
                         </button>
                         <button class="btn-build-action btn-build-instant" id="instant-${key}">
-                            <span>Instant</span>
+                            <span>⚡ Instant</span>
                             <span class="cost-display">💎 ${costInstant}</span>
                         </button>
                     </div>
                 </div>
             `;
 
+            if (!canAfford) card.classList.add('build-option-disabled');
+            card.style.cursor = 'pointer';
             cList.appendChild(card);
 
             const btnNormal = card.querySelector(`#build-${key}`);
@@ -274,7 +278,14 @@ export function renderColonyView(planetId) {
             if (currentMinerals < costNormal) btnNormal.disabled = true;
             if (currentMinerals < costInstant) btnInstant.disabled = true;
 
-            btnNormal.addEventListener('click', () => {
+            // Tapping the card itself triggers a normal build
+            card.addEventListener('click', (e) => {
+                // Don't double-fire if they tapped a button directly
+                if (e.target.closest('.btn-build-action')) return;
+                if (btnNormal.disabled) {
+                    showNotification("Insufficient Minerals", 'alert');
+                    return;
+                }
                 if(buildBuilding(planetId, key, false)) {
                     showNotification(`Construction Started: ${b.name}`, 'info');
                 } else {
@@ -282,7 +293,17 @@ export function renderColonyView(planetId) {
                 }
             });
 
-            btnInstant.addEventListener('click', () => {
+            btnNormal.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if(buildBuilding(planetId, key, false)) {
+                    showNotification(`Construction Started: ${b.name}`, 'info');
+                } else {
+                    showNotification("Insufficient Minerals", 'alert');
+                }
+            });
+
+            btnInstant.addEventListener('click', (e) => {
+                e.stopPropagation();
                 if(buildBuilding(planetId, key, true)) {
                     showNotification(`Instant Build: ${b.name}`, 'success');
                 } else {

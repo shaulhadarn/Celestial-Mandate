@@ -238,6 +238,15 @@
     border-color: rgba(0, 242, 255, 0.25);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 242, 255, 0.06);
     transform: translateY(-1px);
+    cursor: pointer;
+}
+
+.build-option-disabled {
+    opacity: 0.55;
+}
+
+.build-cost-value.insufficient {
+    color: #ff6655;
 }
 
 /* ── Card horizontal row layout ── */
@@ -295,30 +304,35 @@
 .build-card-cost {
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-top: 4px;
-    font-size: 11px;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 12px;
+    padding: 4px 6px;
+    background: rgba(0, 242, 255, 0.04);
+    border-radius: 3px;
+    border: 1px solid rgba(0, 242, 255, 0.06);
 }
 
 .build-cost-label {
-    color: #6a8a9e;
+    color: #8aaacc;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 9px;
+    font-size: 10px;
     letter-spacing: 0.5px;
 }
 
 .build-cost-value {
     color: #33eeff;
     font-weight: 700;
+    font-size: 13px;
 }
 
 .build-cost-sep {
-    color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.2);
 }
 
 .build-cost-time {
-    color: #aabbcc;
+    color: #bbccdd;
 }
 
 .build-card-level {
@@ -331,6 +345,8 @@
 /* ── Card body ── */
 .build-card-body {
     padding: 8px 12px 10px;
+    border-top: 1px solid rgba(0, 242, 255, 0.06);
+    background: rgba(0, 242, 255, 0.02);
 }
 
 /* Legacy compat */
@@ -384,31 +400,31 @@
 }
 
 .btn-build-normal {
-    border-color: rgba(255,255,255,0.12);
-    color: var(--color-text-bright);
-    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(0, 242, 255, 0.25);
+    color: #ccedff;
+    background: rgba(0, 242, 255, 0.06);
 }
 .btn-build-normal:hover:not(:disabled) {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255, 255, 255, 0.35);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+    background: rgba(0, 242, 255, 0.12);
+    border-color: rgba(0, 242, 255, 0.5);
+    box-shadow: 0 0 12px rgba(0, 242, 255, 0.1);
 }
 
 .btn-build-instant {
-    border-color: rgba(255, 170, 0, 0.2);
-    color: var(--color-secondary);
-    background: rgba(255, 170, 0, 0.03);
+    border-color: rgba(255, 170, 0, 0.3);
+    color: #ffcc66;
+    background: rgba(255, 170, 0, 0.06);
 }
 .btn-build-instant:hover:not(:disabled) {
-    background: rgba(255, 170, 0, 0.1);
+    background: rgba(255, 170, 0, 0.12);
     border-color: rgba(255, 170, 0, 0.5);
-    box-shadow: 0 0 14px rgba(255, 170, 0, 0.1);
+    box-shadow: 0 0 14px rgba(255, 170, 0, 0.12);
 }
 
 .btn-build-action:disabled {
-    opacity: 0.2;
+    opacity: 0.4;
     cursor: not-allowed;
-    filter: grayscale(1);
+    filter: grayscale(0.6);
 }
 
 .cost-display {
@@ -509,6 +525,11 @@
         transform: none;
     }
 
+    .build-option:active:not(.build-option-disabled) {
+        background: rgba(0, 242, 255, 0.08);
+        border-color: rgba(0, 242, 255, 0.3);
+    }
+
     /* ── Compact card layout for mobile ──────────────── */
     .build-card-row {
         padding: 8px 10px 4px;
@@ -535,11 +556,12 @@
     }
 
     .btn-build-action {
-        min-height: 38px;
-        padding: 6px 8px;
-        font-size: 10px;
+        min-height: 44px;
+        padding: 8px 10px;
+        font-size: 11px;
         touch-action: manipulation;
         -webkit-tap-highlight-color: rgba(0, 242, 255, 0.15);
+        letter-spacing: 0.5px;
     }
 
     .btn-build-action:active:not(:disabled) {
@@ -547,12 +569,12 @@
     }
 
     .btn-build-normal:active:not(:disabled) {
-        background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(255, 255, 255, 0.5);
+        background: rgba(0, 242, 255, 0.18);
+        border-color: rgba(0, 242, 255, 0.6);
     }
 
     .btn-build-instant:active:not(:disabled) {
-        background: rgba(255, 170, 0, 0.15);
+        background: rgba(255, 170, 0, 0.18);
         border-color: rgba(255, 170, 0, 0.6);
     }
 
