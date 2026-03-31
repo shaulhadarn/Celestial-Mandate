@@ -3,10 +3,10 @@
  * Optimized: pre-allocated vectors, cached velocity.length(), cached DOM refs.
  */
 import * as THREE from 'three';
-import { gameState, HARVESTER_YIELDS, HARVESTER_YIELD_DEFAULT } from '../core/state.js';
+import { gameState, HARVESTER_YIELDS, HARVESTER_YIELD_DEFAULT, buildLakeExtractor, BUILDINGS } from '../core/state.js';
 import { getTerrainHeight, getTerrainHeightFast } from './visuals_planet_terrain.js';
-import { harvesterGroups, soldierMeshes, hubGroup, buildingAnims, renderColonyGroundBuildings, buildHostileAlienMesh } from './visuals_planet_colony.js';
-import { getOrCreateHarvesterHUD } from './visuals_planet_hud.js';
+import { harvesterGroups, soldierMeshes, hubGroup, buildingAnims, lakeExtractorGroups, renderColonyGroundBuildings, buildHostileAlienMesh } from './visuals_planet_colony.js';
+import { getOrCreateHarvesterHUD, getOrCreateLakeExtractorHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 import { updateGrass } from './visuals_planet_grass.js';
 import { scene } from '../core/scene_config.js';
@@ -1498,7 +1498,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // ── Shield regeneration & visual update ──
     if (shield) {
         const REGEN_DELAY = 4; // seconds after last hit before regen starts
-        const REGEN_RATE = 3;  // HP per second
+        const REGEN_RATE = 5;  // HP per second
 
         if (!shield.broken && shield.hp < shield.maxHp && (time - shield.lastHitTime) > REGEN_DELAY) {
             shield.hp = Math.min(shield.maxHp, shield.hp + REGEN_RATE * dt);
@@ -1586,8 +1586,8 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     // Shield active check for alien behavior
     const shieldUp = shield && !shield.broken && shield.hp > 0;
     const shieldRadius = shield ? shield.radius : 0;
-    const SHIELD_ATTACK_DAMAGE = 4; // damage per alien hit on shield
-    const SHIELD_ATTACK_COOLDOWN = 2; // seconds between each alien's shield attacks
+    const SHIELD_ATTACK_DAMAGE = 3; // damage per alien hit on shield
+    const SHIELD_ATTACK_COOLDOWN = 2.5; // seconds between each alien's shield attacks
 
     // Hostile alien march + animation
     for (let ai = hostiles.length - 1; ai >= 0; ai--) {
@@ -1772,7 +1772,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
         // Find nearest hostile in range
         let nearestHostile = null;
-        let nearestDist = 25; // detection range
+        let nearestDist = 35; // detection range
         for (let ai = 0; ai < hostiles.length; ai++) {
             const alien = hostiles[ai];
             if (alien.userData._dying) continue;
@@ -1805,7 +1805,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
             // Fire when cooldown ready
             if (ud.fireCooldown <= 0) {
-                ud.fireCooldown = 1.2 + Math.random() * 0.6; // 1.2-1.8s
+                ud.fireCooldown = 0.8 + Math.random() * 0.4; // 0.8-1.2s
 
                 // Muzzle flash
                 if (pj && pj.muzzle) {
@@ -1868,7 +1868,7 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
                 requestAnimationFrame(_fadeTracer);
 
                 // Damage the hostile
-                nearestHostile.userData.hp -= 1;
+                nearestHostile.userData.hp -= 2;
 
                 // Red flash on hit
                 nearestHostile.traverse(child => {
@@ -1930,6 +1930,82 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
             hud.querySelector('#harvester-hud-placing').style.display = 'block';
         }
     }
+
+    // --- 10b. Drone proximity to lakes (Hydro Extractor build prompt) ---
+    if (!planetState.placementMode && planetState.lakeDefs && planetState.currentPlanetData) {
+        const colony = gameState.colonies[planetState.currentPlanetData.id];
+        if (colony) {
+            const droneX = playerMesh.position.x;
+            const droneZ = playerMesh.position.z;
+            let overLake = null;
+            let overLakeIdx = -1;
+            for (let li = 0; li < planetState.lakeDefs.length; li++) {
+                const lk = planetState.lakeDefs[li];
+                const ldx = droneX - lk.x;
+                const ldz = droneZ - lk.z;
+                if (ldx * ldx + ldz * ldz < lk.radius * lk.radius) {
+                    overLake = lk;
+                    overLakeIdx = li;
+                    break;
+                }
+            }
+
+            const lakeHud = getOrCreateLakeExtractorHUD();
+            if (overLake && overLakeIdx >= 0) {
+                const existing = (colony.lakeExtractors || []).filter(e => e.lakeIndex === overLakeIdx).length;
+                const maxPer = BUILDINGS['lake_extractor'].maxPerLake;
+                const cost = BUILDINGS['lake_extractor'].cost.minerals;
+                const canBuild = existing < maxPer && gameState.resources.minerals >= cost;
+
+                lakeHud.style.display = 'block';
+                const infoEl = lakeHud.querySelector('#lake-ext-info');
+                const btnEl = lakeHud.querySelector('#btn-build-lake-ext');
+                if (infoEl) infoEl.innerHTML = `💧 Hydro Extractor &nbsp;(${existing}/${maxPer} on this lake) &nbsp; +${BUILDINGS['lake_extractor'].production.energy}⚡`;
+                if (btnEl) {
+                    btnEl.disabled = !canBuild;
+                    btnEl.style.opacity = canBuild ? '1' : '0.4';
+                    btnEl.textContent = existing >= maxPer ? 'Lake Full' : `Build (💎${cost})`;
+
+                    // Rewire click handler with current state
+                    btnEl.onclick = canBuild ? () => {
+                        if (buildLakeExtractor(planetState.currentPlanetData.id, overLakeIdx, { x: droneX, z: droneZ })) {
+                            updateColonyBuildings();
+                            lakeHud.style.display = 'none';
+                        }
+                    } : null;
+                }
+            } else {
+                lakeHud.style.display = 'none';
+            }
+        }
+    }
+
+    // --- 10c. Animate lake extractors (turbine spin, orb pulse, ripple) ---
+    lakeExtractorGroups.forEach(eg => {
+        const turb = eg.userData.turbine;
+        if (turb) turb.rotation.y += 1.5 * dt;
+
+        const orb = eg.userData.energyOrb;
+        if (orb) {
+            orb.position.y = 7.2 + Math.sin(_t * 2.0) * 0.3;
+            orb.material.emissiveIntensity = 0.6 + Math.sin(_t * 3.0) * 0.3;
+        }
+
+        const glow = eg.userData.orbGlow;
+        if (glow) {
+            const s = 3.5 + Math.sin(_t * 2.5) * 0.8;
+            glow.scale.set(s, s, 1);
+            glow.material.opacity = 0.35 + Math.sin(_t * 3.0) * 0.15;
+            glow.position.y = orb ? orb.position.y : 7.2;
+        }
+
+        const ripple = eg.userData.ripple;
+        if (ripple) {
+            const rScale = 1 + Math.sin(_t * 1.5) * 0.15;
+            ripple.scale.set(rScale, rScale, 1);
+            ripple.material.opacity = 0.1 + Math.sin(_t * 2.0) * 0.06;
+        }
+    });
 
     // --- 11. Update exploration header coords (cached DOM ref) ---
     if (!_coordsEl) _coordsEl = document.getElementById('exploration-coords');

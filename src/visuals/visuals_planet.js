@@ -282,6 +282,9 @@ export function handleExplorationTap(raycaster, mouse, camera) {
 
 export function createPlanetVisuals(planetData, group) {
     exitPlacementMode();
+    // Hide lake extractor HUD if present
+    const lakeHud = document.getElementById('lake-extractor-hud');
+    if (lakeHud) lakeHud.style.display = 'none';
     resetCachedDOM();
     hideQuestTracker();
     _switchToDrone();                 // reset soldier control on planet change

@@ -85,3 +85,22 @@ export function getOrCreateHarvesterHUD() {
 
     return el;
 }
+
+export function getOrCreateLakeExtractorHUD() {
+    let el = document.getElementById('lake-extractor-hud');
+    if (el) return el;
+
+    el = document.createElement('div');
+    el.id = 'lake-extractor-hud';
+    el.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:200;display:none;text-align:center;';
+    el.innerHTML = `
+        <div style="background:linear-gradient(180deg, rgba(0,140,255,0.2) 0%, rgba(0,60,120,0.25) 100%);border:1px solid rgba(0,180,255,0.4);border-radius:8px;padding:10px 18px;backdrop-filter:blur(6px);">
+            <div id="lake-ext-info" style="color:#66ccff;font-size:12px;margin-bottom:8px;"></div>
+            <button id="btn-build-lake-ext" style="background:rgba(0,180,255,0.15);border:1px solid rgba(0,200,255,0.5);color:#66ddff;padding:10px 24px;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;font-family:inherit;letter-spacing:1px;transition:all 0.2s;min-width:140px;">
+                Build
+            </button>
+        </div>
+    `;
+    document.body.appendChild(el);
+    return el;
+}

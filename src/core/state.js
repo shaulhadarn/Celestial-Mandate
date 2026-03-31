@@ -231,6 +231,14 @@ export function updateResources() {
             colEnergy -= (BUILDINGS.harvester.maintenance.energy || 0);
         });
 
+        // Lake Extractor Production
+        if (col.lakeExtractors) {
+            const extB = BUILDINGS['lake_extractor'];
+            col.lakeExtractors.forEach(() => {
+                colEnergy += (extB.production.energy || 0);
+            });
+        }
+
         // Apply per-colony research bonuses
         if (rb.energy_income) colEnergy += rb.energy_income;
         if (rb.minerals_income) colMinerals += rb.minerals_income;
@@ -531,6 +539,35 @@ export function relocateHarvester(planetId, harvesterId, newPos) {
     return true;
 }
 
+// ── Lake Extractor ──────────────────────────────────────────────────────────
+export function buildLakeExtractor(planetId, lakeIndex, position) {
+    const col = gameState.colonies[planetId];
+    if (!col) return false;
+    if (!col.lakeExtractors) col.lakeExtractors = [];
+
+    const b = BUILDINGS['lake_extractor'];
+    if (!b) return false;
+
+    // Count extractors on this specific lake
+    const onThisLake = col.lakeExtractors.filter(e => e.lakeIndex === lakeIndex).length;
+    if (onThisLake >= b.maxPerLake) return false;
+
+    if (gameState.resources.minerals < b.cost.minerals) return false;
+    gameState.resources.minerals -= b.cost.minerals;
+
+    col.lakeExtractors.push({
+        id: col.lakeExtractors.length,
+        lakeIndex,
+        position: { x: position.x, z: position.z },
+        active: true
+    });
+
+    events.dispatchEvent(new CustomEvent('lake-extractor-built', { detail: { planetId, lakeIndex } }));
+    events.dispatchEvent(new CustomEvent('resources-updated'));
+    events.dispatchEvent(new CustomEvent('selection-changed'));
+    return true;
+}
+
 export function cancelShipBuild(planetId, queueIndex) {
     const col = gameState.colonies[planetId];
     if (!col || !col.shipQueue) return;
@@ -554,6 +591,7 @@ export function buildBuilding(planetId, buildingKey, isInstant = false) {
     const b = BUILDINGS[buildingKey];
     if (!col || !b) return false;
     if (b.isHarvester) return false; // harvesters use buildHarvester() instead
+    if (b.isLakeBuilding) return false; // lake buildings use buildLakeExtractor() instead
 
     // Enforce max buildings limit (5) — exclude upgrades from pending count
     const pendingNewCount = col.construction ? col.construction.filter(c => !c.isUpgrade).length : 0;

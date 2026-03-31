@@ -68,6 +68,18 @@ export const BUILDINGS = {
         isHarvester: true,
         color: 'rgba(255, 170, 0, 0.15)',
         borderColor: '#ffaa00'
+    },
+    'lake_extractor': {
+        name: "Hydro Extractor",
+        icon: "💧",
+        cost: { minerals: 80 },
+        buildTime: 4,
+        maintenance: {},
+        production: { energy: 3 },
+        maxPerLake: 2,
+        isLakeBuilding: true,
+        color: 'rgba(0, 180, 255, 0.2)',
+        borderColor: '#00b4ff'
     }
 };
 

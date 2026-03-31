@@ -9,6 +9,7 @@ export let harvesterGroups = [];
 export let soldierMeshes = [];
 export let hubGroup = null;
 export let buildingAnims = [];
+export let lakeExtractorGroups = [];
 
 // Procedural smoke/steam sprite texture (cached)
 let _smokeTextureCache = null;
@@ -1512,6 +1513,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
     soldierMeshes = [];
     hubGroup = null;
     buildingAnims = [];
+    lakeExtractorGroups = [];
     const colony = gameState.colonies[planetId];
     if (!colony) return;
 
@@ -1768,6 +1770,25 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         harvesterGroups.push(hGroup);
     });
 
+    // ── Lake Extractors ──
+    const lakeExtractors = colony.lakeExtractors || [];
+    lakeExtractors.forEach((ext) => {
+        const ex = ext.position.x;
+        const ez = ext.position.z;
+        // Find the lake this extractor belongs to for water Y
+        const lakeDef = planetState.lakeDefs[ext.lakeIndex];
+        const waterY = lakeDef ? (lakeDef.waterY ?? heightFn(lakeDef.x, lakeDef.z) - 0.5) : heightFn(ex, ez);
+
+        const eGroup = new THREE.Group();
+        eGroup.position.set(ex, waterY, ez);
+        eGroup.userData = { isLakeExtractor: true, extractorId: ext.id, lakeIndex: ext.lakeIndex };
+
+        _buildLakeExtractor(eGroup);
+
+        group.add(eGroup);
+        lakeExtractorGroups.push(eGroup);
+    });
+
     // ── Patrol soldiers (3, each guarding a different area near the colony) ──
     for (let si = 0; si < 3; si++) {
         const soldier = _buildSoldierMesh();
@@ -1831,11 +1852,141 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
     _buildColonyShield(group);
 }
 
+// ── Lake Hydro Extractor ────────────────────────────────────────────────────
+
+function _buildLakeExtractor(group) {
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+    // --- Floating hexagonal platform ---
+    const platGeo = new THREE.CylinderGeometry(3.2, 3.5, 0.6, 6);
+    const platMat = isMobile
+        ? new THREE.MeshLambertMaterial({ color: 0x1a3a5a, emissive: 0x0a1a2a, emissiveIntensity: 0.2 })
+        : new THREE.MeshStandardMaterial({ color: 0x1a3a5a, roughness: 0.4, metalness: 0.7, emissive: 0x0a1a2a, emissiveIntensity: 0.2 });
+    const platform = new THREE.Mesh(platGeo, platMat);
+    platform.position.y = 0.3;
+    platform.castShadow = true;
+    group.add(platform);
+
+    // Platform edge glow ring
+    const ringGeo = new THREE.TorusGeometry(3.35, 0.08, 6, 6);
+    const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x00ccff, transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.6;
+    group.add(ring);
+
+    // --- Central turbine column ---
+    const colGeo = new THREE.CylinderGeometry(0.6, 0.8, 5, 8);
+    const colMat = isMobile
+        ? new THREE.MeshLambertMaterial({ color: 0x334466, emissive: 0x112233, emissiveIntensity: 0.15 })
+        : new THREE.MeshStandardMaterial({ color: 0x334466, roughness: 0.3, metalness: 0.8, emissive: 0x112233, emissiveIntensity: 0.15 });
+    const column = new THREE.Mesh(colGeo, colMat);
+    column.position.y = 3.1;
+    column.castShadow = true;
+    group.add(column);
+
+    // --- Rotating turbine blades (3 curved vanes) ---
+    const turbine = new THREE.Group();
+    turbine.position.y = 5.8;
+    const bladeMat = isMobile
+        ? new THREE.MeshLambertMaterial({ color: 0x88ccff, emissive: 0x2288cc, emissiveIntensity: 0.4 })
+        : new THREE.MeshStandardMaterial({ color: 0x88ccff, roughness: 0.2, metalness: 0.6, emissive: 0x2288cc, emissiveIntensity: 0.4 });
+    for (let i = 0; i < 3; i++) {
+        const bladeGeo = new THREE.BoxGeometry(0.15, 0.3, 3.5);
+        const blade = new THREE.Mesh(bladeGeo, bladeMat);
+        const angle = (i / 3) * Math.PI * 2;
+        blade.position.set(Math.cos(angle) * 1.75, 0, Math.sin(angle) * 1.75);
+        blade.rotation.y = angle;
+        // Slight tilt for wind-catch look
+        blade.rotation.x = 0.15;
+        blade.castShadow = true;
+        turbine.add(blade);
+    }
+    // Central hub cap
+    const hubCapGeo = new THREE.SphereGeometry(0.5, 8, 6);
+    const hubCapMat = isMobile
+        ? new THREE.MeshLambertMaterial({ color: 0x00aaff, emissive: 0x0066cc, emissiveIntensity: 0.5 })
+        : new THREE.MeshStandardMaterial({ color: 0x00aaff, roughness: 0.15, metalness: 0.9, emissive: 0x0066cc, emissiveIntensity: 0.5 });
+    turbine.add(new THREE.Mesh(hubCapGeo, hubCapMat));
+    group.add(turbine);
+    group.userData.turbine = turbine;
+
+    // --- Energy conduit pipes (2 curved supports) ---
+    const pipeMat = isMobile
+        ? new THREE.MeshLambertMaterial({ color: 0x224466 })
+        : new THREE.MeshStandardMaterial({ color: 0x224466, roughness: 0.5, metalness: 0.6 });
+    for (let side = -1; side <= 1; side += 2) {
+        const pipeGeo = new THREE.CylinderGeometry(0.12, 0.12, 4.5, 6);
+        const pipe = new THREE.Mesh(pipeGeo, pipeMat);
+        pipe.position.set(side * 1.4, 2.8, 0);
+        pipe.rotation.z = side * 0.2;
+        group.add(pipe);
+    }
+
+    // --- Underwater intake vanes (dangling below platform) ---
+    const vaneMat = isMobile
+        ? new THREE.MeshLambertMaterial({ color: 0x0066aa, emissive: 0x003366, emissiveIntensity: 0.3, transparent: true, opacity: 0.7 })
+        : new THREE.MeshStandardMaterial({ color: 0x0066aa, roughness: 0.2, metalness: 0.5, emissive: 0x003366, emissiveIntensity: 0.3, transparent: true, opacity: 0.7 });
+    for (let i = 0; i < 4; i++) {
+        const vaneAngle = (i / 4) * Math.PI * 2;
+        const vane = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.5, 0.8), vaneMat);
+        vane.position.set(Math.cos(vaneAngle) * 1.8, -1.2, Math.sin(vaneAngle) * 1.8);
+        vane.rotation.y = vaneAngle;
+        group.add(vane);
+    }
+
+    // --- Energy orb (floating above turbine) ---
+    const orbGeo = new THREE.SphereGeometry(0.35, 12, 10);
+    const orbMat = isMobile
+        ? new THREE.MeshLambertMaterial({ color: 0x44ddff, emissive: 0x00bbff, emissiveIntensity: 0.8, transparent: true, opacity: 0.85 })
+        : new THREE.MeshStandardMaterial({ color: 0x44ddff, emissive: 0x00bbff, emissiveIntensity: 0.8, roughness: 0.05, metalness: 1.0, transparent: true, opacity: 0.85 });
+    const orb = new THREE.Mesh(orbGeo, orbMat);
+    orb.position.y = 7.2;
+    group.add(orb);
+    group.userData.energyOrb = orb;
+
+    // Energy orb glow sprite
+    if (textures.glow) {
+        const glowMat = new THREE.SpriteMaterial({
+            map: textures.glow, color: 0x00ccff,
+            transparent: true, opacity: 0.5,
+            blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        const glow = new THREE.Sprite(glowMat);
+        glow.scale.set(4, 4, 1);
+        glow.position.y = 7.2;
+        group.add(glow);
+        group.userData.orbGlow = glow;
+    }
+
+    // --- Water ripple ring (flat ring on water surface) ---
+    const rippleGeo = new THREE.RingGeometry(2.8, 4.5, 24);
+    const rippleMat = new THREE.MeshBasicMaterial({
+        color: 0x44aaff, transparent: true, opacity: 0.15,
+        side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const ripple = new THREE.Mesh(rippleGeo, rippleMat);
+    ripple.rotation.x = -Math.PI / 2;
+    ripple.position.y = 0.08;
+    group.add(ripple);
+    group.userData.ripple = ripple;
+
+    // --- Small point light for ambient glow ---
+    if (!isMobile) {
+        const light = new THREE.PointLight(0x00ccff, 1.5, 15);
+        light.position.y = 6;
+        group.add(light);
+    }
+}
+
 // ── Colony Shield Dome ──────────────────────────────────────────────────────
 
 function _buildColonyShield(group) {
     const SHIELD_RADIUS = 38;
-    const SHIELD_MAX_HP = 120;
+    const SHIELD_MAX_HP = 200;
 
     // Inner translucent dome
     const domeMat = new THREE.MeshStandardMaterial({
@@ -1979,7 +2130,7 @@ function _spawnAlienHives(group, heightFn) {
 
     for (let i = 0; i < hiveCount; i++) {
         const angle = (i / hiveCount) * Math.PI * 2 + Math.random() * 1.0;
-        const dist = 90 + Math.random() * 40; // 90-130 units from center
+        const dist = 140 + Math.random() * 60; // 140-200 units from center
         const hx = Math.cos(angle) * dist;
         const hz = Math.sin(angle) * dist;
         const hy = heightFn(hx, hz);

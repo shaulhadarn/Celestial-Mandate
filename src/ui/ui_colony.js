@@ -115,6 +115,46 @@ function renderHarvesterSection(planetId, parentEl) {
     }
 }
 
+function renderLakeExtractorSection(planetId, parentEl) {
+    const existing = document.getElementById('colony-lake-extractor-section');
+    if (existing) existing.remove();
+
+    const colony = gameState.colonies[planetId];
+    if (!colony) return;
+    const extractors = colony.lakeExtractors || [];
+    if (extractors.length === 0) return;
+
+    const b = BUILDINGS['lake_extractor'];
+    const section = document.createElement('div');
+    section.id = 'colony-lake-extractor-section';
+    section.style.cssText = 'margin-top:16px;border-top:1px solid rgba(0,180,255,0.2);padding-top:14px;';
+
+    let cardsHtml = '';
+    extractors.forEach((ext, i) => {
+        cardsHtml += `
+            <div style="background:rgba(0,140,255,0.08);border:1px solid rgba(0,180,255,0.25);border-radius:6px;padding:10px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:40px;height:40px;border-radius:50%;background:radial-gradient(circle,rgba(0,200,255,0.3),rgba(0,60,120,0.5));display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 12px rgba(0,180,255,0.3);">💧</div>
+                    <div>
+                        <div style="color:#66ddff;font-size:13px;font-weight:bold;">Hydro Extractor #${i + 1}</div>
+                        <div style="color:#88aabb;font-size:11px;">Lake ${ext.lakeIndex + 1}</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;">
+                    <span style="color:#ffd700;">⚡+${b.production.energy}</span>
+                </div>
+            </div>`;
+    });
+
+    section.innerHTML = `
+        <div style="font-size:10px;letter-spacing:2px;color:#00b4ff;text-transform:uppercase;margin-bottom:10px;">💧 Hydro Extractors (${extractors.length})</div>
+        ${cardsHtml}
+        <div style="color:#557799;font-size:10px;text-align:center;margin-top:6px;">Land & fly over lakes to build more</div>
+    `;
+
+    parentEl.appendChild(section);
+}
+
 /**
  * Renders the detailed view of a colony, including building slots and construction options.
  */
@@ -213,7 +253,7 @@ export function renderColonyView(planetId) {
     cList.innerHTML = '';
     
     if(occupiedSlots < totalSlots) {
-        Object.keys(BUILDINGS).filter(key => !BUILDINGS[key].isHarvester).forEach(key => {
+        Object.keys(BUILDINGS).filter(key => !BUILDINGS[key].isHarvester && !BUILDINGS[key].isLakeBuilding).forEach(key => {
             const b = BUILDINGS[key];
             const currentMinerals = gameState.resources.minerals;
             const costNormal = b.cost.minerals;
@@ -399,6 +439,9 @@ export function renderColonyView(planetId) {
     const colonyViewEl = document.getElementById('planet-colony-view');
     if (colonyViewEl) renderHarvesterSection(planetId, colonyViewEl);
 
+    // ── Lake Extractor Section ───────────────────────────────────────────────
+    if (colonyViewEl) renderLakeExtractorSection(planetId, colonyViewEl);
+
     // ── Shipyard Section ──────────────────────────────────────────────────────
     // Remove any existing shipyard section before re-rendering
     const existingYard = document.getElementById('colony-shipyard-section');
@@ -519,7 +562,7 @@ export function updateColonyDynamicState(planetId) {
     });
 
     // Update Build Button States based on current resources
-    Object.keys(BUILDINGS).filter(key => !BUILDINGS[key].isHarvester).forEach(key => {
+    Object.keys(BUILDINGS).filter(key => !BUILDINGS[key].isHarvester && !BUILDINGS[key].isLakeBuilding).forEach(key => {
         const b = BUILDINGS[key];
         const btnNormal = document.getElementById(`build-${key}`);
         const btnInstant = document.getElementById(`instant-${key}`);
