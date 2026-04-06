@@ -2014,6 +2014,7 @@
 /* ── Main box ──────────────────────────────────────────────────────────── */
 .evt-box {
     position: relative;
+    z-index: 1;
     background: linear-gradient(170deg, rgba(6, 14, 28, 0.97) 0%, rgba(2, 6, 14, 0.99) 100%);
     border: 1px solid color-mix(in srgb, var(--evt-accent) 25%, transparent);
     box-shadow:

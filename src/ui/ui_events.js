@@ -4,6 +4,8 @@ import { showNotification } from './ui_notifications.js';
 let _modal = null;
 let _modalOpen = false;
 const _eventQueue = [];
+let _closeTimer1 = null;
+let _closeTimer2 = null;
 
 /* ── Category display config ────────────────────────────────────────────── */
 const CATEGORY_META = {
@@ -135,15 +137,21 @@ function _ensureModal() {
     return _modal;
 }
 
+function _cancelPendingClose() {
+    if (_closeTimer1) { clearTimeout(_closeTimer1); _closeTimer1 = null; }
+    if (_closeTimer2) { clearTimeout(_closeTimer2); _closeTimer2 = null; }
+}
+
 function _openModal() {
     if (!_modal) return;
+    _cancelPendingClose(); // prevent stale close timers from hiding a freshly opened modal
     _modalOpen = true;
     // Remove display:none, start invisible, then fade in
-    _modal.classList.remove('evt-no-display');
-    _modal.classList.add('hidden');
-    // Force reflow so the browser registers the hidden state before removing it
+    _modal.classList.remove('evt-no-display', 'hidden');
+    const box = _modal.querySelector('.evt-box');
+    if (box) box.classList.remove('evt-exit');
+    // Force reflow so the browser registers the state before animating
     void _modal.offsetWidth;
-    _modal.classList.remove('hidden');
 }
 
 function _closeModal() {
@@ -160,6 +168,7 @@ function _closeModal() {
         return;
     }
 
+    _cancelPendingClose();
     _modalOpen = false;
     const box = _modal.querySelector('.evt-box');
     if (box) {
@@ -167,10 +176,12 @@ function _closeModal() {
         box.classList.add('evt-exit');
     }
     // Fade out overlay slightly after box starts its exit
-    setTimeout(() => _modal.classList.add('hidden'), 80);
+    _closeTimer1 = setTimeout(() => {
+        if (!_modalOpen) _modal.classList.add('hidden');
+    }, 80);
     // After all animations complete, set display:none and clean up
-    setTimeout(() => {
-        if (_modal.classList.contains('hidden')) {
+    _closeTimer2 = setTimeout(() => {
+        if (!_modalOpen && _modal.classList.contains('hidden')) {
             _modal.classList.add('evt-no-display');
             if (box) box.classList.remove('evt-exit');
         }
@@ -248,12 +259,11 @@ function _showEvent(evt, chainInfo) {
         ? evt.choices
         : [{ label: 'Acknowledged', effect: {} }];
 
-    choices.forEach((choice, i) => {
+    choices.forEach((choice, idx) => {
         const btn = document.createElement('button');
         btn.className = 'evt-choice-btn';
-        // Force animation restart: start without animation, add it after reflow
-        btn.style.animation = 'none';
-        btn.style.opacity = '0';
+        // Start hidden; animation will reveal
+        btn.style.animationDelay = `${0.15 + idx * 0.07}s`;
 
         const escapedLabel = (choice.label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const hasEffect = choice.effect && Object.values(choice.effect).some(v => v !== 0);
@@ -264,7 +274,8 @@ function _showEvent(evt, chainInfo) {
             </div>
             ${hasEffect ? `<div class="evt-choice-effects">${_formatEffect(choice.effect)}</div>` : ''}
         `;
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent backdrop click handler from interfering
             try {
                 if (choice.effect) applyEventChoice(choice.effect);
             } catch (err) {
@@ -293,15 +304,6 @@ function _showEvent(evt, chainInfo) {
     _openModal();
     void box.offsetWidth;
     box.classList.add('evt-enter');
-
-    // Restart button entrance animations after modal is visible
-    requestAnimationFrame(() => {
-        const btns = choicesEl.querySelectorAll('.evt-choice-btn');
-        btns.forEach((btn, i) => {
-            btn.style.animation = '';
-            btn.style.animationDelay = `${0.15 + i * 0.07}s`;
-        });
-    });
 }
 
 /* ── Pirate intro conversation ─────────────────────────────────────────── */
@@ -419,8 +421,7 @@ function _showPirateConvoStep(stepIdx) {
 
     const btn = document.createElement('button');
     btn.className = 'evt-choice-btn';
-    btn.style.animation = 'none';
-    btn.style.opacity = '0';
+    btn.style.animationDelay = '0.15s';
     const escapedLabel = step.btn.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     btn.innerHTML = `
         <div class="evt-choice-row">
@@ -428,7 +429,8 @@ function _showPirateConvoStep(stepIdx) {
             <span class="evt-choice-label">${escapedLabel}</span>
         </div>
     `;
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         if (stepIdx + 1 < _pirateConvo.length) {
             // Advance to next step
             _showPirateConvoStep(stepIdx + 1);
@@ -448,11 +450,6 @@ function _showPirateConvoStep(stepIdx) {
     }
     void box.offsetWidth;
     box.classList.add('evt-enter');
-
-    requestAnimationFrame(() => {
-        btn.style.animation = '';
-        btn.style.animationDelay = '0.15s';
-    });
 }
 
 export function initEventsUI() {
