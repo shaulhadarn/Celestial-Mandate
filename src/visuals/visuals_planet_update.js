@@ -843,15 +843,17 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     }
 
     // --- 8b. Lake water gentle bob + shader animation ---
-    if (planetState.lakeMeshes) {
-        planetState.lakeMeshes.forEach(lm => {
+    if (planetState.lakeMeshes && planetState.lakeMeshes.length > 0) {
+        // Drive shared water shader time once (all lakes share one material)
+        const firstLake = planetState.lakeMeshes[0];
+        if (firstLake.material.uniforms && firstLake.material.uniforms.uTime) {
+            firstLake.material.uniforms.uTime.value = time;
+        }
+        for (let li = 0; li < planetState.lakeMeshes.length; li++) {
+            const lm = planetState.lakeMeshes[li];
             lm.userData.time += dt;
             lm.position.y = lm.userData.baseY + Math.sin(lm.userData.time * 0.6) * 0.15;
-            // Drive water shader time uniform (desktop ShaderMaterial)
-            if (lm.material.uniforms && lm.material.uniforms.uTime) {
-                lm.material.uniforms.uTime.value = lm.userData.time;
-            }
-        });
+        }
     }
 
     // --- 8b2. Alien fish animation ---
@@ -881,20 +883,23 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
     updateGrass(planetState.grassData, dt);
 
     // --- 8d. Vegetation wind sway (trees, bushes wobble gently) ---
-    if (planetState.vegetationMeshes) {
+    // Only animate vegetation within 120 units of camera to save CPU
+    if (planetState.vegetationMeshes && planetState.vegetationMeshes.length > 0) {
         const windTime = time * 0.8;
+        const cx = camera.position.x, cz = camera.position.z;
+        const SWAY_DIST_SQ = 120 * 120;
         for (let vi = 0; vi < planetState.vegetationMeshes.length; vi++) {
             const veg = planetState.vegetationMeshes[vi];
+            const dx = veg.position.x - cx;
+            const dz = veg.position.z - cz;
+            if (dx * dx + dz * dz > SWAY_DIST_SQ) continue;
             const ud = veg.userData;
             const phase = ud.swayPhase;
-            const intensity = 0.03 / (ud.swayScale + 0.5); // smaller trees sway more
-            // Multi-frequency wind: slow base sway + faster gusts
-            const swayX = Math.sin(windTime + phase) * intensity
-                        + Math.sin(windTime * 2.3 + phase * 1.7) * intensity * 0.3;
-            const swayZ = Math.cos(windTime * 0.9 + phase * 1.3) * intensity * 0.7
-                        + Math.sin(windTime * 1.8 + phase * 2.1) * intensity * 0.2;
-            veg.rotation.x = ud.baseRotX + swayX;
-            veg.rotation.z = ud.baseRotZ + swayZ;
+            const intensity = 0.03 / (ud.swayScale + 0.5);
+            const swayX = Math.sin(windTime + phase) * intensity;
+            const swayZ = Math.cos(windTime * 0.9 + phase * 1.3) * intensity * 0.7;
+            veg.rotation.x = swayX;
+            veg.rotation.z = swayZ;
         }
     }
 

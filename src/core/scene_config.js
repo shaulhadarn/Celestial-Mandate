@@ -108,6 +108,9 @@ export function setColorGrade(planetType) {
     u.uContrast.value = preset.contrast;
     u.uBrightness.value = preset.brightness;
     u.uVignette.value = preset.vignette;
+    // Disable pass entirely when using neutral settings (galaxy/system views)
+    const isNeutral = !planetType;
+    _colorGradePass.enabled = !isNeutral;
 }
 
 // ── Heat Shimmer Post-Processing Shader ─────────────────────────────────────
@@ -167,12 +170,15 @@ export function setHeatShimmer(planetType) {
         u.uStrength.value = 1.2;
         u.uSpeed.value = 2.0;
         u.uFrequency.value = 15.0;
+        _heatShimmerPass.enabled = true;
     } else if (planetType === 'Desert') {
         u.uStrength.value = 0.7;
         u.uSpeed.value = 1.2;
         u.uFrequency.value = 10.0;
+        _heatShimmerPass.enabled = true;
     } else {
-        u.uStrength.value = 0.0; // Disabled for other types
+        u.uStrength.value = 0.0;
+        _heatShimmerPass.enabled = false; // Skip pass entirely for non-hot planets
     }
 }
 

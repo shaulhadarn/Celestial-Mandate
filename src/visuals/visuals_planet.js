@@ -412,12 +412,13 @@ export function createPlanetVisuals(planetData, group) {
     lakeResult.collisions.forEach(c => planetState.planetProps.push(c));
 
     // Collect tagged vegetation meshes for wind sway animation
+    // Direct iteration over group children (flat, no deep traverse needed)
     planetState.vegetationMeshes = [];
-    group.traverse(child => {
-        if (child.userData && child.userData.isVegetation) {
-            planetState.vegetationMeshes.push(child);
+    for (let i = 0; i < group.children.length; i++) {
+        if (group.children[i].userData && group.children[i].userData.isVegetation) {
+            planetState.vegetationMeshes.push(group.children[i]);
         }
-    });
+    }
 
     // 5. Atmospheric particles — floating motes, pollen, spores
     {

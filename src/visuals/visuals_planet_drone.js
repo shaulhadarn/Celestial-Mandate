@@ -47,7 +47,7 @@ function _addFresnelRim(material, rimColor, rimPower, rimStrength) {
             #include <dithering_fragment>`
         );
     };
-    material.needsUpdate = true;
+    // No needsUpdate — onBeforeCompile is set before first render
     return material;
 }
 
