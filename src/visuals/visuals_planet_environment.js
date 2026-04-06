@@ -468,6 +468,12 @@ export function createPlanetProps(planetType, group, heightFn) {
 
             vegMesh.position.set(x, yBase, z);
             vegMesh.rotation.y = Math.random() * Math.PI * 2;
+            // Tag for wind sway animation
+            vegMesh.userData.isVegetation = true;
+            vegMesh.userData.swayPhase = Math.random() * Math.PI * 2;
+            vegMesh.userData.swayScale = scale;
+            vegMesh.userData.baseRotX = 0;
+            vegMesh.userData.baseRotZ = 0;
             group.add(vegMesh);
             props.push({ x, z, r: 1.5 * scale, topY: yBase + 4 * scale });
         }
@@ -1291,6 +1297,8 @@ export function createLakes(planetType, group, heightFn, terrainMesh) {
         const lakeEmissiveStr = conf.emissiveIntensity || 0.4;
         const lakeRoughness = conf.roughness ?? 0.08;
         const lakeMetalness = conf.metalness ?? 0.6;
+        const _wCol = new THREE.Color(conf.waterColor);
+        const _wEmis = new THREE.Color(conf.waterEmissive);
         const waterMat = isMobileDevice
             ? new THREE.MeshLambertMaterial({
                 color: conf.waterColor,
@@ -1299,15 +1307,125 @@ export function createLakes(planetType, group, heightFn, terrainMesh) {
                 transparent: true,
                 opacity: lakeOpacity,
             })
-            : new THREE.MeshStandardMaterial({
-                color: conf.waterColor,
-                emissive: conf.waterEmissive,
-                emissiveIntensity: lakeEmissiveStr,
-                roughness: lakeRoughness,
-                metalness: lakeMetalness,
+            : new THREE.ShaderMaterial({
+                uniforms: {
+                    uTime:      { value: Math.random() * 100 },
+                    uColor:     { value: _wCol },
+                    uEmissive:  { value: _wEmis },
+                    uEmissiveStr: { value: lakeEmissiveStr },
+                    uOpacity:   { value: lakeOpacity },
+                    uFresnelPow: { value: planetType === 'Molten' ? 1.5 : 2.5 },
+                },
+                vertexShader: /* glsl */`
+                    varying vec2 vUv;
+                    varying vec3 vWorldPos;
+                    varying vec3 vNormal;
+                    varying vec3 vViewDir;
+                    uniform float uTime;
+
+                    // Simplex-style hash for wave displacement
+                    vec2 hash22(vec2 p) {
+                        p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+                        return -1.0 + 2.0 * fract(sin(p) * 43758.5453);
+                    }
+                    float waterNoise(vec2 p) {
+                        vec2 i = floor(p);
+                        vec2 f = fract(p);
+                        vec2 u = f * f * (3.0 - 2.0 * f);
+                        float a = dot(hash22(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
+                        float b = dot(hash22(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+                        float c = dot(hash22(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+                        float d = dot(hash22(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+                        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+                    }
+
+                    void main() {
+                        vUv = uv;
+                        vec3 pos = position;
+                        // Vertex wave displacement for surface ripples
+                        float wave1 = waterNoise(pos.xy * 1.2 + uTime * 0.4) * 0.35;
+                        float wave2 = waterNoise(pos.xy * 2.8 - uTime * 0.6) * 0.15;
+                        float wave3 = sin(pos.x * 4.0 + uTime * 1.5) * cos(pos.y * 3.5 + uTime * 1.2) * 0.08;
+                        pos.z += wave1 + wave2 + wave3;
+                        vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+                        vWorldPos = worldPos.xyz;
+                        vNormal = normalize(normalMatrix * vec3(
+                            -(waterNoise((pos.xy + vec2(0.01, 0.0)) * 1.2 + uTime * 0.4) - waterNoise((pos.xy - vec2(0.01, 0.0)) * 1.2 + uTime * 0.4)) * 12.0,
+                            -(waterNoise((pos.xy + vec2(0.0, 0.01)) * 1.2 + uTime * 0.4) - waterNoise((pos.xy - vec2(0.0, 0.01)) * 1.2 + uTime * 0.4)) * 12.0,
+                            1.0
+                        ));
+                        vViewDir = normalize(cameraPosition - worldPos.xyz);
+                        gl_Position = projectionMatrix * viewMatrix * worldPos;
+                    }
+                `,
+                fragmentShader: /* glsl */`
+                    uniform float uTime;
+                    uniform vec3 uColor;
+                    uniform vec3 uEmissive;
+                    uniform float uEmissiveStr;
+                    uniform float uOpacity;
+                    uniform float uFresnelPow;
+                    varying vec2 vUv;
+                    varying vec3 vWorldPos;
+                    varying vec3 vNormal;
+                    varying vec3 vViewDir;
+
+                    vec2 hash22(vec2 p) {
+                        p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+                        return -1.0 + 2.0 * fract(sin(p) * 43758.5453);
+                    }
+                    float waterNoise(vec2 p) {
+                        vec2 i = floor(p);
+                        vec2 f = fract(p);
+                        vec2 u = f * f * (3.0 - 2.0 * f);
+                        float a = dot(hash22(i), f);
+                        float b = dot(hash22(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
+                        float c = dot(hash22(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
+                        float d = dot(hash22(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+                        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+                    }
+
+                    void main() {
+                        vec3 N = normalize(vNormal);
+                        vec3 V = normalize(vViewDir);
+
+                        // Fresnel — bright rim at glancing angles
+                        float fresnel = pow(1.0 - max(dot(N, V), 0.0), uFresnelPow);
+
+                        // Animated noise pattern for caustics / shimmer
+                        vec2 uv1 = vWorldPos.xz * 0.15 + uTime * vec2(0.08, 0.06);
+                        vec2 uv2 = vWorldPos.xz * 0.3 - uTime * vec2(0.05, 0.1);
+                        vec2 uv3 = vWorldPos.xz * 0.08 + uTime * vec2(-0.03, 0.04);
+                        float n1 = waterNoise(uv1);
+                        float n2 = waterNoise(uv2) * 0.5;
+                        float n3 = waterNoise(uv3) * 0.3;
+                        float caustic = (n1 + n2 + n3) * 0.5 + 0.5;
+
+                        // Specular highlight (fake sun reflection)
+                        vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));
+                        vec3 halfDir = normalize(lightDir + V);
+                        float spec = pow(max(dot(N, halfDir), 0.0), 64.0) * 0.8;
+
+                        // Combine: base color + caustic variation + fresnel edge glow + specular
+                        vec3 col = uColor;
+                        col += caustic * 0.15 * uColor;           // subtle ripple color variation
+                        col += fresnel * 0.35 * vec3(0.6, 0.8, 1.0); // sky reflection at edges
+                        col += uEmissive * uEmissiveStr;          // emissive (lava, toxic glow)
+                        col += spec * vec3(1.0, 0.95, 0.9);      // specular sparkle
+
+                        // Edge fade (softer at rim of circle)
+                        vec2 centered = vUv - 0.5;
+                        float edgeDist = length(centered) * 2.0;
+                        float edgeFade = smoothstep(1.0, 0.7, edgeDist);
+
+                        float alpha = uOpacity * edgeFade * (0.85 + fresnel * 0.15);
+                        gl_FragColor = vec4(col, alpha);
+                        #include <tonemapping_fragment>
+                    }
+                `,
                 transparent: true,
-                opacity: lakeOpacity,
-                envMapIntensity: 1.5,
+                depthWrite: false,
+                side: THREE.DoubleSide,
             });
 
         const waterMesh = new THREE.Mesh(waterGeo, waterMat);
@@ -1383,6 +1501,11 @@ export function createLakes(planetType, group, heightFn, terrainMesh) {
 
                 vegMesh.position.set(vx, vy, vz);
                 vegMesh.rotation.y = Math.random() * Math.PI * 2;
+                vegMesh.userData.isVegetation = true;
+                vegMesh.userData.swayPhase = Math.random() * Math.PI * 2;
+                vegMesh.userData.swayScale = scale;
+                vegMesh.userData.baseRotX = 0;
+                vegMesh.userData.baseRotZ = 0;
                 group.add(vegMesh);
 
                 collisions.push({ x: vx, z: vz, r: 1.2 * scale, topY: vy + 4 * scale });

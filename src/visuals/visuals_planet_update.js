@@ -842,11 +842,15 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
         planetState.hazeMesh.position.z = followPos.position.z;
     }
 
-    // --- 8b. Lake water gentle bob ---
+    // --- 8b. Lake water gentle bob + shader animation ---
     if (planetState.lakeMeshes) {
         planetState.lakeMeshes.forEach(lm => {
             lm.userData.time += dt;
             lm.position.y = lm.userData.baseY + Math.sin(lm.userData.time * 0.6) * 0.15;
+            // Drive water shader time uniform (desktop ShaderMaterial)
+            if (lm.material.uniforms && lm.material.uniforms.uTime) {
+                lm.material.uniforms.uTime.value = lm.userData.time;
+            }
         });
     }
 
@@ -875,6 +879,24 @@ export function updatePlanetPhysics(dt, camera, controls, group) {
 
     // --- 8c. Grass wind animation ---
     updateGrass(planetState.grassData, dt);
+
+    // --- 8d. Vegetation wind sway (trees, bushes wobble gently) ---
+    if (planetState.vegetationMeshes) {
+        const windTime = time * 0.8;
+        for (let vi = 0; vi < planetState.vegetationMeshes.length; vi++) {
+            const veg = planetState.vegetationMeshes[vi];
+            const ud = veg.userData;
+            const phase = ud.swayPhase;
+            const intensity = 0.03 / (ud.swayScale + 0.5); // smaller trees sway more
+            // Multi-frequency wind: slow base sway + faster gusts
+            const swayX = Math.sin(windTime + phase) * intensity
+                        + Math.sin(windTime * 2.3 + phase * 1.7) * intensity * 0.3;
+            const swayZ = Math.cos(windTime * 0.9 + phase * 1.3) * intensity * 0.7
+                        + Math.sin(windTime * 1.8 + phase * 2.1) * intensity * 0.2;
+            veg.rotation.x = ud.baseRotX + swayX;
+            veg.rotation.z = ud.baseRotZ + swayZ;
+        }
+    }
 
     // --- 8b. Patrol soldiers (waypoint-based walk) ---
     const TRAIL_SPACING = 1.2;   // drop a footprint every N units

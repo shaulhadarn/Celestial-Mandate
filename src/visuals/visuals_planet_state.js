@@ -22,6 +22,7 @@ const planetState = {
     lakeMeshes: [],
     lakeFish: [],
     lakeDefs: [],
+    vegetationMeshes: [],  // tagged vegetation groups for wind sway animation
 
     // Camera orbit parameters (written by input handlers, read by update loop)
     cameraYaw: Math.PI,

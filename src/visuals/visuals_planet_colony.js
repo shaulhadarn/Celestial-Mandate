@@ -30,10 +30,60 @@ function _getSmokeTexture() {
     return _smokeTextureCache;
 }
 
+// ── Fresnel rim lighting injection for MeshStandardMaterial ─────────────────
+function _injectFresnelRim(material, rimColor, rimPower, rimStrength) {
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.uRimColor = { value: new THREE.Color(rimColor || 0x88ccff) };
+        shader.uniforms.uRimPower = { value: rimPower || 2.5 };
+        shader.uniforms.uRimStrength = { value: rimStrength || 0.4 };
+
+        // Inject varying into vertex shader
+        shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            `#include <common>
+            varying vec3 vViewDirFresnel;
+            varying vec3 vWorldNormalFresnel;`
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+            '#include <worldpos_vertex>',
+            `#include <worldpos_vertex>
+            vViewDirFresnel = normalize(cameraPosition - (modelMatrix * vec4(transformed, 1.0)).xyz);
+            vWorldNormalFresnel = normalize((modelMatrix * vec4(objectNormal, 0.0)).xyz);`
+        );
+
+        // Inject fresnel into fragment shader
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <common>',
+            `#include <common>
+            uniform vec3 uRimColor;
+            uniform float uRimPower;
+            uniform float uRimStrength;
+            varying vec3 vViewDirFresnel;
+            varying vec3 vWorldNormalFresnel;`
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <dithering_fragment>',
+            `float fresnelDot = 1.0 - max(dot(normalize(vWorldNormalFresnel), normalize(vViewDirFresnel)), 0.0);
+            float fresnelFactor = pow(fresnelDot, uRimPower) * uRimStrength;
+            gl_FragColor.rgb += uRimColor * fresnelFactor;
+            #include <dithering_fragment>`
+        );
+    };
+    material.needsUpdate = true;
+    return material;
+}
+
 // ── Shared materials (created once, reused across buildings) ─────────────────
 const _matCache = {};
 function _mat(key, props) {
-    if (!_matCache[key]) _matCache[key] = new THREE.MeshStandardMaterial(props);
+    if (!_matCache[key]) {
+        const m = new THREE.MeshStandardMaterial(props);
+        // Add subtle fresnel rim to metallic building materials
+        if ((props.metalness || 0) >= 0.5) {
+            _injectFresnelRim(m, 0x88ccff, 3.0, 0.3);
+        }
+        _matCache[key] = m;
+    }
     return _matCache[key];
 }
 

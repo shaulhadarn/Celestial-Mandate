@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { gameState, events, BUILDINGS } from '../core/state.js';
 import { disposeGroup } from '../core/dispose.js';
-import { scene } from '../core/scene_config.js';
+import { scene, setColorGrade, setHeatShimmer } from '../core/scene_config.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
 
 import planetState from './visuals_planet_state.js';
@@ -411,6 +411,14 @@ export function createPlanetVisuals(planetData, group) {
     // Add lake shore vegetation collisions to prop list
     lakeResult.collisions.forEach(c => planetState.planetProps.push(c));
 
+    // Collect tagged vegetation meshes for wind sway animation
+    planetState.vegetationMeshes = [];
+    group.traverse(child => {
+        if (child.userData && child.userData.isVegetation) {
+            planetState.vegetationMeshes.push(child);
+        }
+    });
+
     // 5. Atmospheric particles — floating motes, pollen, spores
     {
         const particleGeo = new THREE.BufferGeometry();
@@ -565,6 +573,12 @@ export function createPlanetVisuals(planetData, group) {
         planetState.grassData = createGrassMesh(planetData.type);
         if (planetState.grassData) group.add(planetState.grassData.mesh);
     }
+
+    // 13. Apply planet-type color grading post-processing
+    setColorGrade(planetData.type);
+
+    // 14. Heat shimmer for Desert/Molten planets
+    setHeatShimmer(planetData.type);
 
     return planetState.playerMesh;
 }

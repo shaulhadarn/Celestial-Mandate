@@ -11,29 +11,69 @@ import { isMobile as isMobileDevice } from '../core/device.js';
 
 let _hullMat, _frameMat, _trimMat, _glassMat, _padMat, _glowMat;
 
+// Fresnel rim lighting for drone materials (same technique as colony buildings)
+function _addFresnelRim(material, rimColor, rimPower, rimStrength) {
+    if (material.isShaderMaterial || !material.isMeshStandardMaterial) return material;
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.uRimColor = { value: new THREE.Color(rimColor || 0x44aaff) };
+        shader.uniforms.uRimPower = { value: rimPower || 2.0 };
+        shader.uniforms.uRimStrength = { value: rimStrength || 0.5 };
+        shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            `#include <common>
+            varying vec3 vViewDirFresnel;
+            varying vec3 vWorldNormalFresnel;`
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+            '#include <worldpos_vertex>',
+            `#include <worldpos_vertex>
+            vViewDirFresnel = normalize(cameraPosition - (modelMatrix * vec4(transformed, 1.0)).xyz);
+            vWorldNormalFresnel = normalize((modelMatrix * vec4(objectNormal, 0.0)).xyz);`
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <common>',
+            `#include <common>
+            uniform vec3 uRimColor;
+            uniform float uRimPower;
+            uniform float uRimStrength;
+            varying vec3 vViewDirFresnel;
+            varying vec3 vWorldNormalFresnel;`
+        );
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <dithering_fragment>',
+            `float fresnelDot = 1.0 - max(dot(normalize(vWorldNormalFresnel), normalize(vViewDirFresnel)), 0.0);
+            float fresnelFactor = pow(fresnelDot, uRimPower) * uRimStrength;
+            gl_FragColor.rgb += uRimColor * fresnelFactor;
+            #include <dithering_fragment>`
+        );
+    };
+    material.needsUpdate = true;
+    return material;
+}
+
 function _initMaterials() {
     if (_hullMat) return;
 
     _hullMat = isMobileDevice
         ? new THREE.MeshLambertMaterial({ color: 0x1a1a22 })
-        : new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.15, metalness: 0.92 });
+        : _addFresnelRim(new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.15, metalness: 0.92 }), 0x44ccff, 2.0, 0.6);
 
     _frameMat = isMobileDevice
         ? new THREE.MeshLambertMaterial({ color: 0x0d0d12 })
-        : new THREE.MeshStandardMaterial({ color: 0x0d0d12, roughness: 0.2, metalness: 0.95 });
+        : _addFresnelRim(new THREE.MeshStandardMaterial({ color: 0x0d0d12, roughness: 0.2, metalness: 0.95 }), 0x3388cc, 2.5, 0.4);
 
     _trimMat = isMobileDevice
         ? new THREE.MeshLambertMaterial({ color: 0x334455 })
-        : new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.3, metalness: 0.8 });
+        : _addFresnelRim(new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.3, metalness: 0.8 }), 0x66aadd, 2.5, 0.35);
 
-    _glassMat = new THREE.MeshStandardMaterial({
+    _glassMat = _addFresnelRim(new THREE.MeshStandardMaterial({
         color: 0xbbddee, roughness: 0.05, metalness: 0.6,
         transparent: true, opacity: 0.7,
-    });
+    }), 0xaaddff, 1.5, 0.7);
 
     _padMat = isMobileDevice
         ? new THREE.MeshLambertMaterial({ color: 0x0a0a0a })
-        : new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.4, metalness: 0.85 });
+        : _addFresnelRim(new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.4, metalness: 0.85 }), 0x2266aa, 3.0, 0.3);
 
     _glowMat = new THREE.MeshBasicMaterial({
         color: 0x00f2ff, transparent: true, opacity: 0.85,

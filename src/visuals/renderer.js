@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { gameState, selectSystem, selectPlanet, getSystem, events } from '../core/state.js';
 import { loadAssets, playSound, setMusicState } from '../core/assets.js';
 import { disposeGroup } from '../core/dispose.js';
-import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig } from '../core/scene_config.js';
+import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig, setColorGrade, setHeatShimmer, getHeatShimmerPass } from '../core/scene_config.js';
 import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
 import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, removePirateVisuals, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput, handleExplorationTap } from './visuals_planet.js';
@@ -336,6 +336,8 @@ export async function enterSystemView(systemId, instant = false) {
         gameState.viewMode = 'SYSTEM';
         gameState.selectedSystemId = systemId; // Set early so buildPlayerShips can find fleet ships
         setMusicState('SYSTEM');
+        setColorGrade(null);    // Reset to neutral color grading
+        setHeatShimmer(null);   // Disable heat shimmer
 
         // Reset background and fog to deep space defaults
         if (scene) {
@@ -393,6 +395,8 @@ export async function returnToGalaxyView() {
 
         gameState.viewMode = 'GALAXY';
         setMusicState('GALAXY');
+        setColorGrade(null);    // Reset to neutral color grading
+        setHeatShimmer(null);   // Disable heat shimmer
 
         // Reset background and fog to deep space defaults
         if (scene) {
@@ -617,6 +621,11 @@ export function updateFrame(state, delta) {
         // Ensure camera and controls are available (imported from scene_config)
         if(camera && controls) {
             updatePlanetPhysics(dt, camera, controls, groups.planet);
+        }
+        // Drive heat shimmer time uniform
+        const shimmerPass = getHeatShimmerPass();
+        if (shimmerPass && shimmerPass.uniforms.uStrength.value > 0) {
+            shimmerPass.uniforms.uTime.value = time;
         }
     }
 }

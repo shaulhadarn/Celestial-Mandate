@@ -4,6 +4,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 import { isMobile } from './device.js';
 import { gpuTier } from './gpu_tier.js';
@@ -21,6 +22,159 @@ export const groups = {
     system: new THREE.Group(),
     planet: new THREE.Group()
 };
+
+// ── Color Grading Post-Processing Shader ────────────────────────────────────
+const ColorGradingShader = {
+    uniforms: {
+        tDiffuse:    { value: null },
+        uTint:       { value: new THREE.Vector3(1.0, 1.0, 1.0) },  // RGB tint multiplier
+        uSaturation: { value: 1.0 },
+        uContrast:   { value: 1.0 },
+        uBrightness: { value: 0.0 },
+        uVignette:   { value: 0.3 },
+    },
+    vertexShader: /* glsl */`
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: /* glsl */`
+        uniform sampler2D tDiffuse;
+        uniform vec3 uTint;
+        uniform float uSaturation;
+        uniform float uContrast;
+        uniform float uBrightness;
+        uniform float uVignette;
+        varying vec2 vUv;
+
+        void main() {
+            vec4 texel = texture2D(tDiffuse, vUv);
+            vec3 col = texel.rgb;
+
+            // Apply tint
+            col *= uTint;
+
+            // Saturation (luminance-preserving)
+            float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+            col = mix(vec3(luma), col, uSaturation);
+
+            // Contrast (centered around 0.5)
+            col = (col - 0.5) * uContrast + 0.5;
+
+            // Brightness
+            col += uBrightness;
+
+            // Vignette (dark edges)
+            vec2 vc = vUv - 0.5;
+            float vDist = length(vc);
+            float vig = smoothstep(0.7, 0.3, vDist * uVignette * 2.0);
+            col *= mix(1.0, vig, uVignette);
+
+            gl_FragColor = vec4(max(col, 0.0), texel.a);
+        }
+    `,
+};
+
+// Per-planet-type color grading presets
+const COLOR_GRADE_PRESETS = {
+    Terran:      { tint: [1.05, 1.1, 1.0],  saturation: 1.15, contrast: 1.05, brightness: 0.0,   vignette: 0.25 },
+    Continental: { tint: [1.0, 1.08, 0.95],  saturation: 1.2,  contrast: 1.05, brightness: 0.0,   vignette: 0.25 },
+    Ocean:       { tint: [0.85, 0.95, 1.15], saturation: 1.1,  contrast: 1.08, brightness: -0.02, vignette: 0.3 },
+    Desert:      { tint: [1.2, 1.05, 0.85],  saturation: 0.9,  contrast: 1.12, brightness: 0.02,  vignette: 0.35 },
+    Ice:         { tint: [0.9, 1.0, 1.2],    saturation: 0.85, contrast: 1.1,  brightness: 0.03,  vignette: 0.2 },
+    Arctic:      { tint: [0.88, 0.98, 1.18], saturation: 0.8,  contrast: 1.08, brightness: 0.02,  vignette: 0.22 },
+    Molten:      { tint: [1.3, 0.85, 0.6],   saturation: 1.3,  contrast: 1.15, brightness: -0.02, vignette: 0.45 },
+    Barren:      { tint: [0.95, 0.92, 0.88], saturation: 0.6,  contrast: 1.1,  brightness: -0.03, vignette: 0.35 },
+    Tomb:        { tint: [0.8, 0.9, 0.75],   saturation: 0.5,  contrast: 1.15, brightness: -0.05, vignette: 0.5 },
+    'Gas Giant': { tint: [1.15, 1.0, 0.8],   saturation: 1.1,  contrast: 1.05, brightness: 0.0,   vignette: 0.3 },
+};
+// Galaxy / System defaults (neutral — no tint)
+const COLOR_GRADE_DEFAULT = { tint: [1.0, 1.0, 1.0], saturation: 1.0, contrast: 1.0, brightness: 0.0, vignette: 0.15 };
+
+let _colorGradePass = null;
+export function getColorGradePass() { return _colorGradePass; }
+
+/**
+ * Set color grading for a specific planet type (or null for default).
+ */
+export function setColorGrade(planetType) {
+    if (!_colorGradePass) return;
+    const preset = (planetType && COLOR_GRADE_PRESETS[planetType]) || COLOR_GRADE_DEFAULT;
+    const u = _colorGradePass.uniforms;
+    u.uTint.value.set(preset.tint[0], preset.tint[1], preset.tint[2]);
+    u.uSaturation.value = preset.saturation;
+    u.uContrast.value = preset.contrast;
+    u.uBrightness.value = preset.brightness;
+    u.uVignette.value = preset.vignette;
+}
+
+// ── Heat Shimmer Post-Processing Shader ─────────────────────────────────────
+const HeatShimmerShader = {
+    uniforms: {
+        tDiffuse:    { value: null },
+        uTime:       { value: 0 },
+        uStrength:   { value: 0.0 },  // 0 = off, >0 = active
+        uSpeed:      { value: 1.0 },
+        uFrequency:  { value: 12.0 },
+    },
+    vertexShader: /* glsl */`
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: /* glsl */`
+        uniform sampler2D tDiffuse;
+        uniform float uTime;
+        uniform float uStrength;
+        uniform float uSpeed;
+        uniform float uFrequency;
+        varying vec2 vUv;
+
+        void main() {
+            vec2 uv = vUv;
+
+            if (uStrength > 0.001) {
+                // Shimmer only in the lower 60% of screen (ground area)
+                float heightMask = smoothstep(0.65, 0.25, vUv.y);
+                // Multi-frequency wave distortion
+                float wave1 = sin(vUv.y * uFrequency + uTime * uSpeed) * 0.003;
+                float wave2 = sin(vUv.y * uFrequency * 2.3 + uTime * uSpeed * 1.7 + 1.5) * 0.0015;
+                float wave3 = cos(vUv.x * uFrequency * 0.8 + uTime * uSpeed * 0.6) * 0.001;
+                float distortion = (wave1 + wave2 + wave3) * uStrength * heightMask;
+                uv.x += distortion;
+                uv.y += distortion * 0.5;
+            }
+
+            gl_FragColor = texture2D(tDiffuse, uv);
+        }
+    `,
+};
+
+let _heatShimmerPass = null;
+export function getHeatShimmerPass() { return _heatShimmerPass; }
+
+/**
+ * Enable/disable heat shimmer for hot planet types.
+ */
+export function setHeatShimmer(planetType) {
+    if (!_heatShimmerPass) return;
+    const u = _heatShimmerPass.uniforms;
+    if (planetType === 'Molten') {
+        u.uStrength.value = 1.2;
+        u.uSpeed.value = 2.0;
+        u.uFrequency.value = 15.0;
+    } else if (planetType === 'Desert') {
+        u.uStrength.value = 0.7;
+        u.uSpeed.value = 1.2;
+        u.uFrequency.value = 10.0;
+    } else {
+        u.uStrength.value = 0.0; // Disabled for other types
+    }
+}
 
 export function initRenderer() {
     const canvasContainer = document.getElementById('canvas-container');
@@ -95,6 +249,14 @@ export function initRenderer() {
         );
         composer.addPass(bloomPass);
 
+        // Heat shimmer pass (mobile)
+        _heatShimmerPass = new ShaderPass(HeatShimmerShader);
+        composer.addPass(_heatShimmerPass);
+
+        // Color grading pass (mobile — lighter vignette only)
+        _colorGradePass = new ShaderPass(ColorGradingShader);
+        composer.addPass(_colorGradePass);
+
         const outputPass = new OutputPass();
         composer.addPass(outputPass);
     } else {
@@ -110,6 +272,14 @@ export function initRenderer() {
             0.8    // threshold
         );
         composer.addPass(bloomPass);
+
+        // Heat shimmer pass (desktop)
+        _heatShimmerPass = new ShaderPass(HeatShimmerShader);
+        composer.addPass(_heatShimmerPass);
+
+        // Color grading pass (desktop — full per-planet color grading)
+        _colorGradePass = new ShaderPass(ColorGradingShader);
+        composer.addPass(_colorGradePass);
 
         const outputPass = new OutputPass();
         composer.addPass(outputPass);
@@ -228,6 +398,10 @@ function recreateRenderer() {
         );
         bloomPass.enabled = config.bloom;
         composer.addPass(bloomPass);
+        _heatShimmerPass = new ShaderPass(HeatShimmerShader);
+        composer.addPass(_heatShimmerPass);
+        _colorGradePass = new ShaderPass(ColorGradingShader);
+        composer.addPass(_colorGradePass);
         const outputPass = new OutputPass();
         composer.addPass(outputPass);
     } else {
@@ -241,6 +415,10 @@ function recreateRenderer() {
         );
         bloomPass.enabled = config.bloom;
         composer.addPass(bloomPass);
+        _heatShimmerPass = new ShaderPass(HeatShimmerShader);
+        composer.addPass(_heatShimmerPass);
+        _colorGradePass = new ShaderPass(ColorGradingShader);
+        composer.addPass(_colorGradePass);
         const outputPass = new OutputPass();
         composer.addPass(outputPass);
     }
