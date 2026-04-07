@@ -151,6 +151,13 @@ export function loadGame() {
             }
         });
 
+        // Fog of war backward compatibility: old saves don't have visibility
+        gameState.systems.forEach(sys => {
+            if (!sys.visibility) {
+                sys.visibility = 'revealed'; // old saves: reveal everything
+            }
+        });
+
         // Reset View
         gameState.viewMode = 'GALAXY';
         gameState.selectedSystemId = null;
@@ -433,6 +440,54 @@ export function surveySystem(systemId) {
     events.dispatchEvent(new CustomEvent('resources-updated'));
     events.dispatchEvent(new CustomEvent('selection-changed'));
     return true;
+}
+
+// ── Fog of War ──────────────────────────────────────────────────────────────
+
+/**
+ * Reveal a system fully and discover its neighbors.
+ * Called when a fleet arrives or when player colonizes.
+ * @returns {boolean} Whether any new reveals happened
+ */
+export function revealSystem(systemId) {
+    const sys = getSystem(systemId);
+    if (!sys) return false;
+    let changed = false;
+
+    if (sys.visibility !== 'revealed') {
+        sys.visibility = 'revealed';
+        changed = true;
+    }
+
+    // Discover all neighbors (make visible but not fully revealed)
+    for (const connId of (sys.connections || [])) {
+        const neighbor = getSystem(connId);
+        if (neighbor && neighbor.visibility === 'hidden') {
+            neighbor.visibility = 'discovered';
+            changed = true;
+        }
+    }
+
+    if (changed) {
+        events.dispatchEvent(new CustomEvent('fog-updated'));
+    }
+    return changed;
+}
+
+/**
+ * Check if a system is at least visible (discovered or revealed) on the map.
+ */
+export function isSystemVisible(systemId) {
+    const sys = getSystem(systemId);
+    return sys && sys.visibility !== 'hidden';
+}
+
+/**
+ * Check if a system is fully revealed (can be entered/surveyed).
+ */
+export function isSystemRevealed(systemId) {
+    const sys = getSystem(systemId);
+    return sys && sys.visibility === 'revealed';
 }
 
 export function colonizePlanet(planetId) {

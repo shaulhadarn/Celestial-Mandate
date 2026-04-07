@@ -8,8 +8,8 @@ export function tickPirateRaids() {
 
     pb.raidTimer++;
 
-    // Show pirate intro conversation ~15 ticks into the game (before raids start)
-    if (!pb.introShown && pb.raidTimer >= -30) {
+    // Show pirate intro conversation ~60 ticks into the game (before raids start)
+    if (!pb.introShown && pb.raidTimer >= -60) {
         pb.introShown = true;
         events.dispatchEvent(new CustomEvent('pirate-intro'));
     }

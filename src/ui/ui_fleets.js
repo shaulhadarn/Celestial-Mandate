@@ -184,16 +184,18 @@ export function initFleetsUI() {
             if (!fleet) return;
             const existing = target.parentElement.querySelector('.fsr-dest-picker');
             if (existing) { existing.remove(); return; }
-            const connected = getConnectedSystems(fleet.systemId);
+            const connected = getConnectedSystems(fleet.systemId)
+                .filter(sys => sys.visibility !== 'hidden'); // fog of war: only show visible destinations
             if (connected.length === 0) {
                 showNotification('No connected systems to move to!', 'alert');
                 return;
             }
             const picker = document.createElement('div');
             picker.className = 'fsr-dest-picker';
-            picker.innerHTML = connected.map(sys =>
-                `<button class="fsr-dest-btn" data-dest="${sys.id}" data-fleet-idx="${fleetIdx}">${sys.name}</button>`
-            ).join('');
+            picker.innerHTML = connected.map(sys => {
+                const label = sys.visibility === 'discovered' ? `??? (Unexplored)` : sys.name;
+                return `<button class="fsr-dest-btn" data-dest="${sys.id}" data-fleet-idx="${fleetIdx}">${label}</button>`;
+            }).join('');
             target.parentElement.appendChild(picker);
             return;
         }

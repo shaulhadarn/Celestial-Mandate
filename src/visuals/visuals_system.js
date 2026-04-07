@@ -1540,7 +1540,7 @@ export function buildPirateRaidRoutes(group) {
     _pirateRaiders.forEach(pr => { if (pr.mesh.parent) pr.mesh.parent.remove(pr.mesh); });
     _pirateRaiders = [];
 
-    if (!gameState.pirateBase || gameState.pirateBase.defeated) return;
+    if (!gameState.pirateBase || gameState.pirateBase.defeated || !gameState.pirateBase.introShown) return;
 
     const pirateMesh = planetMeshes.find(m => m.userData.id === gameState.pirateBase.planetId);
     const homeMesh = planetMeshes.find(m => gameState.colonies[m.userData.id]);

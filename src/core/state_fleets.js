@@ -1,5 +1,5 @@
 /* Fleet movement and connectivity logic */
-import { gameState, events, getSystem } from './state.js';
+import { gameState, events, getSystem, revealSystem } from './state.js';
 
 /**
  * Orders a fleet (ship) to move to a connected system via hyperlane.
@@ -42,6 +42,8 @@ export function tickFleetMovement() {
             fleet.systemName = fleet.moving.toName;
             const arrival = fleet.moving;
             fleet.moving = null;
+            // Fog of war: reveal the arrived system and discover its neighbors
+            revealSystem(fleet.systemId);
             events.dispatchEvent(new CustomEvent('fleet-arrived', { detail: { fleet, arrival } }));
         }
     });

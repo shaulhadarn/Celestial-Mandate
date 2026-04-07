@@ -4,8 +4,8 @@ import { gameState, selectSystem, selectPlanet, getSystem, events } from '../cor
 import { loadAssets, playSound, setMusicState } from '../core/assets.js';
 import { disposeGroup } from '../core/dispose.js';
 import { scene, camera, renderer, controls, groups, initRenderer as initSceneConfig, setColorGrade, setHeatShimmer, getHeatShimmerPass } from '../core/scene_config.js';
-import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
-import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, removePirateVisuals, planetMeshes, planetLabels } from './visuals_system.js';
+import { createGalaxyVisuals, updateGalaxyAnimations, addColonyRingForSystem, updateFogOfWar, starMeshes, isGalaxyBuilt } from './visuals_galaxy.js';
+import { createSystemVisuals, updateSystemAnimations, addColonyVisual, addShipyardVisual, buildTradeRoutes, buildPirateRaidRoutes, removePirateVisuals, planetMeshes, planetLabels } from './visuals_system.js';
 import { createPlanetVisuals, updatePlanetPhysics, handleInput, handleExplorationTap } from './visuals_planet.js';
 import { getPlayerShipMeshes, spawnPlayerShip, getControlledEntry, clearPlayerShips, buildPlayerShips } from './visuals_system_ships.js';
 import { isShipControlActive, enterShipControl, exitShipControl, handleSystemShipInput,
@@ -139,6 +139,13 @@ export async function init() {
         });
     });
 
+    // Pirate intro shown — spawn raider ships in system view
+    events.addEventListener('pirate-intro', () => {
+        if (gameState.viewMode === 'SYSTEM' && groups.system) {
+            buildPirateRaidRoutes(groups.system);
+        }
+    });
+
     // Pirate defeated — clean up visuals
     events.addEventListener('pirate-defeated', () => {
         if (gameState.viewMode === 'SYSTEM') {
@@ -158,6 +165,11 @@ export async function init() {
     // Fleet arrived — rebuild unit panel
     events.addEventListener('fleet-arrived', () => {
         if (gameState.viewMode === 'SYSTEM') _buildSystemUnitPanel();
+    });
+
+    // Fog of war — refresh galaxy visuals when systems are revealed
+    events.addEventListener('fog-updated', () => {
+        updateFogOfWar(groups.galaxy);
     });
 
     // Ship control mouse handlers
@@ -243,13 +255,21 @@ function handleTap(event) {
     if (gameState.viewMode === 'GALAXY') {
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObjects(starMeshes);
-        
+
         if (intersects.length > 0) {
             const sysId = intersects[0].object.userData.id;
-            if (getSystem(sysId)) {
+            const clickedSys = getSystem(sysId);
+            if (clickedSys) {
+                // Fog of war: hidden systems are not clickable
+                if (clickedSys.visibility === 'hidden') return;
+                // Discovered systems: select but don't enter (show info panel only)
+                if (clickedSys.visibility === 'discovered') {
+                    playSound('select');
+                    selectSystem(sysId);
+                    return;
+                }
+                // Revealed systems: enter normally
                 playSound('select');
-                // Delay state selection until after fade — prevents bottom modal
-                // from flashing before the system view loads
                 enterSystemView(sysId).then(() => selectSystem(sysId));
             }
         }
@@ -321,6 +341,12 @@ export async function enterSystemView(systemId, instant = false) {
     // Safety check for R3F initialization
     if (!controls || !camera) {
         console.warn("enterSystemView: Scene not ready");
+        return;
+    }
+    // Fog of war: only revealed systems can be entered
+    const targetSys = getSystem(systemId);
+    if (targetSys && targetSys.visibility !== 'revealed') {
+        console.warn("enterSystemView: System not revealed");
         return;
     }
 

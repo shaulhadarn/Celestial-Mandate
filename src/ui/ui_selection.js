@@ -20,13 +20,22 @@ export function updateSelectionPanel() {
         const isNewSystem = _prevSystemId !== sys.id;
         _prevSystemId = sys.id;
 
-        document.getElementById('sys-name').innerText = sys.name;
-        document.getElementById('sys-class').innerText = getStarClass(sys.starType);
-        document.getElementById('sys-class').style.color = '#' + sys.color.toString(16);
-        document.getElementById('sys-planets').innerText = sys.planets.length;
+        // Fog of war: discovered-only systems show limited info
+        const isDiscoveredOnly = sys.visibility === 'discovered';
+
+        document.getElementById('sys-name').innerText = isDiscoveredOnly ? 'Unknown System' : sys.name;
+        document.getElementById('sys-class').innerText = isDiscoveredOnly ? 'Unexplored' : getStarClass(sys.starType);
+        document.getElementById('sys-class').style.color = isDiscoveredOnly ? '#666' : ('#' + sys.color.toString(16));
+        document.getElementById('sys-planets').innerText = isDiscoveredOnly ? '?' : sys.planets.length;
 
         const surveyBtn = document.getElementById('btn-survey');
-        if (sys.surveyed) {
+        if (isDiscoveredOnly) {
+            surveyBtn.innerText = "Send scouts to reveal";
+            surveyBtn.classList.add('disabled');
+            surveyBtn.disabled = true;
+            surveyBtn.style.opacity = '0.5';
+            surveyBtn.style.cursor = 'default';
+        } else if (sys.surveyed) {
             surveyBtn.innerText = "System Surveyed";
             surveyBtn.classList.add('disabled');
             surveyBtn.disabled = true;
@@ -57,7 +66,13 @@ export function updateSelectionPanel() {
         if (isNewSystem) {
             sysPanel.classList.remove('hidden');
         }
-        renderStarList(sys.id, isNewSystem);
+        // Don't show planet list for discovered-only systems
+        if (isDiscoveredOnly) {
+            const planetList = document.getElementById('planet-list');
+            if (planetList) planetList.innerHTML = '<div style="color:#556;font-style:italic;padding:8px 0;font-size:12px;">Send a scout ship to reveal this system</div>';
+        } else {
+            renderStarList(sys.id, isNewSystem);
+        }
     }
 
     if (gameState.selectedPlanetId !== null && gameState.viewMode === 'SYSTEM') {

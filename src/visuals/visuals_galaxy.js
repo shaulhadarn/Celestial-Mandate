@@ -3,7 +3,7 @@
  * Three.js r0.168.0 via ESM import maps. */
 import * as THREE from "three";
 import { textures } from "../core/assets.js";
-import { gameState } from "../core/state.js";
+import { gameState, isSystemVisible } from "../core/state.js";
 import { disposeGroup } from "../core/dispose.js";
 import { createTextSprite } from "../core/text_sprite.js";
 import { isMobile as isMobileDevice } from "../core/device.js";
@@ -44,6 +44,11 @@ let _coronaRotZs = null;
 let _positions = null;              // Float32Array(n*3) — star world positions
 let _glowBaseScales = null;         // Float32Array
 let _glowPulseOffsets = null;       // Float32Array
+
+// ── Fog of War tracking ─────────────────────────────────────────────────────
+let _perSystemObjects = [];  // Array of { systemId, objects: [THREE.Object3D] }
+let _hyperlaneLines = null;  // THREE.LineSegments for hyperlanes
+let _hyperlaneData = null;   // raw hyperlane array for rebuilding
 
 // Temp objects reused every frame to avoid GC
 const _mat4 = new THREE.Matrix4();
@@ -199,11 +204,16 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   _bgStarfield = null;
 
   _galaxyBuilt = false;
+  _perSystemObjects = [];
+  _hyperlaneLines = null;
+  _hyperlaneData = hyperlanes || [];
 
   // 0. Atmosphere (Distant stars and Nebulae)
   createAtmosphere(group);
 
-  // ── Hyperlanes ──────────────────────────────────────────────────────────────
+  // ── Hyperlanes (filtered by fog of war) ────────────────────────────────────
+  // Build a system ID→system lookup for hyperlane endpoint matching
+  const _sysById = new Map(systems.map(s => [s.id, s]));
   const hyperlaneMaterial = new THREE.LineBasicMaterial({
     color: 0x00c8e0,
     opacity: 0.35,
@@ -214,12 +224,21 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
   const points = [];
   (hyperlanes || []).forEach((lane) => {
-    points.push(new THREE.Vector3().copy(lane.start));
-    points.push(new THREE.Vector3().copy(lane.end));
+    // Find which two systems this lane connects
+    const sysA = systems.find(s => s.position.x === lane.start.x && s.position.z === lane.start.z);
+    const sysB = systems.find(s => s.position.x === lane.end.x && s.position.z === lane.end.z);
+    const visA = sysA ? sysA.visibility !== 'hidden' : false;
+    const visB = sysB ? sysB.visibility !== 'hidden' : false;
+    // Only show lane if both endpoints are visible
+    if (visA && visB) {
+      points.push(new THREE.Vector3().copy(lane.start));
+      points.push(new THREE.Vector3().copy(lane.end));
+    }
   });
 
-  const linesGeo = new THREE.BufferGeometry().setFromPoints(points);
+  const linesGeo = new THREE.BufferGeometry().setFromPoints(points.length > 0 ? points : [new THREE.Vector3(), new THREE.Vector3()]);
   const lines = new THREE.LineSegments(linesGeo, hyperlaneMaterial);
+  _hyperlaneLines = lines;
   group.add(lines);
 
   // Global ambient light
@@ -267,6 +286,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     const hitMesh = new THREE.Mesh(hitGeo, hitMat);
     hitMesh.position.copy(sys.position);
     hitMesh.userData = { id: sys.id, type: "star" };
+    // Fog of war: hidden systems can't be clicked
+    if (sys.visibility === 'hidden') hitMesh.visible = false;
     group.add(hitMesh);
     starMeshes.push(hitMesh);
   });
@@ -450,6 +471,8 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
   // ── E. Colony rings, labels, planets (per-system, not batched) ───────────
   systems.forEach((sys, i) => {
+    const _sysObjs = []; // track per-system objects for fog of war
+
     // Colony Indicator Ring (Holographic UI style)
     const colonizedPlanets = sys.planets.filter(
       (p) => gameState.colonies[p.id]
@@ -493,10 +516,14 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     }
 
     // System Name Label
-    const label = createTextSprite(sys.name, { fontSize: 1.8 });
+    const labelText = sys.visibility === 'revealed' ? sys.name
+                    : sys.visibility === 'discovered' ? '???' : '';
+    const label = createTextSprite(labelText, { fontSize: 1.8 });
     label.position.copy(sys.position);
     label.position.y -= 6;
+    label.userData._fogSystemId = sys.id;
     group.add(label);
+    _sysObjs.push(label);
 
     // ── Star soft glow sprites (per-system, always visible up close) ─────
     const starColor = new THREE.Color(sys.color);
@@ -519,6 +546,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     starGlow.scale.set(14, 14, 1);
     starGlow.position.copy(sys.position);
     group.add(starGlow);
+    _sysObjs.push(starGlow);
 
     const starHalo = new THREE.Sprite(
       new THREE.SpriteMaterial({
@@ -533,6 +561,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
     starHalo.scale.set(24, 24, 1);
     starHalo.position.copy(sys.position);
     group.add(starHalo);
+    _sysObjs.push(starHalo);
 
     // ── Planets ────────────────────────────────────────────────────────────
     sys.planets.forEach((p, pi) => {
@@ -740,6 +769,7 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
 
       group.add(pMesh);
       galaxyPlanetMeshes.push(pMesh);
+      _sysObjs.push(pMesh);
 
       // Orbit Path
       const orbitGeo = new THREE.RingGeometry(
@@ -759,7 +789,27 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
       orbit.rotation.x = Math.PI / 2;
       orbit.position.copy(sys.position);
       group.add(orbit);
+      _sysObjs.push(orbit);
     });
+
+    // Store per-system objects for fog of war toggling
+    _perSystemObjects.push({ systemId: sys.id, objects: _sysObjs });
+
+    // Apply initial fog of war visibility
+    const isHidden = sys.visibility === 'hidden';
+    const isDiscovered = sys.visibility === 'discovered';
+    if (isHidden) {
+      _sysObjs.forEach(obj => { obj.visible = false; });
+    } else if (isDiscovered) {
+      // Show label but hide planets/orbits/glows for discovered systems
+      _sysObjs.forEach(obj => {
+        if (obj === label) {
+          obj.visible = true; // "???" label stays visible
+        } else {
+          obj.visible = false; // hide planets, orbits, star glows
+        }
+      });
+    }
   });
 
   // Lights for planets
@@ -768,7 +818,123 @@ export function createGalaxyVisuals(systems, hyperlanes, group) {
   const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
   dirLight.position.set(50, 100, 50);
   group.add(dirLight);
+
+  // ── Apply initial fog of war to instanced meshes ──────────────────────────
+  _applyFogToInstances(systems);
+
   _galaxyBuilt = true;
+}
+
+/**
+ * Update instanced mesh matrices to reflect fog of war.
+ * Hidden systems → scale 0 (invisible).
+ * Discovered systems → small dim dot (reduced scale, no detail).
+ * Revealed systems → full scale.
+ */
+function _applyFogToInstances(systems) {
+  if (!starInstancedMesh) return;
+
+  systems.forEach((sys, i) => {
+    const vis = sys.visibility || 'revealed';
+    const px = _positions[i * 3], py = _positions[i * 3 + 1], pz = _positions[i * 3 + 2];
+
+    if (vis === 'hidden') {
+      // Scale everything to 0 — completely invisible
+      _mat4.compose(_pos.set(px, py, pz), _quat.identity(), _scale.set(0, 0, 0));
+      starInstancedMesh.setMatrixAt(i, _mat4);
+      coronaInstancedMesh.setMatrixAt(i, _mat4);
+      outerHaloInstanced.setMatrixAt(i, _mat4);
+      midGlowInstanced.setMatrixAt(i, _mat4);
+      coreInstanced.setMatrixAt(i, _mat4);
+      hotCoreInstanced.setMatrixAt(i, _mat4);
+    } else if (vis === 'discovered') {
+      // Small dim star — just a faint point, no full glow
+      const dimScale = 0.35;
+      _euler.set(0, _rotYs[i], 0);
+      _quat.setFromEuler(_euler);
+      _mat4.compose(_pos.set(px, py, pz), _quat, _scale.set(dimScale, dimScale, dimScale));
+      starInstancedMesh.setMatrixAt(i, _mat4);
+
+      // Minimal corona
+      _mat4.compose(_pos.set(px, py, pz), _quat.identity(), _scale.set(2.5, 2.5, 1));
+      coronaInstancedMesh.setMatrixAt(i, _mat4);
+
+      // Dim glow layers
+      _mat4.compose(_pos.set(px, py, pz), _quat.identity(), _scale.set(4, 4, 1));
+      outerHaloInstanced.setMatrixAt(i, _mat4);
+      _mat4.compose(_pos.set(px, py, pz), _quat.identity(), _scale.set(2.5, 2.5, 1));
+      midGlowInstanced.setMatrixAt(i, _mat4);
+      _mat4.compose(_pos.set(px, py, pz), _quat.identity(), _scale.set(1.5, 1.5, 1));
+      coreInstanced.setMatrixAt(i, _mat4);
+      _mat4.compose(_pos.set(px, py, pz), _quat.identity(), _scale.set(0.8, 0.8, 1));
+      hotCoreInstanced.setMatrixAt(i, _mat4);
+    }
+    // 'revealed' — keep full scale (already set during creation)
+  });
+
+  starInstancedMesh.instanceMatrix.needsUpdate = true;
+  coronaInstancedMesh.instanceMatrix.needsUpdate = true;
+  outerHaloInstanced.instanceMatrix.needsUpdate = true;
+  midGlowInstanced.instanceMatrix.needsUpdate = true;
+  coreInstanced.instanceMatrix.needsUpdate = true;
+  hotCoreInstanced.instanceMatrix.needsUpdate = true;
+}
+
+/**
+ * Public: refresh fog of war visuals after systems are revealed.
+ * Call when 'fog-updated' event fires.
+ */
+export function updateFogOfWar(group) {
+  if (!_galaxyBuilt || !starInstancedMesh) return;
+  const systems = gameState.systems;
+
+  // 1. Update instanced star meshes
+  _applyFogToInstances(systems);
+
+  // 1b. Update hit spheres (enable raycasting for newly visible systems)
+  starMeshes.forEach(hm => {
+    const sys = systems.find(s => s.id === hm.userData.id);
+    if (sys) hm.visible = sys.visibility !== 'hidden';
+  });
+
+  // 2. Update per-system individual objects (labels, planets, orbits, glows)
+  for (const entry of _perSystemObjects) {
+    const sys = systems.find(s => s.id === entry.systemId);
+    if (!sys) continue;
+    const vis = sys.visibility || 'hidden';
+
+    if (vis === 'hidden') {
+      entry.objects.forEach(obj => { obj.visible = false; });
+    } else if (vis === 'discovered') {
+      entry.objects.forEach((obj, idx) => {
+        // First object is always the label — show it, hide the rest
+        obj.visible = (idx === 0);
+      });
+    } else {
+      // Revealed — show everything
+      entry.objects.forEach(obj => { obj.visible = true; });
+    }
+  }
+
+  // 3. Rebuild hyperlane geometry (some new lanes may now be visible)
+  if (_hyperlaneLines && _hyperlaneData) {
+    const pts = [];
+    _hyperlaneData.forEach(lane => {
+      const sysA = systems.find(s => s.position.x === lane.start.x && s.position.z === lane.start.z);
+      const sysB = systems.find(s => s.position.x === lane.end.x && s.position.z === lane.end.z);
+      const visA = sysA ? sysA.visibility !== 'hidden' : false;
+      const visB = sysB ? sysB.visibility !== 'hidden' : false;
+      if (visA && visB) {
+        pts.push(new THREE.Vector3().copy(lane.start));
+        pts.push(new THREE.Vector3().copy(lane.end));
+      }
+    });
+    if (pts.length === 0) {
+      pts.push(new THREE.Vector3(), new THREE.Vector3());
+    }
+    _hyperlaneLines.geometry.dispose();
+    _hyperlaneLines.geometry = new THREE.BufferGeometry().setFromPoints(pts);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

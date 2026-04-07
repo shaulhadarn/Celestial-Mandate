@@ -81,6 +81,17 @@ export function generateGalaxy(systemCount = 50, radius = 200, playerSettings = 
         });
     });
 
+    // ── Fog of war: reveal neighbors of home system ────────────────────────
+    const homeSys = systemById.get(0);
+    if (homeSys) {
+        for (const connId of homeSys.connections) {
+            const neighbor = systemById.get(connId);
+            if (neighbor && neighbor.visibility === 'hidden') {
+                neighbor.visibility = 'discovered';
+            }
+        }
+    }
+
     return { systems, hyperlanes };
 }
 
@@ -196,6 +207,7 @@ function generateSystemData(id, position, playerSettings) {
         planets,
         asteroidBelt,
         connections: [],
-        surveyed: (id === 0) // Start surveyed
+        surveyed: (id === 0), // Start surveyed
+        visibility: (id === 0) ? 'revealed' : 'hidden' // fog of war: 'hidden' | 'discovered' | 'revealed'
     };
 }

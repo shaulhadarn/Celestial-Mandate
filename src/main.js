@@ -94,8 +94,8 @@ function startGame(playerCiv) {
       planetId: piratePlanet.id,
       systemId: 0,
       power: 5,
-      raidTimer: -45,
-      raidInterval: 30,
+      raidTimer: -120,
+      raidInterval: 40,
       defeated: false,
       battleInProgress: false,
       introShown: false
