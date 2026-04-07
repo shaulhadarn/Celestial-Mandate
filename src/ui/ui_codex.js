@@ -4,8 +4,9 @@ import { showNotification } from './ui_notifications.js';
 
 let _selectedId = null;
 
-/* ── Civilization → race image mapping ─────────────────────────────────── */
-const CIV_IMAGES = {
+/* ── Codex → image mapping ─────────────────────────────────── */
+const CODEX_IMAGES = {
+    // Civilizations
     civ_humanoid:    'assets/race_humanoid.png',
     civ_insectoid:   'assets/race_insectoid.png',
     civ_avian:       'assets/race_avian.png',
@@ -14,6 +15,46 @@ const CIV_IMAGES = {
     civ_aquatic:     'assets/race_aquatic.png',
     civ_energy:      'assets/race_energy.png',
     civ_synthetic:   'assets/race_synthetic.png',
+    
+    // History
+    age_of_silence:  'assets/images/codex_age_of_silence.png',
+    great_expansion: 'assets/images/codex_great_expansion.png',
+    the_architects:  'assets/images/codex_the_architects.png',
+    the_collapse:    'assets/images/codex_the_collapse.png',
+    mandate_era:     'assets/images/codex_mandate_era.png',
+    lost_empires:    'assets/images/codex_lost_empires.png',
+
+    // Species
+    the_void_born:            'assets/images/codex_the_void_born.png',
+    the_harvesters:           'assets/images/codex_the_harvesters.png',
+    the_merchants_collective: 'assets/images/codex_the_merchants_collective.png',
+    the_exile_clans:          'assets/images/codex_the_exile_clans.png',
+
+    // Technology
+    taming_stellar_fire:        'assets/images/codex_taming_stellar_fire.png',
+    the_neural_revolution:      'assets/images/codex_the_neural_revolution.png',
+    matter_as_clay:             'assets/images/codex_matter_as_clay.png',
+    the_transcendence_question: 'assets/images/codex_the_transcendence_question.png',
+    zero_point_dawn:            'assets/images/codex_zero_point_dawn.png',
+    the_nanite_age:             'assets/images/codex_the_nanite_age.png',
+
+    // Anomalies
+    dark_matter_storms:     'assets/images/codex_dark_matter_storms.png',
+    // wormhole_phenomena:     'assets/images/codex_wormhole_phenomena.png',
+    // the_crystalline_entity: 'assets/images/codex_the_crystalline_entity.png',
+    // energy_ghosts:          'assets/images/codex_energy_ghosts.png',
+    // subspace_whispers:      'assets/images/codex_subspace_whispers.png',
+
+    // Factions
+    // pirate_confederacy: 'assets/images/codex_pirate_confederacy.png',
+    // refugee_nations:    'assets/images/codex_refugee_nations.png',
+    // science_collective: 'assets/images/codex_science_collective.png',
+    // colonial_frontier:  'assets/images/codex_colonial_frontier.png',
+
+    // Locations
+    // the_galactic_core:     'assets/images/codex_the_galactic_core.png',
+    // the_outer_rim:         'assets/images/codex_the_outer_rim.png',
+    // the_hyperlane_network: 'assets/images/codex_the_hyperlane_network.png',
 };
 
 /* ── Category visual config ────────────────────────────────────────────── */
@@ -136,7 +177,7 @@ function _renderContent() {
     }
 
     const cfg = CAT_CONFIG[entry.category] || { color: 'var(--color-primary)', icon: '' };
-    const heroImage = CIV_IMAGES[entry.id] || null;
+    const heroImage = CODEX_IMAGES[entry.id] || null;
 
     // Split body into paragraphs — first paragraph becomes the lead/intro
     const paragraphs = entry.body.split('\n\n').filter(p => p.trim());
