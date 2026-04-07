@@ -594,6 +594,8 @@ async function _showShipJoystick() {
         const nipplejs = (await import('nipplejs')).default;
         const container = document.getElementById('joystick-container');
         if (!container) return;
+
+        // Ensure container is visible and has dimensions before creating joystick
         container.classList.add('visible');
 
         if (activeJoystick) {
@@ -601,16 +603,26 @@ async function _showShipJoystick() {
             activeJoystick = null;
         }
 
+        // Small delay to ensure container has layout dimensions
+        await new Promise(r => setTimeout(r, 50));
+
+        const size = Math.max(80, Math.min(120, container.offsetWidth * 0.8));
+
         activeJoystick = nipplejs.create({
             zone: container,
             mode: 'static',
             position: { left: '50%', top: '50%' },
             color: 'rgba(0,242,255,0.8)',
-            size: Math.min(120, container.offsetWidth * 0.8)
+            size,
+            restOpacity: 0.6,
         });
 
         activeJoystick.on('move', (evt, data) => {
-            if (data.vector) setSystemShipJoystick(data.vector.x, data.vector.y);
+            if (data.vector) {
+                // Normalize by distance/force for proportional input
+                const force = Math.min(data.force || 1, 2) / 2;
+                setSystemShipJoystick(data.vector.x * force, data.vector.y * force);
+            }
         });
 
         activeJoystick.on('end', () => {
@@ -618,7 +630,36 @@ async function _showShipJoystick() {
         });
     } catch (e) {
         console.error("Failed to load ship joystick", e);
+        // Fallback: show mobile d-pad mapped to ship controls
+        _showShipDpadFallback();
     }
+}
+
+function _showShipDpadFallback() {
+    const dpad = document.getElementById('mobile-dpad');
+    if (!dpad) return;
+    dpad.classList.remove('hidden');
+
+    // Temporarily wire d-pad to ship input (overwrites planet wiring)
+    dpad.querySelectorAll('.dpad-btn[data-key]').forEach(btn => {
+        const key = btn.dataset.key;
+        if (!key) return;
+        const mapped = { 'w': 'w', 's': 's', 'a': 'a', 'd': 'd' }[key];
+        if (!mapped) return;
+
+        const activate = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const { handleSystemShipInput } = require('../visuals/visuals_system_ship_control.js');
+            handleSystemShipInput(mapped, true);
+        };
+        const deactivate = () => {
+            const { handleSystemShipInput } = require('../visuals/visuals_system_ship_control.js');
+            handleSystemShipInput(mapped, false);
+        };
+        btn.addEventListener('touchstart', activate, { passive: false });
+        btn.addEventListener('touchend', deactivate);
+    });
 }
 
 function _hideShipJoystick() {
@@ -632,6 +673,10 @@ function _hideShipJoystick() {
     const container = document.getElementById('joystick-container');
     if (container) container.classList.remove('visible');
     setSystemShipJoystick(0, 0);
+
+    // Also hide d-pad fallback if it was shown
+    const dpad = document.getElementById('mobile-dpad');
+    if (dpad) dpad.classList.add('hidden');
 }
 
 // removed function updateSelectionPanel() {} (moved to ui_selection.js)

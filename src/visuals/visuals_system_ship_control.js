@@ -33,10 +33,10 @@ export const systemShipState = {
     cameraDistance: 4,
     targetCameraDistance: 4,
     cameraPitch: 0.3,
-    // Physics — tuned for small ships in a vast system
+    // Physics — tuned for responsive yet smooth flight
     velocity: new THREE.Vector3(),
-    maxSpeed: 25,
-    acceleration: 35,
+    maxSpeed: 30,
+    acceleration: 45,
     drag: 0.94,
     // Banking visual
     bankAngle: 0,
@@ -273,9 +273,10 @@ function _getTouchDist(t1, t2) {
 function _isShipUITouch(e) {
     const t = e.target || e.srcElement;
     if (!t || !t.closest) return false;
+    // Only block touches on specific ship UI elements, NOT the entire ui-layer
     return t.closest('#ship-mobile-controls') || t.closest('#system-ship-control-bar') ||
            t.closest('#system-unit-panel') || t.closest('#joystick-container') ||
-           t.closest('#ui-layer') || t.closest('button');
+           t.closest('#top-bar') || t.closest('#editor-screen');
 }
 
 function _initShipTouchControls() {
@@ -372,7 +373,7 @@ export function updateShipFlight(dt, camera) {
     // Accumulate camera-relative input
     let inputX = 0, inputZ = 0;
     if (keyState.w) { inputX += fwdX; inputZ += fwdZ; }
-    if (keyState.s) { inputX -= fwdX * 0.4; inputZ -= fwdZ * 0.4; }
+    if (keyState.s) { inputX -= fwdX * 0.6; inputZ -= fwdZ * 0.6; }
     if (keyState.a) { inputX -= rgtX; inputZ -= rgtZ; }
     if (keyState.d) { inputX += rgtX; inputZ += rgtZ; }
 
@@ -398,8 +399,9 @@ export function updateShipFlight(dt, camera) {
     if (keyState[' ']) velocity.y += accel * 0.6 * dt;
     if (keyState.shift) velocity.y -= accel * 0.6 * dt;
 
-    // Drag
-    velocity.multiplyScalar(systemShipState.drag);
+    // Framerate-independent drag: drag^(dt/baseDt) where baseDt = 1/60
+    const dragFactor = Math.pow(systemShipState.drag, dt * 60);
+    velocity.multiplyScalar(dragFactor);
 
     // Clamp speed
     const speed = velocity.length();
@@ -419,17 +421,21 @@ export function updateShipFlight(dt, camera) {
         // Normalize to [-PI, PI]
         while (yawDelta > Math.PI) yawDelta -= Math.PI * 2;
         while (yawDelta < -Math.PI) yawDelta += Math.PI * 2;
-        // Smooth turn — gentle for a premium space-flight feel
-        const turnSpeed = Math.min(1, 2 * dt);
+        // Responsive turn — smooth but not sluggish
+        const turnSpeed = Math.min(1, 5 * dt);
         _euler.y += yawDelta * turnSpeed;
     }
 
     // Banking based on angular change
-    const bankTarget = THREE.MathUtils.clamp(-yawDelta * 0.35, -0.45, 0.45);
-    systemShipState.bankAngle = THREE.MathUtils.lerp(systemShipState.bankAngle, bankTarget, 3 * dt);
+    const bankTarget = THREE.MathUtils.clamp(-yawDelta * 0.4, -0.5, 0.5);
+    systemShipState.bankAngle = THREE.MathUtils.lerp(systemShipState.bankAngle, bankTarget, 4 * dt);
 
-    // Apply orientation (level ship — no pitch, auto-yaw, visual bank)
-    _euler.x = 0;
+    // Pitch based on vertical velocity — nose up when ascending, down when descending
+    const pitchTarget = THREE.MathUtils.clamp(-velocity.y * 0.04, -0.35, 0.35);
+    const pitchSmooth = THREE.MathUtils.lerp(_euler.x, pitchTarget, 3 * dt);
+
+    // Apply orientation (pitch + auto-yaw + visual bank)
+    _euler.x = pitchSmooth;
     _euler.z = systemShipState.bankAngle;
     mesh.quaternion.setFromEuler(_euler);
 
