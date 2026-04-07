@@ -1,6 +1,6 @@
 /* Updated: Added Research and Colonies Overview panels wired to top bar buttons */
 import * as THREE from 'three';
-import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlanet, getPlanet, surveySystem, SURVEY_COST, loadGame, resolvePirateBattle } from '../core/state.js';
+import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlanet, getPlanet, surveySystem, SURVEY_COST, loadGame, resolvePirateBattle, getPirateInfo } from '../core/state.js';
 import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet, refreshSystemShips } from '../visuals/renderer.js';
 import { setJoystickInput } from '../visuals/visuals_planet.js';
 import planetState from '../visuals/visuals_planet_state.js';
@@ -306,31 +306,32 @@ export function initUI() {
     document.getElementById('btn-colonize').addEventListener('click', () => {
         if (!gameState.selectedPlanetId) return;
 
-        // Check if attacking pirate base
+        // Check if attacking pirate base (home system or outpost)
         const planet = getPlanet(gameState.selectedPlanetId);
-        if (planet && planet.pirate && gameState.pirateBase && !gameState.pirateBase.defeated) {
-            // Launch pirate battle
-            const pb = gameState.pirateBase;
-            const playerFleets = (gameState.fleets || []).filter(f => f.systemId === pb.systemId && !f.moving);
+        const pirateInfo = planet ? getPirateInfo(planet.id) : null;
+        if (planet && pirateInfo && !pirateInfo.defeated) {
+            const pSysId = pirateInfo.systemId;
+            const playerFleets = (gameState.fleets || []).filter(f => f.systemId === pSysId && !f.moving);
             if (playerFleets.length === 0) {
                 showNotification("No ships available to attack!", "alert");
                 return;
             }
-            pb.battleInProgress = true;
+            // Mark home pirate as battle-in-progress (outposts don't need this)
+            if (pirateInfo.isHomePirate && gameState.pirateBase) gameState.pirateBase.battleInProgress = true;
 
-            // Import dynamically to avoid circular deps — playPirateBattle is on visuals_system
             import('../visuals/visuals_system.js').then(({ playPirateBattle, planetMeshes }) => {
-                const pirateMesh = planetMeshes.find(m => m.userData.id === pb.planetId);
+                const pirateMesh = planetMeshes.find(m => m.userData.id === planet.id);
                 const homeMesh = planetMeshes.find(m => gameState.colonies[m.userData.id]);
 
                 playPirateBattle(playerFleets, pirateMesh, homeMesh, (phase) => {
                     if (phase === 'resolve') {
-                        const result = resolvePirateBattle();
-                        pb.battleInProgress = false;
+                        const result = resolvePirateBattle(planet.id);
+                        if (pirateInfo.isHomePirate && gameState.pirateBase) gameState.pirateBase.battleInProgress = false;
                         if (result && result.won) {
                             showNotification("Victory! The pirate stronghold has fallen!", "success");
                         } else if (result) {
-                            showNotification(`Fleet repelled! Lost ${result.shipsLost.length} ship(s). Pirates weakened to power ${pb.power}.`, "alert");
+                            const newPower = pirateInfo.isHomePirate ? gameState.pirateBase.power : (planet.pirateData?.power || '?');
+                            showNotification(`Fleet repelled! Lost ${result.shipsLost.length} ship(s). Pirates weakened to power ${newPower}.`, "alert");
                         }
                         updateSelectionPanel();
                     }

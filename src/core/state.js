@@ -8,7 +8,7 @@ import { RACE_SHIPS, SHIPS } from './ships_data.js';
 import { tickResearch, applyTechBonus, unlockResearchBuilding, startResearch, cancelResearch } from './state_research.js';
 import { tickRandomEvents, scheduleChainStep, applyEventChoice } from './state_events.js';
 import { moveFleet, tickFleetMovement, getConnectedSystems } from './state_fleets.js';
-import { tickPirateRaids, resolvePirateBattle } from './state_pirates.js';
+import { tickPirateRaids, resolvePirateBattle, getPirateInfo } from './state_pirates.js';
 
 // ── Index maps for O(1) lookups — rebuilt after galaxy generation or game load
 const _systemIndex = new Map(); // id -> system
@@ -493,8 +493,10 @@ export function isSystemRevealed(systemId) {
 export function colonizePlanet(planetId) {
     if (gameState.colonies[planetId]) return false;
 
-    // Block colonization of active pirate base
+    // Block colonization of active pirate base (home or outpost)
     if (gameState.pirateBase && !gameState.pirateBase.defeated && gameState.pirateBase.planetId === planetId) return false;
+    const _planet = getPlanet(planetId);
+    if (_planet && _planet.pirate && _planet.pirateData && !_planet.pirateData.defeated) return false;
 
     const archetypeId = gameState.playerCivilization?.archetype || 'standard';
     const modifiers = ARCHETYPES.find(a => a.id === archetypeId)?.modifiers || { colony_cost_factor: 1 };
@@ -745,4 +747,4 @@ export { applyEventChoice, scheduleChainStep };
 export { moveFleet, getConnectedSystems };
 
 // Pirates
-export { resolvePirateBattle };
+export { resolvePirateBattle, getPirateInfo };

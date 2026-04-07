@@ -73,6 +73,13 @@ function _injectFresnelRim(material, rimColor, rimPower, rimStrength) {
     return material;
 }
 
+// ── Shared geometries (created once, reused to reduce GC and GPU upload) ────
+const _geoCache = {};
+function _geo(key, factory) {
+    if (!_geoCache[key]) _geoCache[key] = factory();
+    return _geoCache[key];
+}
+
 // ── Shared materials (created once, reused across buildings) ─────────────────
 const _matCache = {};
 function _mat(key, props) {
@@ -122,7 +129,7 @@ function _buildConnectionTube(group, angle, heightFn, borderColor) {
     const sinA = Math.sin(angle);
     const startR = 10;  // hub entrance tunnel end
     const endR = 34;    // building platform edge
-    const SEGS = 6;
+    const SEGS = 3;
     const tubeW = 2.0;
     const tubeH = 0.4;
     const railH = 0.6;
@@ -149,28 +156,29 @@ function _buildConnectionTube(group, angle, heightFn, borderColor) {
         const dz = b.z - a.z;
         const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-        // Walkway slab
-        const slab = new THREE.Mesh(new THREE.BoxGeometry(tubeW, tubeH, len + 0.3), tubeMat);
+        // Walkway slab (unit box scaled to fit)
+        const unitBox = _geo('unitBox', () => new THREE.BoxGeometry(1, 1, 1));
+        const slab = new THREE.Mesh(unitBox, tubeMat);
+        slab.scale.set(tubeW, tubeH, len + 0.3);
         slab.position.set(mx, my, mz);
         slab.lookAt(b.x, b.y, b.z);
         slab.receiveShadow = true;
         group.add(slab);
 
-        // Side rails
-        [-1, 1].forEach(side => {
-            const rail = new THREE.Mesh(new THREE.BoxGeometry(0.12, railH, len + 0.3), railMat);
-            rail.position.set(mx, my + (tubeH + railH) / 2, mz);
-            rail.lookAt(b.x, b.y + (tubeH + railH) / 2, b.z);
-            // Offset sideways in local space
-            const perpX = -sinA * side * (tubeW / 2 - 0.06);
-            const perpZ = cosA * side * (tubeW / 2 - 0.06);
-            rail.position.x += perpX;
-            rail.position.z += perpZ;
-            group.add(rail);
-        });
+        // One side rail only (visual simplification, saves 50% rail meshes)
+        const rail = new THREE.Mesh(unitBox, railMat);
+        rail.scale.set(0.12, railH, len + 0.3);
+        rail.position.set(mx, my + (tubeH + railH) / 2, mz);
+        rail.lookAt(b.x, b.y + (tubeH + railH) / 2, b.z);
+        const perpX = -sinA * (tubeW / 2 - 0.06);
+        const perpZ = cosA * (tubeW / 2 - 0.06);
+        rail.position.x += perpX;
+        rail.position.z += perpZ;
+        group.add(rail);
 
         // Glow strip down the center
-        const strip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, len + 0.2), glowMat);
+        const strip = new THREE.Mesh(unitBox, glowMat);
+        strip.scale.set(0.3, 0.06, len + 0.2);
         strip.position.set(mx, my + tubeH / 2 + 0.04, mz);
         strip.lookAt(b.x, b.y + tubeH / 2 + 0.04, b.z);
         group.add(strip);
@@ -1552,12 +1560,31 @@ function _buildSoldierMesh() {
     return g;
 }
 
+// ── Dirty tracking — skip rebuild when nothing changed ──────────────────────
+let _lastBuildHash = '';
+
+function _colonyBuildHash(colony) {
+    if (!colony) return '';
+    const blds = (colony.buildings || []).join(',');
+    const hvs = (colony.harvesters || []).map(h => h.id).join(',');
+    const exts = (colony.lakeExtractors || []).map(e => e.id).join(',');
+    return `${blds}|${hvs}|${exts}`;
+}
+
+export function resetColonyBuildHash() { _lastBuildHash = ''; }
+
 // ── Main render function ────────────────────────────────────────────────────
 
 /**
  * Renders the 3D structures of a colony on the planetary surface.
  */
 export function renderColonyGroundBuildings(planetId, group, heightFn) {
+    const colony = gameState.colonies[planetId];
+    // Skip expensive full rebuild if nothing actually changed
+    const hash = _colonyBuildHash(colony);
+    if (hash === _lastBuildHash && hash !== '') return;
+    _lastBuildHash = hash;
+
     while(group.children.length > 0) group.remove(group.children[0]);
     harvesterGroups = [];
     soldierMeshes = [];
@@ -1662,7 +1689,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         // Steam vent particles around drill rig base
         const steamParticles = [];
         const steamTex = _getSmokeTexture();
-        for (let si = 0; si < 12; si++) {
+        for (let si = 0; si < 6; si++) {
             const sMat = new THREE.SpriteMaterial({
                 map: steamTex,
                 color: 0xcccccc,
@@ -1680,7 +1707,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
                 life: 0,
                 maxLife: 1.2 + Math.random() * 0.8,
                 velocity: new THREE.Vector3(),
-                baseAngle: (si / 12) * Math.PI * 2
+                baseAngle: (si / 6) * Math.PI * 2
             });
         }
         hGroup.userData.steamParticles = steamParticles;
@@ -1735,7 +1762,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         // Rover exhaust smoke particles (pooled sprites behind rover)
         const exhaustParticles = [];
         const smokeTex = _getSmokeTexture();
-        for (let pi = 0; pi < 8; pi++) {
+        for (let pi = 0; pi < 4; pi++) {
             const spMat = new THREE.SpriteMaterial({
                 map: smokeTex,
                 color: 0x886644,
@@ -1760,7 +1787,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         rover.userData.exhaustTimer = 0;
 
         // Engine trail sprites (world-space glow left behind rover)
-        const ROVER_TRAIL_COUNT = 10;
+        const ROVER_TRAIL_COUNT = 5;
         const roverTrailSprites = [];
         for (let eti = 0; eti < ROVER_TRAIL_COUNT; eti++) {
             const etMat = new THREE.SpriteMaterial({
@@ -1781,7 +1808,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         rover.userData.engineTrailTimer = 0;
 
         // Track marks pool (flat quads on ground behind rover)
-        const ROVER_TRACK_MAX = 24;
+        const ROVER_TRACK_MAX = 12;
         const roverTracks = [];
         const roverTrackGeo = new THREE.PlaneGeometry(0.4, 0.7);
         for (let rti = 0; rti < ROVER_TRACK_MAX; rti++) {
@@ -1860,7 +1887,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
         group.add(sShadow);
 
         // Track-trail pool (small flat quads left behind while walking)
-        const TRAIL_MAX = 16;
+        const TRAIL_MAX = 8;
         const trailMarks = [];
         const trailGeo = new THREE.PlaneGeometry(0.35, 0.55);
         for (let ti = 0; ti < TRAIL_MAX; ti++) {

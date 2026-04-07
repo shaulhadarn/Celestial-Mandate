@@ -676,8 +676,10 @@ export function createSystemVisuals(system, group) {
             }
         }
 
-        // Pirate base visual
-        if (p.pirate && gameState.pirateBase && !gameState.pirateBase.defeated) {
+        // Pirate base visual (home system or outpost)
+        const _isHomePirate = p.pirate && gameState.pirateBase && gameState.pirateBase.planetId === p.id && !gameState.pirateBase.defeated;
+        const _isOutpostPirate = p.pirate && p.pirateData && !p.pirateData.defeated;
+        if (_isHomePirate || _isOutpostPirate) {
             addPirateBaseVisual(mesh);
         }
     });
@@ -1604,6 +1606,16 @@ function _getHullScale(power) {
 export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
     if (!pirateMesh || !homeMesh) { onPhase('resolve'); return; }
 
+    // Determine which pirate we're fighting (home or outpost)
+    const _battlePlanetId = pirateMesh.userData?.id || null;
+    const _isHomePirate = gameState.pirateBase && gameState.pirateBase.planetId === _battlePlanetId;
+    const _getBattleDefeated = () => {
+        if (_isHomePirate) return gameState.pirateBase && gameState.pirateBase.defeated;
+        // Outpost pirate — check planet data
+        const _bp = gameState.systems.flatMap(s => s.planets).find(p => p.id === _battlePlanetId);
+        return _bp && _bp.pirateData && _bp.pirateData.defeated;
+    };
+
     const group = pirateMesh.parent; // system group
     const battleShips = [];
 
@@ -1781,7 +1793,7 @@ export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
 
                 // After resolve: mark dead ships (ships lost in result)
                 const lostIds = new Set();
-                if (gameState.pirateBase && !gameState.pirateBase.defeated) {
+                if (!_getBattleDefeated()) {
                     // Loss: some ships were removed from gameState.fleets
                     playerFleets.forEach(f => {
                         if (!gameState.fleets.find(gf => gf.id === f.id)) {
@@ -1806,7 +1818,7 @@ export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
         else {
             const afterT = (t - 0.8) / 0.2; // 0→1
 
-            if (gameState.pirateBase && gameState.pirateBase.defeated) {
+            if (_getBattleDefeated()) {
                 // ── Victory: big explosion on station, ships fly home ────────
                 // Expanding explosion at pirate station
                 if (afterT < 0.3) {
@@ -1903,7 +1915,7 @@ export function playPirateBattle(playerFleets, pirateMesh, homeMesh, onPhase) {
                 fs.sprite.material.dispose();
             });
 
-            if (gameState.pirateBase && gameState.pirateBase.defeated) {
+            if (_getBattleDefeated()) {
                 removePirateVisuals();
             }
         }

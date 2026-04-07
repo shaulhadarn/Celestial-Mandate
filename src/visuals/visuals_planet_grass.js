@@ -120,7 +120,7 @@ export function createGrassMesh(planetType) {
     const joints = 4; // segments along the blade
 
     // Instance count — scaled by density and reduced on mobile
-    const baseCount = isMobileDevice ? 25000 : 80000;
+    const baseCount = isMobileDevice ? 15000 : 50000;
     const instances = Math.round(baseCount * conf.density);
     const width = 800; // covers most of the 1000-unit terrain
 

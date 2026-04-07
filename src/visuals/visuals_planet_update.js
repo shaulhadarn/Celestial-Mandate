@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { gameState, HARVESTER_YIELDS, HARVESTER_YIELD_DEFAULT, buildLakeExtractor, BUILDINGS } from '../core/state.js';
 import { getTerrainHeight, getTerrainHeightFast } from './visuals_planet_terrain.js';
-import { harvesterGroups, soldierMeshes, hubGroup, buildingAnims, lakeExtractorGroups, renderColonyGroundBuildings, buildHostileAlienMesh } from './visuals_planet_colony.js';
+import { harvesterGroups, soldierMeshes, hubGroup, buildingAnims, lakeExtractorGroups, renderColonyGroundBuildings, resetColonyBuildHash, buildHostileAlienMesh } from './visuals_planet_colony.js';
 import { getOrCreateHarvesterHUD, getOrCreateLakeExtractorHUD } from './visuals_planet_hud.js';
 import planetState, { CAMERA_HEIGHT_OFFSET } from './visuals_planet_state.js';
 import { updateGrass } from './visuals_planet_grass.js';
@@ -33,6 +33,7 @@ let _coordsEl = null;
 /** Call when planet changes to clear stale DOM caches. */
 export function resetCachedDOM() {
     _coordsEl = null;
+    resetColonyBuildHash();
 }
 
 // ── Colony buildings helper ─────────────────────────────────────────────────

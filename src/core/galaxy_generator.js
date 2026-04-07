@@ -170,12 +170,29 @@ function generateSystemData(id, position, playerSettings) {
 
     // Tag one planet as pirate base in the home system
     if (id === 0 && playerSettings && planets.length >= 2) {
-        // Pick the furthest planet from the homeworld as pirate stronghold
         const piratePlanet = planets[planets.length - 1];
         piratePlanet.pirate = true;
         piratePlanet.name = "Corsair's Den";
         piratePlanet.type = Math.random() > 0.5 ? 'Barren' : 'Molten';
-        piratePlanet.size = Math.max(piratePlanet.size, 0.8); // Ensure it's not too tiny
+        piratePlanet.size = Math.max(piratePlanet.size, 0.8);
+    }
+
+    // Random pirate outposts on ~20% of non-home systems with 2+ planets
+    const PIRATE_NAMES = ["Raider's Cove", "Skull Haven", "Dread Port", "Blackfang Lair",
+        "Void Marauders", "Crimson Station", "Shadow Reach", "Scourge Point"];
+    if (id !== 0 && planets.length >= 2 && Math.random() < 0.20) {
+        const candidate = planets[planets.length - 1]; // furthest planet
+        if (!candidate.pirate) {
+            candidate.pirate = true;
+            candidate.name = PIRATE_NAMES[Math.floor(Math.random() * PIRATE_NAMES.length)];
+            candidate.type = ['Barren', 'Molten', 'Tomb'][Math.floor(Math.random() * 3)];
+            candidate.size = Math.max(candidate.size, 0.7);
+            // Store combat data directly on the planet
+            candidate.pirateData = {
+                power: 3 + Math.floor(Math.random() * 6), // 3-8 power (scaling with distance)
+                defeated: false,
+            };
+        }
     }
 
     // Generate asteroid belt in ~35% of systems with 2+ planets

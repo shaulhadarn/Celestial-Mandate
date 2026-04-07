@@ -4,7 +4,7 @@ import { textures } from '../core/assets.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
 
 /* ── Pre-baked height grid for fast per-frame lookups ─────────────────────── */
-const GRID_SIZE = 512;
+const GRID_SIZE = 256;
 const GRID_EXTENT = 500; // terrain spans -500 to 500 on both axes
 let heightGrid = null;
 
@@ -65,13 +65,16 @@ export function getTerrainHeightFast(x, z) {
  * Smooth rolling hills — two gentle sine-wave octaves, no harsh detail.
  */
 export function getTerrainHeight(x, z) {
-    // Layer 1: Broad rolling hills
-    let h = Math.sin(x * 0.012 + 0.3) * Math.cos(z * 0.012 + 0.7) * 14;
-    // Cross-pattern for less uniform ridgelines
-    h += Math.sin(x * 0.009 - z * 0.007) * 6;
+    // Layer 1: Broad rolling hills (rotated axes to avoid axis-aligned ridges)
+    let h = Math.sin(x * 0.011 + z * 0.005 + 0.3) * Math.cos(z * 0.013 - x * 0.003 + 0.7) * 14;
+    // Cross-pattern at non-orthogonal angle
+    h += Math.sin(x * 0.008 - z * 0.009 + 2.1) * 6;
 
-    // Layer 2: Gentle medium undulation
-    h += Math.sin(x * 0.028 + 12) * Math.cos(z * 0.024 + 8) * 3.5;
+    // Layer 2: Medium undulation (rotated ~30° from primary)
+    h += Math.sin(x * 0.021 + z * 0.017 + 12) * Math.cos(z * 0.026 - x * 0.011 + 8) * 3.5;
+
+    // Layer 3: Fine detail to break up any remaining regularity
+    h += Math.sin(x * 0.047 - z * 0.033 + 5.3) * 1.2;
 
     // Flatten center area for the base/drone spawn
     const dist = Math.sqrt(x * x + z * z);
@@ -93,8 +96,9 @@ export function getTerrainHeight(x, z) {
  */
 export function createTerrainMesh(planetType) {
     const groundSize = 1000;
-    // Mobile: 192 segments for smooth terrain (vs 256 desktop)
-    const groundSegments = isMobileDevice ? 192 : 256;
+    // Reduced segments — 160 desktop (25K verts) vs 96 mobile (9K verts)
+    // Still smooth due to vertex normals; huge perf win on load
+    const groundSegments = isMobileDevice ? 96 : 160;
     const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize, groundSegments, groundSegments);
     
     const pos = groundGeo.attributes.position;
@@ -126,24 +130,43 @@ export function createTerrainMesh(planetType) {
     }
     const hRange = maxH - minH || 1;
 
-    // Pseudo-random hash for non-repeating per-vertex jitter (no visible stripes)
+    // High-quality hash — two different prime sets to avoid axis-aligned patterns
     function hash21(px, pz) {
         let h = Math.sin(px * 127.1 + pz * 311.7) * 43758.5453;
-        return h - Math.floor(h); // fract → 0..1
+        return h - Math.floor(h);
     }
-    // Value noise: bilinear interpolation of hashed grid for smooth variation
+    function hash21b(px, pz) {
+        let h = Math.sin(px * 269.5 + pz * 183.3) * 28461.7231;
+        return h - Math.floor(h);
+    }
+    // Value noise with quintic interpolation (smoother than smoothstep, no visible grid)
     function valueNoise(px, pz) {
         const ix = Math.floor(px), iz = Math.floor(pz);
         const fx = px - ix, fz = pz - iz;
-        // smoothstep
-        const ux = fx * fx * (3 - 2 * fx);
-        const uz = fz * fz * (3 - 2 * fz);
+        // Quintic smoothstep — eliminates the second-derivative discontinuity that causes banding
+        const ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+        const uz = fz * fz * fz * (fz * (fz * 6 - 15) + 10);
         const a = hash21(ix, iz);
         const b = hash21(ix + 1, iz);
         const c = hash21(ix, iz + 1);
         const d = hash21(ix + 1, iz + 1);
         return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
     }
+    // Second noise layer with different hash to avoid correlation
+    function valueNoise2(px, pz) {
+        const ix = Math.floor(px), iz = Math.floor(pz);
+        const fx = px - ix, fz = pz - iz;
+        const ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+        const uz = fz * fz * fz * (fz * (fz * 6 - 15) + 10);
+        const a = hash21b(ix, iz);
+        const b = hash21b(ix + 1, iz);
+        const c = hash21b(ix, iz + 1);
+        const d = hash21b(ix + 1, iz + 1);
+        return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
+    }
+
+    // Pre-allocate a working color to avoid 66K Color.clone() allocations
+    const _workCol = new THREE.Color();
 
     for (let i = 0; i < pos.count; i++) {
         const h  = pos.getZ(i);
@@ -152,25 +175,29 @@ export function createTerrainMesh(planetType) {
         const z  = pos.getY(i);
 
         // Blend low→high color by height
-        const blended = baseCol.clone().lerp(highCol, t);
+        _workCol.copy(baseCol).lerp(highCol, t);
 
         // Sprinkle accent color in mid-range (rocks, ice patches, lava veins…)
         const accentStrength = typeConf.accentMid
             ? Math.max(0, 1 - Math.abs(t - 0.45) * 4) * 0.6
             : 0;
-        blended.lerp(accentCol, accentStrength);
+        if (accentStrength > 0) _workCol.lerp(accentCol, accentStrength);
 
-        // Multi-scale value noise jitter — smooth but non-repeating
-        const n1 = valueNoise(x * 0.05, z * 0.05);         // large patches
-        const n2 = valueNoise(x * 0.15 + 50, z * 0.15 + 50); // medium detail
-        const jitter = ((n1 * 0.6 + n2 * 0.4) - 0.3) * typeConf.jitter;
-        blended.r = Math.min(1, Math.max(0, blended.r + jitter));
-        blended.g = Math.min(1, Math.max(0, blended.g + jitter));
-        blended.b = Math.min(1, Math.max(0, blended.b + jitter));
+        // 3-octave noise with rotated sampling to break grid alignment
+        // Rotate coordinates by ~37° so noise grid doesn't align with mesh grid
+        const rx = x * 0.7986 + z * 0.6018;   // cos(37°), sin(37°)
+        const rz = -x * 0.6018 + z * 0.7986;
+        const n1 = valueNoise(rx * 0.04, rz * 0.04);           // large patches
+        const n2 = valueNoise2(rx * 0.12 + 50, rz * 0.12 + 50); // medium detail
+        const n3 = valueNoise(rx * 0.3 + 100, rz * 0.3 + 100);  // fine grain
+        const jitter = ((n1 * 0.5 + n2 * 0.35 + n3 * 0.15) - 0.3) * typeConf.jitter;
+        _workCol.r = Math.min(1, Math.max(0, _workCol.r + jitter));
+        _workCol.g = Math.min(1, Math.max(0, _workCol.g + jitter));
+        _workCol.b = Math.min(1, Math.max(0, _workCol.b + jitter));
 
-        colorAttr[i * 3]     = blended.r;
-        colorAttr[i * 3 + 1] = blended.g;
-        colorAttr[i * 3 + 2] = blended.b;
+        colorAttr[i * 3]     = _workCol.r;
+        colorAttr[i * 3 + 1] = _workCol.g;
+        colorAttr[i * 3 + 2] = _workCol.b;
     }
     groundGeo.setAttribute('color', new THREE.BufferAttribute(colorAttr, 3));
 
@@ -178,7 +205,7 @@ export function createTerrainMesh(planetType) {
     if (groundTex) {
         groundTex.wrapS = THREE.RepeatWrapping;
         groundTex.wrapT = THREE.RepeatWrapping;
-        groundTex.repeat.set(40, 40);
+        groundTex.repeat.set(37, 37);
     }
 
     // Smooth shading for rolling-hill terrain (no flat faceted look)

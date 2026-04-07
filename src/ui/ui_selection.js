@@ -1,5 +1,5 @@
 /* Updated: System panel now shows planets of the current system (not all galaxy stars) with type, size, colony indicator, and click-to-select */
-import { gameState, getSystem, getPlanet, SURVEY_COST, selectSystem, selectPlanet, resolvePirateBattle } from '../core/state.js';
+import { gameState, getSystem, getPlanet, SURVEY_COST, selectSystem, selectPlanet, resolvePirateBattle, getPirateInfo } from '../core/state.js';
 import { renderColonyView } from './ui_colony.js';
 import { enterSystemView } from '../visuals/renderer.js';
 import { playPirateBattle, planetMeshes } from '../visuals/visuals_system.js';
@@ -92,7 +92,8 @@ export function updateSelectionPanel() {
                 });
             }
 
-            const isPirateActive = planet.pirate && gameState.pirateBase && !gameState.pirateBase.defeated;
+            const pirateInfo = getPirateInfo(planet.id);
+            const isPirateActive = !!(pirateInfo && !pirateInfo.defeated);
             document.getElementById('planet-name').innerText = isPirateActive ? `${planet.name} ☠️` : planet.name;
             const isSurveyed = sys ? sys.surveyed : false;
             const colony = gameState.colonies[planet.id];
@@ -122,7 +123,7 @@ export function updateSelectionPanel() {
                 document.getElementById('planet-class').innerText = "Unknown";
                 document.getElementById('planet-size').innerText = "?";
             } else {
-                document.getElementById('planet-class').innerText = isPirateActive ? `Pirate Stronghold (Power: ${gameState.pirateBase.power})` : planet.type;
+                document.getElementById('planet-class').innerText = isPirateActive ? `Pirate Stronghold (Power: ${pirateInfo.power})` : planet.type;
                 document.getElementById('planet-size').innerText = Math.floor(planet.size * 10);
             }
 
@@ -132,8 +133,8 @@ export function updateSelectionPanel() {
             const colonyView = document.getElementById('planet-colony-view');
             const colonizeBtn = document.getElementById('btn-colonize');
 
-            // Check if this is an active pirate base
-            const isPirateBase = planet.pirate && gameState.pirateBase && !gameState.pirateBase.defeated;
+            // Check if this is an active pirate base (home or outpost)
+            const isPirateBase = isPirateActive;
 
             if (colony) {
                 preColony.style.display = 'none';
@@ -149,12 +150,12 @@ export function updateSelectionPanel() {
                 preColony.classList.remove('hidden');
                 colonyView.classList.add('hidden');
 
-                const playerFleets = (gameState.fleets || []).filter(f => f.systemId === gameState.pirateBase.systemId && !f.moving);
+                const playerFleets = (gameState.fleets || []).filter(f => f.systemId === pirateInfo.systemId && !f.moving);
                 const playerPower = playerFleets.reduce((sum, f) => sum + (f.power || 1), 0);
                 const hasFleets = playerPower > 0;
 
                 colonizeBtn.disabled = !hasFleets;
-                colonizeBtn.innerHTML = `⚔️ Attack Pirate Base${hasFleets ? ` (Power: ${playerPower} vs ${gameState.pirateBase.power})` : ''}`;
+                colonizeBtn.innerHTML = `⚔️ Attack Pirate Base${hasFleets ? ` (Power: ${playerPower} vs ${pirateInfo.power})` : ''}`;
                 colonizeBtn.style.opacity = hasFleets ? '1' : '0.5';
                 colonizeBtn.style.background = hasFleets ? 'rgba(255, 50, 30, 0.3)' : '';
                 colonizeBtn.style.borderColor = '#ff3322';
@@ -200,7 +201,8 @@ function renderStarList(activeSystemId, animate = true) {
         const isSelected = gameState.selectedPlanetId === planet.id;
         const isSurveyed = sys.surveyed;
 
-        const isPirate = planet.pirate && gameState.pirateBase && !gameState.pirateBase.defeated;
+        const _pi = getPirateInfo(planet.id);
+        const isPirate = !!(_pi && !_pi.defeated);
         const typeLabel = isPirate ? 'Pirate Base' : ((isSurveyed || hasColony) ? planet.type : 'Unknown');
         const sizeLabel = (isSurveyed || hasColony || isPirate) ? Math.floor(planet.size * 10) : '?';
 

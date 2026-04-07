@@ -423,7 +423,7 @@ export function createPlanetVisuals(planetData, group) {
     // 5. Atmospheric particles — floating motes, pollen, spores
     {
         const particleGeo = new THREE.BufferGeometry();
-        const pCount = isMobileDevice ? 120 : 400;
+        const pCount = isMobileDevice ? 80 : 250;
         const pPos = new Float32Array(pCount * 3);
         const pOffset = new Float32Array(pCount);   // unique phase per particle
         const pSpeed = new Float32Array(pCount);    // unique drift speed
@@ -532,7 +532,7 @@ export function createPlanetVisuals(planetData, group) {
     planetState.sunLight.position.set(100, 200, 100);
     planetState.sunLight.castShadow = !isMobileDevice;
     if (!isMobileDevice) {
-        planetState.sunLight.shadow.mapSize.set(4096, 4096);
+        planetState.sunLight.shadow.mapSize.set(2048, 2048);
         planetState.sunLight.shadow.camera.near = 10;
         planetState.sunLight.shadow.camera.far = 400;
         planetState.sunLight.shadow.camera.left = -120;
