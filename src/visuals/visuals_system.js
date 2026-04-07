@@ -741,13 +741,94 @@ export function createSystemVisuals(system, group) {
             asteroidGeos.push(baseGeo);
         }
 
-        const rockMat = new THREE.MeshStandardMaterial({
-            color: 0x99887a,
-            roughness: 0.92,
-            metalness: 0.08,
-            emissive: new THREE.Color(0x1a1510),
-            emissiveIntensity: 0.12,
-            flatShading: true
+        const rockMat = new THREE.ShaderMaterial({
+            vertexShader: /* glsl */`
+                varying vec3 vNormal;
+                varying vec3 vWorldPos;
+                varying vec3 vLocalPos;
+                void main() {
+                    vLocalPos = position;
+                    vNormal = normalize(normalMatrix * normal);
+                    vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0);
+                    vWorldPos = wp.xyz;
+                    gl_Position = projectionMatrix * viewMatrix * wp;
+                }
+            `,
+            fragmentShader: /* glsl */`
+                precision mediump float;
+                varying vec3 vNormal;
+                varying vec3 vWorldPos;
+                varying vec3 vLocalPos;
+
+                // Simple 3D hash noise for surface detail
+                float hash3(vec3 p) {
+                    p = fract(p * vec3(443.897, 441.423, 437.195));
+                    p += dot(p, p.yzx + 19.19);
+                    return fract((p.x + p.y) * p.z);
+                }
+                float noise3(vec3 p) {
+                    vec3 i = floor(p), f = fract(p);
+                    f = f * f * (3.0 - 2.0 * f);
+                    float a = hash3(i);
+                    float b = hash3(i + vec3(1,0,0));
+                    float c = hash3(i + vec3(0,1,0));
+                    float d = hash3(i + vec3(1,1,0));
+                    float e = hash3(i + vec3(0,0,1));
+                    float f1 = hash3(i + vec3(1,0,1));
+                    float g = hash3(i + vec3(0,1,1));
+                    float h = hash3(i + vec3(1,1,1));
+                    float x1 = mix(a, b, f.x);
+                    float x2 = mix(c, d, f.x);
+                    float x3 = mix(e, f1, f.x);
+                    float x4 = mix(g, h, f.x);
+                    return mix(mix(x1, x2, f.y), mix(x3, x4, f.y), f.z);
+                }
+                // FBM for multi-scale rock texture
+                float fbm(vec3 p) {
+                    float v = 0.0;
+                    v += noise3(p * 4.0) * 0.5;
+                    v += noise3(p * 8.0) * 0.25;
+                    v += noise3(p * 16.0) * 0.125;
+                    v += noise3(p * 32.0) * 0.0625;
+                    return v;
+                }
+
+                void main() {
+                    vec3 N = normalize(vNormal);
+                    // Use local position (object space) for texturing so each rock has unique look
+                    vec3 tp = vLocalPos * 12.0;
+
+                    // Base rocky color with variation
+                    float n = fbm(tp);
+                    float craters = smoothstep(0.38, 0.42, noise3(tp * 3.0)); // dark crater pits
+                    float veins = smoothstep(0.55, 0.6, noise3(tp * 5.0 + 7.0)); // lighter mineral veins
+
+                    // Mix rock colors: dark grey-brown base, lighter patches, dark craters
+                    vec3 baseCol = vec3(0.35, 0.30, 0.25);   // dark brown-grey
+                    vec3 lightCol = vec3(0.55, 0.48, 0.40);   // lighter sandy rock
+                    vec3 darkCol = vec3(0.12, 0.10, 0.08);    // dark crater/shadow
+                    vec3 veinCol = vec3(0.65, 0.58, 0.50);    // mineral highlights
+
+                    vec3 col = mix(baseCol, lightCol, n);
+                    col = mix(col, darkCol, craters * 0.7);
+                    col = mix(col, veinCol, veins * 0.3);
+
+                    // Simple diffuse lighting from sun direction
+                    vec3 lightDir = normalize(vec3(0.4, 0.8, 0.3));
+                    float diff = max(dot(N, lightDir), 0.0) * 0.7 + 0.3; // ambient minimum 0.3
+                    col *= diff;
+
+                    // Subtle rim brightening (space ambient)
+                    float rim = pow(1.0 - max(dot(N, normalize(cameraPosition - vWorldPos)), 0.0), 3.0);
+                    col += rim * 0.08 * vec3(0.6, 0.55, 0.5);
+
+                    // Faint emissive so asteroids are visible in shadow
+                    col += vec3(0.04, 0.035, 0.03);
+
+                    gl_FragColor = vec4(col, 1.0);
+                    #include <tonemapping_fragment>
+                }
+            `,
         });
 
         // Create instanced meshes per geometry variant
