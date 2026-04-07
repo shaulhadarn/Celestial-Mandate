@@ -561,19 +561,27 @@ export function updateColonyDynamicState(planetId) {
         }
     });
 
-    // Update Build Button States based on current resources
+    // Update Build Button + Card States based on current resources
+    const currentMinerals = gameState.resources.minerals;
     Object.keys(BUILDINGS).filter(key => !BUILDINGS[key].isHarvester && !BUILDINGS[key].isLakeBuilding).forEach(key => {
         const b = BUILDINGS[key];
         const btnNormal = document.getElementById(`build-${key}`);
         const btnInstant = document.getElementById(`instant-${key}`);
-        
+
         if(btnNormal && btnInstant) {
-            const currentMinerals = gameState.resources.minerals;
             const costNormal = b.cost.minerals;
             const costInstant = b.cost.minerals * 2;
-            
+
             btnNormal.disabled = currentMinerals < costNormal;
             btnInstant.disabled = currentMinerals < costInstant;
+
+            // Toggle the card's disabled visual state + cost color
+            const card = btnNormal.closest('.build-option');
+            if (card) {
+                card.classList.toggle('build-option-disabled', currentMinerals < costNormal);
+                const costEl = card.querySelector('.build-cost-value');
+                if (costEl) costEl.classList.toggle('insufficient', currentMinerals < costNormal);
+            }
         }
     });
 
