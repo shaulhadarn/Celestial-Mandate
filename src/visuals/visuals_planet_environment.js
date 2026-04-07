@@ -51,7 +51,7 @@ function mat(color, emissive, emissiveIntensity, transparent, opacity, roughness
 }
 
 // -- Vegetation configs per planet type ---------------------------------------
-function getVegetationConfig(type) {
+export function getVegetationConfig(type) {
     switch (type) {
         case 'Terran':
         case 'Continental':
@@ -113,7 +113,7 @@ function getVegetationConfig(type) {
 }
 
 // -- Build a tree mesh --------------------------------------------------------
-function makeTree(treeColor, trunkColor, scale) {
+export function makeTree(treeColor, trunkColor, scale) {
     const g = new THREE.Group();
     const trunkH = 3 * scale;
     const trunk = new THREE.Mesh(
@@ -139,7 +139,7 @@ function makeTree(treeColor, trunkColor, scale) {
 }
 
 // -- Build a bush mesh --------------------------------------------------------
-function makeBush(color, scale) {
+export function makeBush(color, scale) {
     const g = new THREE.Group();
     const bushMat = mat(color, 0, 0, false, 1, 0.9);
     const positions = [[0,0,0],[0.6,0,0.3],[-0.5,0,0.4],[0.2,0,-0.5],[0,0.3,0]];
@@ -156,7 +156,7 @@ function makeBush(color, scale) {
 }
 
 // -- Build a round-canopy tree (oak / deciduous) -----------------------------
-function makeTreeRound(treeColor, trunkColor, scale) {
+export function makeTreeRound(treeColor, trunkColor, scale) {
     const g = new THREE.Group();
     const trunkH = 2.5 * scale;
     const trunk = new THREE.Mesh(
@@ -187,7 +187,7 @@ function makeTreeRound(treeColor, trunkColor, scale) {
 }
 
 // -- Build a tall thin tree (birch / poplar) ---------------------------------
-function makeTreeTall(treeColor, trunkColor, scale) {
+export function makeTreeTall(treeColor, trunkColor, scale) {
     const g = new THREE.Group();
     const trunkH = 5 * scale;
     const trunk = new THREE.Mesh(
@@ -220,7 +220,7 @@ function makeTreeTall(treeColor, trunkColor, scale) {
 }
 
 // -- Build a wildflower cluster (natural replacement for alien plants) --------
-function makeWildflower(colors, scale) {
+export function makeWildflower(colors, scale) {
     const g = new THREE.Group();
     const stemMat = mat(0x2a6618, 0, 0, false, 1, 0.85);
     const flowerCount = 3 + Math.floor(Math.random() * 4);
@@ -270,7 +270,7 @@ function makeWildflower(colors, scale) {
 }
 
 // -- Build an alien plant (tall glowing stalk with orb top) -------------------
-function makeAlienPlant(color, glowColor, scale) {
+export function makeAlienPlant(color, glowColor, scale) {
     const g = new THREE.Group();
     // Stalk
     const stalk = new THREE.Mesh(

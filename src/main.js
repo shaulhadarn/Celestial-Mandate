@@ -35,6 +35,11 @@ async function start() {
     stopSplashPlanet();
     startLoadedGame();
   });
+  // Level Editor — lazy-loaded on click
+  document.getElementById('splash-editor')?.addEventListener('click', () => {
+    import('./visuals/level_editor.js').then(m => m.enterEditor());
+  });
+
   console.log("Celestial Mandate Initialized - Awaiting Species Creation");
 }
 function fadeOutSplash() {

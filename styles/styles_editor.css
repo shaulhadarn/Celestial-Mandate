@@ -1,0 +1,410 @@
+/* ── LEVEL EDITOR UI ──────────────────────────────────────────────────────── */
+
+#editor-screen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 500;
+    pointer-events: none;
+    font-family: var(--font-main, 'Rajdhani', sans-serif);
+}
+#editor-screen.hidden { display: none !important; }
+
+/* ── Top Toolbar ─────────────────────────────────────────────────────────── */
+#editor-toolbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 48px;
+    background: rgba(4, 8, 16, 0.94);
+    border-bottom: 1px solid rgba(0, 242, 255, 0.2);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+    z-index: 510;
+    pointer-events: auto;
+    backdrop-filter: blur(8px);
+}
+
+.editor-toolbar-label {
+    color: rgba(0, 242, 255, 0.6);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-right: 4px;
+}
+
+.editor-toolbar-sep {
+    width: 1px;
+    height: 28px;
+    background: rgba(0, 242, 255, 0.15);
+    margin: 0 6px;
+}
+
+#editor-planet-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(0, 242, 255, 0.08);
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    border-radius: 4px;
+    color: #c0e0f0;
+    font-family: var(--font-main, 'Rajdhani', sans-serif);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 28px 4px 10px;
+    cursor: pointer;
+    outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300f2ff'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+}
+#editor-planet-select:hover {
+    border-color: rgba(0, 242, 255, 0.6);
+    background-color: rgba(0, 242, 255, 0.14);
+}
+
+.editor-tool-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: #8899aa;
+    font-family: var(--font-main, 'Rajdhani', sans-serif);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.editor-tool-btn:hover {
+    background: rgba(0, 242, 255, 0.1);
+    border-color: rgba(0, 242, 255, 0.3);
+    color: #c0e0f0;
+}
+.editor-tool-btn.active {
+    background: rgba(0, 242, 255, 0.18);
+    border-color: rgba(0, 242, 255, 0.6);
+    color: #00f2ff;
+    box-shadow: 0 0 10px rgba(0, 242, 255, 0.15);
+}
+
+/* ── Left Palette ────────────────────────────────────────────────────────── */
+#editor-palette {
+    position: fixed;
+    left: 0;
+    top: 56px;
+    bottom: 52px;
+    width: 170px;
+    background: rgba(4, 8, 16, 0.92);
+    border-right: 1px solid rgba(0, 242, 255, 0.15);
+    overflow-y: auto;
+    padding: 8px;
+    z-index: 510;
+    pointer-events: auto;
+    backdrop-filter: blur(6px);
+}
+
+.editor-palette-cat {
+    color: rgba(0, 242, 255, 0.5);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 4px 4px;
+}
+
+.editor-palette-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.editor-palette-item {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    color: #8899aa;
+    font-family: var(--font-main, 'Rajdhani', sans-serif);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 8px 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.editor-palette-item:hover {
+    background: rgba(0, 242, 255, 0.08);
+    border-color: rgba(0, 242, 255, 0.25);
+    color: #c0e0f0;
+}
+.editor-palette-item.active {
+    background: rgba(0, 242, 255, 0.15);
+    border-color: rgba(0, 242, 255, 0.5);
+    color: #00f2ff;
+    box-shadow: 0 0 8px rgba(0, 242, 255, 0.1);
+}
+.editor-palette-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+/* ── Right Properties Panel ──────────────────────────────────────────────── */
+#editor-properties {
+    position: fixed;
+    right: 0;
+    top: 56px;
+    width: 220px;
+    background: rgba(4, 8, 16, 0.92);
+    border-left: 1px solid rgba(0, 242, 255, 0.15);
+    padding: 12px;
+    z-index: 510;
+    pointer-events: auto;
+    backdrop-filter: blur(6px);
+}
+#editor-properties.hidden { display: none !important; }
+
+.editor-prop-title {
+    color: #00f2ff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.15);
+}
+
+.editor-prop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.editor-prop-label {
+    color: #8899aa;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+.editor-prop-value {
+    color: #c0d0e0;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.editor-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: rgba(0, 242, 255, 0.15);
+    border-radius: 2px;
+    outline: none;
+    margin: 4px 0 8px;
+}
+.editor-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #00f2ff;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(0, 242, 255, 0.5);
+}
+
+.editor-prop-delete {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    margin-top: 12px;
+    padding: 8px;
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    border-radius: 4px;
+    color: #f87171;
+    font-family: var(--font-main, 'Rajdhani', sans-serif);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.editor-prop-delete:hover {
+    background: rgba(248, 113, 113, 0.25);
+    box-shadow: 0 0 10px rgba(248, 113, 113, 0.2);
+}
+
+/* ── Bottom Bar ──────────────────────────────────────────────────────────── */
+#editor-bottombar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 44px;
+    background: rgba(4, 8, 16, 0.94);
+    border-top: 1px solid rgba(0, 242, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 12px;
+    z-index: 510;
+    pointer-events: auto;
+    backdrop-filter: blur(8px);
+}
+
+.editor-action-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(0, 242, 255, 0.08);
+    border: 1px solid rgba(0, 242, 255, 0.25);
+    border-radius: 4px;
+    color: #88bbcc;
+    font-family: var(--font-main, 'Rajdhani', sans-serif);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.editor-action-btn:hover {
+    background: rgba(0, 242, 255, 0.18);
+    border-color: rgba(0, 242, 255, 0.5);
+    color: #00f2ff;
+}
+.editor-action-btn.danger {
+    border-color: rgba(248, 113, 113, 0.3);
+    color: #cc8888;
+}
+.editor-action-btn.danger:hover {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.5);
+    color: #f87171;
+}
+
+/* ── Modal ────────────────────────────────────────────────────────────────── */
+#editor-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    pointer-events: auto;
+    backdrop-filter: blur(4px);
+}
+#editor-modal.hidden { display: none !important; }
+
+.editor-modal-box {
+    background: rgba(6, 14, 28, 0.98);
+    border: 1px solid rgba(0, 242, 255, 0.25);
+    border-radius: 8px;
+    padding: 20px 24px;
+    min-width: 320px;
+    max-width: 420px;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+}
+
+.editor-modal-title {
+    color: #00f2ff;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+
+.editor-modal-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(0, 242, 255, 0.06);
+    border: 1px solid rgba(0, 242, 255, 0.25);
+    border-radius: 4px;
+    color: #c0e0f0;
+    font-family: var(--font-main, 'Rajdhani', sans-serif);
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 14px;
+    box-sizing: border-box;
+}
+.editor-modal-input:focus {
+    border-color: rgba(0, 242, 255, 0.6);
+    box-shadow: 0 0 8px rgba(0, 242, 255, 0.15);
+}
+
+.editor-modal-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.editor-map-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px;
+}
+.editor-map-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.editor-map-item:hover {
+    background: rgba(0, 242, 255, 0.08);
+    border-color: rgba(0, 242, 255, 0.25);
+}
+.editor-map-name {
+    color: #c0d0e0;
+    font-size: 13px;
+    font-weight: 600;
+}
+.editor-map-type {
+    color: #667788;
+    font-size: 11px;
+}
+.editor-map-del {
+    appearance: none;
+    -webkit-appearance: none;
+    background: none;
+    border: none;
+    color: #885555;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+.editor-map-del:hover { color: #f87171; }
+
+/* ── Object count badge ──────────────────────────────────────────────────── */
+.editor-obj-count {
+    color: rgba(0, 242, 255, 0.5);
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Selection highlight ─────────────────────────────────────────────────── */
+.editor-selected-ring {
+    pointer-events: none;
+}

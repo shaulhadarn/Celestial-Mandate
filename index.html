@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="styles/styles_fleets.css">
     <link rel="stylesheet" href="styles/styles_codex.css">
     <link rel="stylesheet" href="styles/styles_diplomacy.css">
+    <link rel="stylesheet" href="styles/styles_editor.css">
     <!-- styles.css is deprecated -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -517,9 +518,19 @@
                 <button id="splash-start" class="menu-btn primary">New Game</button>
                 <button id="splash-load" class="menu-btn">Load Empire</button>
                 <button id="splash-settings" class="menu-btn">Settings</button>
+                <button id="splash-editor" class="menu-btn">Level Editor</button>
             </div>
         </div>
         <div class="splash-footer">V1.3.5 by Digital Prelude Studios</div>
+    </div>
+
+    <!-- Level Editor Screen -->
+    <div id="editor-screen" class="hidden">
+        <div id="editor-toolbar"></div>
+        <div id="editor-palette"></div>
+        <div id="editor-properties" class="hidden"></div>
+        <div id="editor-bottombar"></div>
+        <div id="editor-modal" class="hidden"></div>
     </div>
 
     <!-- Scene Transition Overlay -->
