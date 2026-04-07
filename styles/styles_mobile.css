@@ -1050,9 +1050,33 @@
         font-size: 13px;
     }
 
-    /* Move system ship unit panel to upper-right so it doesn't overlap colony modal close button */
+    /* ── System Ship Unit Panel — horizontal strip at top-center on mobile ── */
     #system-unit-panel {
-        top: 60px;
-        transform: none;
+        top: 48px;
+        bottom: auto;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        z-index: 85; /* below planet-panel (100) so it never blocks it */
+    }
+    #system-unit-panel-list {
+        flex-direction: row !important;
+        gap: 6px !important;
+    }
+    /* Smaller buttons on mobile */
+    #system-unit-panel .unit-btn {
+        width: 44px;
+        height: 44px;
+    }
+    #system-unit-panel .unit-btn .unit-icon { font-size: 17px; }
+    #system-unit-panel .unit-btn .unit-label { font-size: 7px; }
+
+    /* Ship control bar — lower z than panels */
+    #system-ship-control-bar {
+        bottom: 14px;
+        z-index: 85;
+        font-size: 11px;
+        padding: 6px 12px;
+        gap: 10px;
     }
 }

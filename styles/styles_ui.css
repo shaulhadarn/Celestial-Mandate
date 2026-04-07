@@ -1811,17 +1811,16 @@
 #system-unit-panel {
     position: fixed;
     right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 180;
+    top: 50px;
+    z-index: 200;
     pointer-events: auto;
 }
-#system-unit-panel.hidden { display: none; }
 #system-unit-panel-list {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    gap: 6px;
 }
+#system-unit-panel.hidden { display: none; }
 
 /* ── System Ship Control Bar ───────────────────────────────────────────────── */
 #system-ship-control-bar {

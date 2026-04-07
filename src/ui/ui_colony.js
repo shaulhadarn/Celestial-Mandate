@@ -596,4 +596,31 @@ export function updateColonyDynamicState(planetId) {
     const btnInstantH = document.getElementById('btn-instant-harvester');
     if (btnBuildH) btnBuildH.disabled = gameState.resources.minerals < BUILDINGS.harvester.cost.minerals;
     if (btnInstantH) btnInstantH.disabled = gameState.resources.minerals < BUILDINGS.harvester.cost.minerals * 2;
+
+    // Update Shipyard Queue Progress
+    const shipSection = document.getElementById('colony-shipyard-section');
+    if (shipSection && colony.shipQueue && colony.shipQueue.length > 0) {
+        const bars = shipSection.querySelectorAll('.fq-bar');
+        const pcts = shipSection.querySelectorAll('.fq-pct');
+        colony.shipQueue.forEach((item, i) => {
+            const pct = Math.floor((item.progress / item.total) * 100);
+            if (bars[i]) bars[i].style.width = `${pct}%`;
+            if (pcts[i]) pcts[i].textContent = `${pct}%`;
+        });
+    }
+
+    // Update Ship Build Button Affordability
+    const shipBuildBtns = document.querySelectorAll('.colony-ship-build');
+    if (shipBuildBtns.length > 0) {
+        const race = gameState.playerCivilization?.bodyType || 'humanoid';
+        const raceShips = RACE_SHIPS[race] || [];
+        shipBuildBtns.forEach(btn => {
+            const shipDef = raceShips.find(s => s.id === btn.dataset.ship);
+            if (shipDef) {
+                const canAfford = gameState.resources.minerals >= shipDef.cost.minerals &&
+                                  gameState.resources.energy >= shipDef.cost.energy;
+                btn.disabled = !canAfford;
+            }
+        });
+    }
 }
