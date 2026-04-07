@@ -62,14 +62,16 @@ export function updateSelectionPanel() {
         }
 
         // Only show system panel when selecting a NEW system, not on every update
-        // (e.g. deselecting a planet should not force the system panel open)
         if (isNewSystem) {
             sysPanel.classList.remove('hidden');
+            // Hide planet panel when switching to a new system
+            planetPanel.classList.add('hidden');
         }
         // Don't show planet list for discovered-only systems
         if (isDiscoveredOnly) {
-            const planetList = document.getElementById('planet-list');
-            if (planetList) planetList.innerHTML = '<div style="color:#556;font-style:italic;padding:8px 0;font-size:12px;">Send a scout ship to reveal this system</div>';
+            const starList = document.getElementById('star-list');
+            if (starList) starList.innerHTML = '<div style="color:#556;font-style:italic;padding:8px 0;font-size:12px;">Send a scout ship to reveal this system</div>';
+            planetPanel.classList.add('hidden');
         } else {
             renderStarList(sys.id, isNewSystem);
         }
