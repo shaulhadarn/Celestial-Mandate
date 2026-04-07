@@ -170,22 +170,14 @@ function _closeModal() {
 
     _cancelPendingClose();
     _modalOpen = false;
+
+    // Hide immediately — no delay so the modal always closes
+    _modal.classList.add('hidden');
+    _modal.classList.add('evt-no-display');
     const box = _modal.querySelector('.evt-box');
     if (box) {
-        box.classList.remove('evt-enter');
-        box.classList.add('evt-exit');
+        box.classList.remove('evt-enter', 'evt-exit');
     }
-    // Fade out overlay slightly after box starts its exit
-    _closeTimer1 = setTimeout(() => {
-        if (!_modalOpen) _modal.classList.add('hidden');
-    }, 80);
-    // After all animations complete, set display:none and clean up
-    _closeTimer2 = setTimeout(() => {
-        if (!_modalOpen && _modal.classList.contains('hidden')) {
-            _modal.classList.add('evt-no-display');
-            if (box) box.classList.remove('evt-exit');
-        }
-    }, 500);
 }
 
 /* ── Show event (random or chain step) ──────────────────────────────────── */
@@ -223,21 +215,24 @@ function _showEvent(evt, chainInfo) {
     // Title
     modal.querySelector('.evt-title').textContent = evt.title;
 
-    // Image — lazy load with fade-in so mobile doesn't get stuck
+    // Image — fixed-height placeholder, fade in when loaded
     const imgWrap = modal.querySelector('.evt-image-wrap');
     const imgEl = modal.querySelector('.evt-image');
     if (evt.image) {
-        imgEl.classList.add('evt-image-loading');
+        imgEl.classList.remove('evt-image-visible');
+        imgWrap.classList.remove('hidden', 'evt-image-loaded');
         imgEl.src = '';
-        imgWrap.classList.remove('hidden');
 
         const loader = new Image();
         loader.onload = () => {
             imgEl.src = evt.image;
-            imgEl.classList.remove('evt-image-loading');
+            // Fade in smoothly after a frame so transition triggers
+            requestAnimationFrame(() => {
+                imgEl.classList.add('evt-image-visible');
+                imgWrap.classList.add('evt-image-loaded');
+            });
         };
         loader.onerror = () => {
-            // Hide if image fails to load
             imgWrap.classList.add('hidden');
         };
         loader.src = evt.image;
@@ -390,21 +385,23 @@ function _showPirateConvoStep(stepIdx) {
 
     modal.querySelector('.evt-title').textContent = evt.title;
 
-    // Image — lazy load with fade-in so mobile doesn't get stuck
+    // Image — fixed-height placeholder, fade in when loaded
     const imgWrap = modal.querySelector('.evt-image-wrap');
     const imgEl = modal.querySelector('.evt-image');
     if (step.image) {
-        imgEl.classList.add('evt-image-loading');
+        imgEl.classList.remove('evt-image-visible');
+        imgWrap.classList.remove('hidden', 'evt-image-loaded');
         imgEl.src = '';
-        imgWrap.classList.remove('hidden');
 
         const loader = new Image();
         loader.onload = () => {
             imgEl.src = step.image;
-            imgEl.classList.remove('evt-image-loading');
+            requestAnimationFrame(() => {
+                imgEl.classList.add('evt-image-visible');
+                imgWrap.classList.add('evt-image-loaded');
+            });
         };
         loader.onerror = () => {
-            // Hide if image fails to load
             imgWrap.classList.add('hidden');
         };
         loader.src = step.image;
