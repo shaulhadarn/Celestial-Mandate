@@ -1591,7 +1591,6 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
     hubGroup = null;
     buildingAnims = [];
     lakeExtractorGroups = [];
-    const colony = gameState.colonies[planetId];
     if (!colony) return;
 
     // ── Hub (central command structure) ──
