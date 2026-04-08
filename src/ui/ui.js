@@ -4,7 +4,7 @@ import { gameState, events, getSystem, selectSystem, selectPlanet, colonizePlane
 import { returnToGalaxyView, enterPlanetView, focusCamera, restoreControlsAfterPlanet, refreshSystemShips } from '../visuals/renderer.js';
 import { setJoystickInput } from '../visuals/visuals_planet.js';
 import planetState from '../visuals/visuals_planet_state.js';
-import { setSystemShipJoystick } from '../visuals/visuals_system_ship_control.js';
+import { setSystemShipJoystick, handleSystemShipInput } from '../visuals/visuals_system_ship_control.js';
 import { disposeGroup } from '../core/dispose.js';
 import { groups, controls, scene } from '../core/scene_config.js';
 import { renderColonyView, updateColonyDynamicState } from './ui_colony.js';
@@ -27,6 +27,8 @@ export { showNotification };
 let activeJoystick = null;
 let _shipJoystickMode = false; // true = joystick is wired to ship, false = planet
 let _dpadWired = false;
+let _shipDpadWired = false;
+let _shipDpadListeners = []; // stored so we can remove them on exit
 
 // ── Mobile D-Pad helpers ─────────────────────────────────────────────────────
 function _showMobileDpad() {
@@ -69,6 +71,63 @@ function _hideMobileDpad() {
     ['w', 'a', 's', 'd'].forEach(k => { planetState.keyState[k] = false; });
     const btns = dpad ? dpad.querySelectorAll('.pressed') : [];
     btns.forEach(b => b.classList.remove('pressed'));
+}
+
+// ── Ship D-Pad — shows mobile d-pad wired to ship flight input ──────────────
+function _showShipDpad() {
+    const dpad = document.getElementById('mobile-dpad');
+    if (!dpad) return;
+    dpad.classList.remove('hidden');
+
+    // Remove any old ship listeners
+    _removeShipDpadListeners();
+
+    dpad.querySelectorAll('.dpad-btn[data-key]').forEach(btn => {
+        const key = btn.dataset.key;
+        if (!key) return;
+
+        const activate = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSystemShipInput(key, true);
+            btn.classList.add('pressed');
+        };
+        const deactivate = () => {
+            handleSystemShipInput(key, false);
+            btn.classList.remove('pressed');
+        };
+
+        btn.addEventListener('touchstart', activate, { passive: false });
+        btn.addEventListener('touchend', deactivate);
+        btn.addEventListener('touchcancel', deactivate);
+        btn.addEventListener('pointerdown', activate, { passive: false });
+        btn.addEventListener('pointerup', deactivate);
+        btn.addEventListener('pointerleave', deactivate);
+
+        _shipDpadListeners.push(
+            { el: btn, evt: 'touchstart', fn: activate },
+            { el: btn, evt: 'touchend', fn: deactivate },
+            { el: btn, evt: 'touchcancel', fn: deactivate },
+            { el: btn, evt: 'pointerdown', fn: activate },
+            { el: btn, evt: 'pointerup', fn: deactivate },
+            { el: btn, evt: 'pointerleave', fn: deactivate },
+        );
+    });
+    _shipDpadWired = true;
+}
+
+function _hideShipDpad() {
+    _removeShipDpadListeners();
+    const dpad = document.getElementById('mobile-dpad');
+    if (dpad) dpad.classList.add('hidden');
+    // Clear ship keys
+    ['w', 'a', 's', 'd'].forEach(k => handleSystemShipInput(k, false));
+    _shipDpadWired = false;
+}
+
+function _removeShipDpadListeners() {
+    _shipDpadListeners.forEach(({ el, evt, fn }) => el.removeEventListener(evt, fn));
+    _shipDpadListeners = [];
 }
 
 // --- Scene Transition Helpers ---
@@ -114,13 +173,13 @@ export function initUI() {
         showNotification('Game autosaved', 'info');
     });
 
-    // Ship control joystick for mobile
+    // Ship control — mobile d-pad + joystick
     events.addEventListener('ship-control-enter', () => {
         if (window.innerWidth > 768) return;
-        _showShipJoystick();
+        _showShipDpad();
     });
     events.addEventListener('ship-control-exit', () => {
-        _hideShipJoystick();
+        _hideShipDpad();
     });
 
     // Start music on first interaction with the splash screen

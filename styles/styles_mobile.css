@@ -1071,12 +1071,26 @@
     #system-unit-panel .unit-btn .unit-icon { font-size: 17px; }
     #system-unit-panel .unit-btn .unit-label { font-size: 7px; }
 
-    /* Ship control bar — lower z than panels */
+    /* Ship control bar — lower z than panels, centered above d-pad */
     #system-ship-control-bar {
-        bottom: 14px;
+        bottom: 160px;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 85;
         font-size: 11px;
         padding: 6px 12px;
         gap: 10px;
+    }
+
+    /* Ship ascend/descend — right side, well above control bar */
+    #ship-mobile-controls {
+        right: 14px;
+        bottom: 24px;
+        gap: 12px;
+    }
+    .ship-vctrl {
+        width: 54px;
+        height: 54px;
+        font-size: 20px;
     }
 }

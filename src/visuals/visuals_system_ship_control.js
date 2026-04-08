@@ -276,7 +276,7 @@ function _isShipUITouch(e) {
     // Only block touches on specific ship UI elements, NOT the entire ui-layer
     return t.closest('#ship-mobile-controls') || t.closest('#system-ship-control-bar') ||
            t.closest('#system-unit-panel') || t.closest('#joystick-container') ||
-           t.closest('#top-bar') || t.closest('#editor-screen');
+           t.closest('#mobile-dpad') || t.closest('#top-bar') || t.closest('#editor-screen');
 }
 
 function _initShipTouchControls() {
