@@ -102,11 +102,17 @@
     background: rgba(4, 8, 16, 0.92);
     border-right: 1px solid rgba(0, 242, 255, 0.15);
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 8px;
     z-index: 510;
     pointer-events: auto;
     backdrop-filter: blur(6px);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 242, 255, 0.2) transparent;
 }
+#editor-palette::-webkit-scrollbar { width: 4px; }
+#editor-palette::-webkit-scrollbar-track { background: transparent; }
+#editor-palette::-webkit-scrollbar-thumb { background: rgba(0, 242, 255, 0.2); border-radius: 2px; }
 
 .editor-palette-cat {
     color: rgba(0, 242, 255, 0.5);

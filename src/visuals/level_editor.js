@@ -8,7 +8,11 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createTerrainMesh, getTerrainHeight } from './visuals_planet_terrain.js';
 import { getSkyColor, getVegetationConfig, getPropColor,
          makeTree, makeTreeRound, makeTreeTall,
-         makeBush, makeWildflower, makeAlienPlant } from './visuals_planet_environment.js';
+         makeBush, makeWildflower, makeAlienPlant,
+         buildCreatureMesh, _buildAlienFish, _makeReedCluster } from './visuals_planet_environment.js';
+import { _buildHub, _buildPowerPlant, _buildMiningNetwork, _buildHydroponics,
+         _buildResearchLab, _buildShipyard, _buildSoldierMesh, _buildLakeExtractor,
+         _buildColonyShield, _buildAlienHiveMesh, buildTankMesh, buildHostileAlienMesh } from './visuals_planet_colony.js';
 import { initSplashPlanet, stopSplashPlanet } from './splash_renderer.js';
 import { buildEditorUI, destroyEditorUI, updateProperties, clearProperties, updateObjectCount } from './level_editor_ui.js';
 
@@ -268,30 +272,70 @@ function _buildScene(planetType) {
 function _createObjectMesh(type, scale) {
     const vc = getVegetationConfig(state.planetType);
     const s = scale || (0.7 + Math.random() * 0.6);
+    const propCol = getPropColor(state.planetType);
 
     switch (type) {
+        // ── Trees ──
         case 'tree':
             return makeTree(vc.treeColor || 0x2d5a1b, vc.trunkColor || 0x5c3a1e, s);
         case 'tree_round':
             return makeTreeRound(vc.treeColor2 || vc.treeColor || 0x3a6e28, vc.trunkColor2 || vc.trunkColor || 0x6b4422, s);
         case 'tree_tall':
             return makeTreeTall(vc.treeColor3 || vc.treeColor || 0x4a8832, vc.trunkColor3 || vc.trunkColor || 0xd4c8a0, s);
+
+        // ── Flora ──
         case 'bush':
             return makeBush(vc.bushColor || 0x3a7a22, s);
         case 'wildflower':
             return makeWildflower(vc.wildflowerColors || [0xdd4466, 0xffaa22, 0xeedd55], s);
         case 'alien_plant':
             return makeAlienPlant(vc.alienPlantColor || 0x8b44cc, vc.alienGlow || 0x6600ff, s);
+        case 'reeds':
+            return _makeReedCluster(vc.treeColor || 0x3a6a28, s);
+        case 'grass_patch': {
+            // Small cluster of grass blades (simple geometry, not instanced)
+            const g = new THREE.Group();
+            const bladeMat = new THREE.MeshStandardMaterial({ color: vc.treeColor || 0x2d6a1b, roughness: 0.8, side: THREE.DoubleSide });
+            for (let i = 0; i < 20; i++) {
+                const h = (0.5 + Math.random() * 0.8) * s;
+                const bladeGeo = new THREE.PlaneGeometry(0.08 * s, h);
+                const blade = new THREE.Mesh(bladeGeo, bladeMat);
+                blade.position.set((Math.random() - 0.5) * 2 * s, h / 2, (Math.random() - 0.5) * 2 * s);
+                blade.rotation.y = Math.random() * Math.PI;
+                blade.rotation.z = (Math.random() - 0.5) * 0.3;
+                g.add(blade);
+            }
+            return g;
+        }
+
+        // ── Props ──
         case 'rock': {
             const geo = new THREE.DodecahedronGeometry(1.5 * s, 0);
-            const mat = new THREE.MeshStandardMaterial({
-                color: getPropColor(state.planetType), roughness: 0.85, metalness: 0.1
-            });
+            const mat = new THREE.MeshStandardMaterial({ color: propCol, roughness: 0.85, metalness: 0.1 });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.castShadow = true;
-            const g = new THREE.Group();
-            g.add(mesh);
+            const g = new THREE.Group(); g.add(mesh);
             mesh.position.y = 0.5 * s;
+            return g;
+        }
+        case 'rock_large': {
+            const g = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: propCol, roughness: 0.9, metalness: 0.05 });
+            // Main boulder
+            const main = new THREE.Mesh(new THREE.DodecahedronGeometry(3 * s, 1), mat);
+            main.position.y = 1.5 * s;
+            main.rotation.set(Math.random(), Math.random(), Math.random());
+            main.castShadow = true;
+            g.add(main);
+            // Smaller rocks at base
+            for (let i = 0; i < 3; i++) {
+                const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.8 * s, 0), mat);
+                const a = (i / 3) * Math.PI * 2 + Math.random() * 0.5;
+                r.position.set(Math.cos(a) * 2.5 * s, 0.4 * s, Math.sin(a) * 2.5 * s);
+                r.rotation.set(Math.random(), Math.random(), Math.random());
+                r.castShadow = true;
+                g.add(r);
+            }
             return g;
         }
         case 'crystal': {
@@ -302,11 +346,37 @@ function _createObjectMesh(type, scale) {
             });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.castShadow = true;
-            const g = new THREE.Group();
-            g.add(mesh);
+            const g = new THREE.Group(); g.add(mesh);
             mesh.position.y = 1.2 * s;
             return g;
         }
+        case 'crystal_cluster': {
+            const g = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x00ddff, emissive: 0x00bbdd, emissiveIntensity: 0.5,
+                transparent: true, opacity: 0.8, roughness: 0.1, metalness: 0.7
+            });
+            for (let i = 0; i < 5; i++) {
+                const h = (1.5 + Math.random() * 2) * s;
+                const r = (0.3 + Math.random() * 0.3) * s;
+                const shard = new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), mat);
+                const a = (i / 5) * Math.PI * 2;
+                const dist = (0.3 + Math.random() * 0.8) * s;
+                shard.position.set(Math.cos(a) * dist, h / 2, Math.sin(a) * dist);
+                shard.rotation.z = (Math.random() - 0.5) * 0.4;
+                shard.rotation.x = (Math.random() - 0.5) * 0.3;
+                shard.castShadow = true;
+                g.add(shard);
+            }
+            // Base glow
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.15 });
+            const glow = new THREE.Mesh(new THREE.SphereGeometry(1.5 * s, 8, 8), glowMat);
+            glow.position.y = 0.5 * s;
+            g.add(glow);
+            return g;
+        }
+
+        // ── Water ──
         case 'lake': {
             const radius = 25;
             const geo = new THREE.CircleGeometry(radius, 48);
@@ -317,10 +387,182 @@ function _createObjectMesh(type, scale) {
             });
             const mesh = new THREE.Mesh(geo, mat);
             mesh.rotation.x = -Math.PI / 2;
-            const g = new THREE.Group();
-            g.add(mesh);
+            const g = new THREE.Group(); g.add(mesh);
             return g;
         }
+        case 'fish':
+            return _buildAlienFish(0x22aa88, 0x44ffcc, s);
+
+        // ── Structures ──
+        case 'colony_hub': {
+            const g = new THREE.Group();
+            _buildHub(g);
+            g.scale.setScalar(s);
+            return g;
+        }
+        case 'power_plant': {
+            const g = new THREE.Group();
+            _buildPowerPlant(g, '#00f2ff');
+            g.scale.setScalar(s);
+            return g;
+        }
+        case 'mine': {
+            const g = new THREE.Group();
+            _buildMiningNetwork(g, '#ffaa00');
+            g.scale.setScalar(s);
+            return g;
+        }
+        case 'hydroponics': {
+            const g = new THREE.Group();
+            _buildHydroponics(g, '#44ff44');
+            g.scale.setScalar(s);
+            return g;
+        }
+        case 'research': {
+            const g = new THREE.Group();
+            _buildResearchLab(g, '#aa88ff');
+            g.scale.setScalar(s);
+            return g;
+        }
+        case 'shipyard': {
+            const g = new THREE.Group();
+            _buildShipyard(g, '#00f2ff');
+            g.scale.setScalar(s);
+            return g;
+        }
+        case 'extractor': {
+            const g = new THREE.Group();
+            _buildLakeExtractor(g);
+            g.scale.setScalar(s);
+            return g;
+        }
+        case 'shield': {
+            const g = new THREE.Group();
+            _buildColonyShield(g);
+            g.scale.setScalar(s);
+            return g;
+        }
+
+        // ── Units ──
+        case 'soldier':
+            return _buildSoldierMesh();
+        case 'tank':
+            return buildTankMesh();
+        case 'creature': {
+            const cfg = {
+                bodyColor: vc.treeColor || 0x4a6633,
+                bellyColor: 0xccbb88,
+                carapaceColor: vc.alienPlantColor || 0x557744,
+                legColor: vc.trunkColor || 0x3a3020,
+                eyeColor: 0xffcc00,
+                eyeGlow: 0xff8800,
+                markingColor: vc.alienGlow || 0x33aa22,
+                markingGlow: vc.alienGlow || 0x22ff00,
+                bodyScale: s,
+            };
+            return buildCreatureMesh(cfg);
+        }
+        case 'hostile':
+            return buildHostileAlienMesh();
+        case 'alien_hive':
+            return _buildAlienHiveMesh();
+
+        // ── Lighting ──
+        case 'point_light': {
+            const g = new THREE.Group();
+            // Visual bulb
+            const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4 * s, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffffcc })
+            );
+            bulb.position.y = 2 * s;
+            g.add(bulb);
+            // Post
+            const post = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.08 * s, 0.12 * s, 2 * s, 6),
+                new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.7, roughness: 0.3 })
+            );
+            post.position.y = 1 * s;
+            g.add(post);
+            // Light
+            const light = new THREE.PointLight(0xffffcc, 3, 30 * s);
+            light.position.y = 2.2 * s;
+            g.add(light);
+            // Glow sprite
+            const glowMat = new THREE.SpriteMaterial({ color: 0xffffaa, transparent: true, opacity: 0.4 });
+            const sprite = new THREE.Sprite(glowMat);
+            sprite.scale.setScalar(2 * s);
+            sprite.position.y = 2.2 * s;
+            g.add(sprite);
+            return g;
+        }
+        case 'campfire': {
+            const g = new THREE.Group();
+            // Log ring
+            const logMat = new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 0.9 });
+            for (let i = 0; i < 6; i++) {
+                const log = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.15 * s, 1.2 * s, 5), logMat);
+                const a = (i / 6) * Math.PI * 2;
+                log.position.set(Math.cos(a) * 0.6 * s, 0.15 * s, Math.sin(a) * 0.6 * s);
+                log.rotation.z = Math.PI / 2;
+                log.rotation.y = a;
+                g.add(log);
+            }
+            // Fire core
+            const fireMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.8 });
+            const fire = new THREE.Mesh(new THREE.ConeGeometry(0.35 * s, 1.2 * s, 6), fireMat);
+            fire.position.y = 0.6 * s;
+            g.add(fire);
+            // Inner flame
+            const inner = new THREE.Mesh(
+                new THREE.ConeGeometry(0.2 * s, 0.8 * s, 5),
+                new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.9 })
+            );
+            inner.position.y = 0.5 * s;
+            g.add(inner);
+            // Point light
+            const light = new THREE.PointLight(0xff6622, 4, 25 * s);
+            light.position.y = 0.8 * s;
+            g.add(light);
+            return g;
+        }
+        case 'beacon': {
+            const g = new THREE.Group();
+            // Base
+            const base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.8 * s, 1 * s, 0.5 * s, 8),
+                new THREE.MeshStandardMaterial({ color: 0x444455, metalness: 0.7, roughness: 0.3 })
+            );
+            base.position.y = 0.25 * s;
+            g.add(base);
+            // Antenna pole
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.06 * s, 0.08 * s, 4 * s, 6),
+                new THREE.MeshStandardMaterial({ color: 0x666677, metalness: 0.8, roughness: 0.2 })
+            );
+            pole.position.y = 2.5 * s;
+            g.add(pole);
+            // Top dish
+            const dish = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4 * s, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
+                new THREE.MeshStandardMaterial({ color: 0x88aacc, metalness: 0.6, roughness: 0.3, side: THREE.DoubleSide })
+            );
+            dish.position.y = 4.5 * s;
+            dish.rotation.x = Math.PI;
+            g.add(dish);
+            // Beacon light
+            const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15 * s, 6, 6),
+                new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+            );
+            bulb.position.y = 4.7 * s;
+            g.add(bulb);
+            const light = new THREE.PointLight(0x00ff88, 2, 20 * s);
+            light.position.y = 4.7 * s;
+            g.add(light);
+            return g;
+        }
+
         default:
             return makeBush(0x3a7a22, s);
     }

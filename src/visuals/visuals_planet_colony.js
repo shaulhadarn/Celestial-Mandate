@@ -248,7 +248,7 @@ function _buildBasePlatform(g) {
     });
 }
 
-function _buildHub(g) {
+export function _buildHub(g) {
     // ── Main dome ──
     const domeGeo = new THREE.SphereGeometry(7, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
     const domeMat = new THREE.MeshStandardMaterial({
@@ -462,7 +462,7 @@ function _buildHub(g) {
     g.add(hubGlow);
 }
 
-function _buildPowerPlant(g, borderColor) {
+export function _buildPowerPlant(g, borderColor) {
     _buildBasePlatform(g);
 
     const accentMat = new THREE.MeshStandardMaterial({
@@ -554,7 +554,7 @@ function _buildPowerPlant(g, borderColor) {
     g.userData.animParts = { type: 'power_plant', coreRing, coreRingMat, arc, arcMat, reactorGlow, light };
 }
 
-function _buildMiningNetwork(g, borderColor) {
+export function _buildMiningNetwork(g, borderColor) {
     _buildBasePlatform(g);
 
     const accentMat = new THREE.MeshStandardMaterial({
@@ -639,7 +639,7 @@ function _buildMiningNetwork(g, borderColor) {
     g.userData.animParts = { type: 'mining_network', crusherPivot, cranePivot };
 }
 
-function _buildHydroponics(g, borderColor) {
+export function _buildHydroponics(g, borderColor) {
     _buildBasePlatform(g);
 
     const glassMat = new THREE.MeshStandardMaterial({
@@ -736,7 +736,7 @@ function _buildHydroponics(g, borderColor) {
     g.userData.animParts = { type: 'hydroponics', veg, vegMat, vegBaseScaleY, growthLights, glowSprites, domeGlow, light };
 }
 
-function _buildResearchLab(g, borderColor) {
+export function _buildResearchLab(g, borderColor) {
     _buildBasePlatform(g);
 
     const accentMat = new THREE.MeshStandardMaterial({
@@ -834,7 +834,7 @@ function _buildResearchLab(g, borderColor) {
     g.userData.animParts = { type: 'research_lab', dishPivot, beam, beamMat, tipMat, antennaTipGlow, beamGlow, windowMat };
 }
 
-function _buildShipyard(g, borderColor) {
+export function _buildShipyard(g, borderColor) {
     _buildBasePlatform(g);
 
     const accentMat = new THREE.MeshStandardMaterial({
@@ -1244,7 +1244,7 @@ export function buildTankMesh() {
 
 // ── Patrol soldiers ─────────────────────────────────────────────────────────
 
-function _buildSoldierMesh() {
+export function _buildSoldierMesh() {
     const g = new THREE.Group();
 
     // ── Materials ──
@@ -1930,7 +1930,7 @@ export function renderColonyGroundBuildings(planetId, group, heightFn) {
 
 // ── Lake Hydro Extractor ────────────────────────────────────────────────────
 
-function _buildLakeExtractor(group) {
+export function _buildLakeExtractor(group) {
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
     // --- Floating hexagonal platform ---
@@ -2060,7 +2060,7 @@ function _buildLakeExtractor(group) {
 
 // ── Colony Shield Dome ──────────────────────────────────────────────────────
 
-function _buildColonyShield(group) {
+export function _buildColonyShield(group) {
     const SHIELD_RADIUS = 38;
     const SHIELD_MAX_HP = 200;
 
@@ -2120,7 +2120,7 @@ export { _buildColonyShield };
 
 // ── Alien Hive Structure ────────────────────────────────────────────────────
 
-function _buildAlienHiveMesh() {
+export function _buildAlienHiveMesh() {
     const g = new THREE.Group();
 
     const hiveMat = new THREE.MeshStandardMaterial({

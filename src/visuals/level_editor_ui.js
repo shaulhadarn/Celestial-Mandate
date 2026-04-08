@@ -14,13 +14,40 @@ const PALETTE = [
         { key: 'bush',       icon: '\u{1F33F}', label: 'Bush' },
         { key: 'wildflower', icon: '\u{1F338}', label: 'Flower' },
         { key: 'alien_plant',icon: '\u{1F344}', label: 'Alien' },
+        { key: 'reeds',      icon: '\u{1F33E}', label: 'Reeds' },
+        { key: 'grass_patch',icon: '\u{1F331}', label: 'Grass' },
     ]},
     { cat: 'Props', items: [
-        { key: 'rock',    icon: '\u{1FAA8}', label: 'Rock' },
-        { key: 'crystal', icon: '\u{1F48E}', label: 'Crystal' },
+        { key: 'rock',       icon: '\u{1FAA8}', label: 'Rock' },
+        { key: 'rock_large', icon: '\u{26F0}',  label: 'Boulder' },
+        { key: 'crystal',    icon: '\u{1F48E}', label: 'Crystal' },
+        { key: 'crystal_cluster', icon: '\u{2728}', label: 'Cluster' },
     ]},
     { cat: 'Water', items: [
-        { key: 'lake', icon: '\u{1F4A7}', label: 'Lake' },
+        { key: 'lake',       icon: '\u{1F4A7}', label: 'Lake' },
+        { key: 'fish',       icon: '\u{1F41F}', label: 'Fish' },
+    ]},
+    { cat: 'Structures', items: [
+        { key: 'colony_hub', icon: '\u{1F3DB}', label: 'Hub' },
+        { key: 'power_plant',icon: '\u{26A1}',  label: 'Power' },
+        { key: 'mine',       icon: '\u{2692}',  label: 'Mine' },
+        { key: 'hydroponics',icon: '\u{1F33D}', label: 'Farm' },
+        { key: 'research',   icon: '\u{1F52C}', label: 'Lab' },
+        { key: 'shipyard',   icon: '\u{1F680}', label: 'Shipyard' },
+        { key: 'extractor',  icon: '\u{1F527}', label: 'Extract' },
+        { key: 'shield',     icon: '\u{1F6E1}', label: 'Shield' },
+    ]},
+    { cat: 'Units', items: [
+        { key: 'soldier',    icon: '\u{1F482}', label: 'Soldier' },
+        { key: 'tank',       icon: '\u{1F68C}', label: 'Tank' },
+        { key: 'creature',   icon: '\u{1F9E0}', label: 'Creature' },
+        { key: 'hostile',    icon: '\u{1F47E}', label: 'Hostile' },
+        { key: 'alien_hive', icon: '\u{1F573}', label: 'Hive' },
+    ]},
+    { cat: 'Lighting', items: [
+        { key: 'point_light',icon: '\u{1F4A1}', label: 'Light' },
+        { key: 'campfire',   icon: '\u{1F525}', label: 'Fire' },
+        { key: 'beacon',     icon: '\u{1F4E1}', label: 'Beacon' },
     ]},
 ];
 

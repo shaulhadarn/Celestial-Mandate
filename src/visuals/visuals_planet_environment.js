@@ -567,7 +567,7 @@ function getSpeciesConfigs(planetType) {
     return [speciesA, speciesB];
 }
 
-function buildCreatureMesh(cfg) {
+export function buildCreatureMesh(cfg) {
     const g = new THREE.Group();
     const s = cfg.bodyScale;
     const seg = isMobileDevice ? 6 : 10; // geometry detail
@@ -1228,7 +1228,7 @@ export function _generateLakePositions(planetType) {
 /**
  * Builds a small alien fish mesh — bioluminescent body with tail fin.
  */
-function _buildAlienFish(bodyColor, glowColor, scale) {
+export function _buildAlienFish(bodyColor, glowColor, scale) {
     const g = new THREE.Group();
     const bodyGeo = new THREE.SphereGeometry(0.3 * scale, 6, 5);
     bodyGeo.scale(1.8, 1, 1);
@@ -1499,7 +1499,7 @@ export function createLakes(planetType, group, heightFn, terrainMesh) {
 /**
  * Reed cluster — thin tall grass-like cylinders growing near water.
  */
-function _makeReedCluster(color, scale) {
+export function _makeReedCluster(color, scale) {
     const g = new THREE.Group();
     const reedMat = mat(color, 0, 0, false, 1, 0.85);
     const reedCount = 5 + Math.floor(Math.random() * 4);
