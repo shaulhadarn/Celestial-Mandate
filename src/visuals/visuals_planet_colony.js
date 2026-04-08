@@ -2116,8 +2116,6 @@ export function _buildColonyShield(group) {
     };
 }
 
-export { _buildColonyShield };
-
 // ── Alien Hive Structure ────────────────────────────────────────────────────
 
 export function _buildAlienHiveMesh() {
