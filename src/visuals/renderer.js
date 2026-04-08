@@ -89,15 +89,23 @@ export async function init() {
         if (gameState.viewMode === 'SYSTEM' && isShipControlActive()) {
             handleSystemShipInput(e.key, true);
             const k = e.key.toLowerCase();
-            if (['w','a','s','d',' ','shift','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+            if (['w','a','s','d',' ','shift','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) {
+                e.preventDefault();
+                e.stopPropagation(); // prevent R3F canvas div from swallowing the event
+            }
+            return;
+        }
+        if (gameState.viewMode === 'EXPLORATION') {
+            handleInput(e.key, true);
+            if (e.key === ' ') e.preventDefault();
             return;
         }
         handleInput(e.key, true);
-        if (e.key === ' ' && gameState.viewMode === 'EXPLORATION') e.preventDefault();
     }, true);
     document.addEventListener('keyup', (e) => {
         if (gameState.viewMode === 'SYSTEM' && isShipControlActive()) {
             handleSystemShipInput(e.key, false);
+            e.stopPropagation();
             return;
         }
         handleInput(e.key, false);

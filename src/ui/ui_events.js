@@ -129,7 +129,9 @@ function _ensureModal() {
     _modal.classList.add('evt-no-display');
 
     _modal.addEventListener('click', (e) => {
-        if (e.target === _modal || e.target.classList.contains('evt-backdrop')) {
+        // Close when clicking the modal background (outside the box)
+        // Backdrop has pointer-events:none so clicks land on _modal itself
+        if (e.target === _modal) {
             _closeModal();
         }
     });
@@ -269,17 +271,20 @@ function _showEvent(evt, chainInfo) {
             </div>
             ${hasEffect ? `<div class="evt-choice-effects">${_formatEffect(choice.effect)}</div>` : ''}
         `;
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation(); // prevent backdrop click handler from interfering
+        const _handleChoice = (e) => {
+            e.stopPropagation();
+            // Remove handler immediately to prevent double-fire
+            btn.removeEventListener('click', _handleChoice);
+
+            _closeModal();
+
             try {
                 if (choice.effect) applyEventChoice(choice.effect);
             } catch (err) {
                 console.error('applyEventChoice error:', err);
             }
-            _closeModal();
             showNotification(`${evt.title}: ${choice.label}`, 'info');
 
-            // If this is a chain event, schedule next step
             try {
                 if (chainInfo && choice.nextStep) {
                     scheduleChainStep(chainInfo.chainId, choice.nextStep, choice.delay || [30, 60]);
@@ -289,7 +294,8 @@ function _showEvent(evt, chainInfo) {
             } catch (err) {
                 console.error('scheduleChainStep error:', err);
             }
-        });
+        };
+        btn.addEventListener('click', _handleChoice);
         choicesEl.appendChild(btn);
     });
 
@@ -426,17 +432,17 @@ function _showPirateConvoStep(stepIdx) {
             <span class="evt-choice-label">${escapedLabel}</span>
         </div>
     `;
-    btn.addEventListener('click', (e) => {
+    const _handlePirateChoice = (e) => {
         e.stopPropagation();
+        btn.removeEventListener('click', _handlePirateChoice);
         if (stepIdx + 1 < _pirateConvo.length) {
-            // Advance to next step
             _showPirateConvoStep(stepIdx + 1);
         } else {
-            // End of conversation
             _closeModal();
             showNotification('Pirate raiders will periodically attack your colony. Build a Shipyard and ships to fight back!', 'alert');
         }
-    });
+    };
+    btn.addEventListener('click', _handlePirateChoice);
     choicesEl.appendChild(btn);
 
     // Entrance animation

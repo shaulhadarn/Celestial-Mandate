@@ -343,6 +343,27 @@ function _initShipTouchControls() {
 
 _initShipTouchControls();
 
+// ── Direct keyboard handler (backup — ensures keys work even if R3F captures events) ──
+const _SHIP_KEYS = new Set(['w','a','s','d',' ','shift','arrowup','arrowdown','arrowleft','arrowright']);
+const _ARROW_MAP = { 'arrowup': 'w', 'arrowdown': 's', 'arrowleft': 'a', 'arrowright': 'd' };
+
+window.addEventListener('keydown', (e) => {
+    if (!isShipControlActive()) return;
+    const k = e.key.toLowerCase();
+    if (!_SHIP_KEYS.has(k)) return;
+    const mapped = _ARROW_MAP[k] || k;
+    systemShipState.keyState[mapped] = true;
+    e.preventDefault();
+}, true);
+
+window.addEventListener('keyup', (e) => {
+    if (!isShipControlActive()) return;
+    const k = e.key.toLowerCase();
+    if (!_SHIP_KEYS.has(k)) return;
+    const mapped = _ARROW_MAP[k] || k;
+    systemShipState.keyState[mapped] = false;
+}, true);
+
 // ── Per-frame flight physics + camera ───────────────────────────────────────
 
 /**
