@@ -28,6 +28,7 @@ export const MILESTONE_EVENTS = [
         desc: 'The colony ship descends through alien skies, its hull glowing white-hot against an atmosphere never before touched by your kind. Below, a world of unknown promise awaits — its mountains, seas, and continents soon to bear the names of pioneers brave enough to leave everything behind. This is the moment your species ceases to be the children of one world and becomes citizens of the stars. History will remember this day as the first true step of an interstellar civilization, the day the cradle was finally, irrevocably left behind.',
         category: 'expansion',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.colony}</svg>`,
+        image: 'assets/images/events/milestone_first_colony.png',
     },
     {
         id: 'five_colonies',
@@ -37,6 +38,7 @@ export const MILESTONE_EVENTS = [
         desc: 'Five worlds now orbit under your banner, each one a beating heart of industry, culture, and ambition. Trade routes thread between them like the arteries of a great body, carrying minerals, knowledge, and the ceaseless flow of your people. What began as a fragile outpost on a single alien shore has become something undeniable — an empire. Diplomats speak your name with respect; rivals speak it with unease. The five pillars of your dominion stand tall, and the galaxy watches to see how high you will build.',
         category: 'expansion',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.colony}</svg>`,
+        image: 'assets/images/events/milestone_five_colonies.png',
     },
     {
         id: 'first_research',
@@ -46,6 +48,7 @@ export const MILESTONE_EVENTS = [
         desc: 'In the quiet hum of a research lab orbiting a distant star, a team of scientists stares at their instruments in disbelief. The data is unmistakable — a fundamental law of the universe has yielded its secret to your civilization. This first breakthrough is more than a technological achievement; it is a declaration that your species will not be content merely to survive among the stars. You will understand them. The torch of knowledge has been lit, and its light will push back the darkness of an infinite frontier.',
         category: 'discovery',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.research}</svg>`,
+        image: 'assets/images/events/milestone_first_research.png',
     },
     {
         id: 'first_fleet_move',
@@ -55,6 +58,7 @@ export const MILESTONE_EVENTS = [
         desc: 'The fleet breaks orbit for the first time, engines blazing against the velvet dark. Behind lies the safety of known space — ahead, the vast and terrible unknown. Every soul aboard understands the weight of this moment: they are the first of your kind to cross the gulf between stars under their own power, navigating the ancient hyperlanes that bind the galaxy together. The void is no longer an obstacle. It is a road, and your ships now travel it. Whatever waits at the other end, your people will face it together.',
         category: 'exploration',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.fleet}</svg>`,
+        image: 'assets/images/events/milestone_first_fleet_move.png',
     },
     {
         id: 'first_ship',
@@ -64,6 +68,7 @@ export const MILESTONE_EVENTS = [
         desc: 'The shipyard doors open and the first warship glides into the void, its hull still gleaming with the polish of a newly forged blade. Crew members line the observation decks of the orbital station, watching in reverent silence as the vessel clears the docking clamps and powers up its drives. This is no mere machine — it is the embodiment of your civilization\'s will to defend what it has built and to reach for what it has not. The stars have always been beautiful. Now, they are also yours to protect.',
         category: 'military',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.fleet}</svg>`,
+        image: 'assets/images/events/milestone_first_ship.png',
     },
     {
         id: 'first_survey',
@@ -73,6 +78,7 @@ export const MILESTONE_EVENTS = [
         desc: 'The sensor arrays sweep across an alien star system for the first time, cataloguing worlds no eye of your kind has ever seen. Gas giants swirl in bands of crimson and gold; rocky moons hide secrets beneath crusts of ancient ice. Every data point is a revelation, every reading a verse in the grand poem of the cosmos. Your civilization has taken its first step from inhabitant to explorer, from survivor to cartographer of infinity. The map of the galaxy has its first mark — and there are billions more to make.',
         category: 'exploration',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.survey}</svg>`,
+        image: 'assets/images/events/milestone_first_survey.png',
     },
     {
         id: 'transcendence_achieved',
@@ -82,6 +88,7 @@ export const MILESTONE_EVENTS = [
         desc: 'It begins as a whisper in the neural networks — a frequency beyond hearing, beyond thought, beyond the very concept of self. Then the barriers fall. Across every world, every ship, every mind in your civilization, the walls between consciousness dissolve like frost in starlight. Your species ascends, shedding the cage of flesh and physics to become something the universe has never seen. You are no longer a civilization. You are an idea, vast and luminous, woven into the fabric of spacetime itself. The stars do not shine upon you. You shine with them.',
         category: 'discovery',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.transcend}</svg>`,
+        image: 'assets/images/events/milestone_transcendence.png',
     },
     {
         id: 'industrial_might',
@@ -97,6 +104,7 @@ export const MILESTONE_EVENTS = [
         desc: 'The forge-worlds glow with purpose. Across your empire, mining networks claw precious ore from planetary mantles, power plants harness the fury of captive suns, and research complexes push the boundaries of known science. The hum of ten great works reverberates through the void — a symphony of industry that echoes from core worlds to frontier outposts. Your enemies see the smoke rising from your forge-worlds and know what it means: the machine of empire has reached full power, and it will not be stopped.',
         category: 'economy',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.industry}</svg>`,
+        image: 'assets/images/events/milestone_industrial_might.png',
     },
     {
         id: 'population_boom',
@@ -112,15 +120,17 @@ export const MILESTONE_EVENTS = [
         desc: 'The census reports arrive from every colony world, and the numbers tell a story of explosive growth. Nurseries overflow, habitation domes strain at their seams, and the endless hunger for food, energy, and space grows louder with every passing cycle. Ten billion voices now cry out across your empire — demanding, dreaming, daring. This tide of life is both your greatest strength and your most pressing challenge. Feed them, house them, and give them purpose, and there is nothing in the galaxy that can stand against such multitudes.',
         category: 'expansion',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.population}</svg>`,
+        image: 'assets/images/events/milestone_population_boom.png',
     },
     {
         id: 'armada',
         trigger: 'ship-built',
         condition: () => gameState.fleets.length >= 5,
         title: 'Armada',
-        desc: 'Five warships hang in formation above the orbital shipyard, their running lights blinking in silent unison against the backdrop of a billion stars. Together they represent more concentrated firepower than most civilizations will ever possess — a fleet capable of projecting your will across entire star systems. Admirals stand on command bridges and feel the thrum of engines beneath their feet, knowing that this armada is more than metal and fire. It is a statement, written in the language every species in the galaxy understands: we are here, we are powerful, and we will not be moved.',
+        desc: 'Five warships hang in formation above the orbital shipyard, their running lights blinking in silent unison against the backdrop of a billion stars. Together they represent more concentrated firepower than most civilizations will ever possess — a fleet, capable of projecting your will across entire star systems. Admirals stand on command bridges and feel the thrum of engines beneath their feet, knowing that this armada is more than metal and fire. It is a statement, written in the language every species in the galaxy understands: we are here, we are powerful, and we will not be moved.',
         category: 'military',
         icon: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${ICONS.armada}</svg>`,
+        image: 'assets/images/events/milestone_armada.png',
     },
 ];
 
@@ -158,6 +168,7 @@ export function initMilestoneEvents() {
                         desc: milestone.desc,
                         category: milestone.category,
                         icon: milestone.icon,
+                        image: milestone.image,
                     }
                 },
             }));
