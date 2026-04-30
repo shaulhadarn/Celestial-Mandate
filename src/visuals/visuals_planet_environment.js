@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { textures } from '../core/assets.js';
 import { isMobile as isMobileDevice } from '../core/device.js';
 import { carveLakeBasins } from './visuals_planet_terrain.js';
+import { _buildAlienHiveMesh } from './visuals_planet_colony.js';
 
 export function getSkyColor(type) {
     switch(type) {
@@ -321,6 +322,175 @@ const _euler = new THREE.Euler();
 const _matrix = new THREE.Matrix4();
 
 // -- Props (rocks + crystals) via InstancedMesh batching ----------------------
+// ── Ambient prop factories (campfire, beacon, light post, boulder) ─────────
+
+function _makeCampfire(scale = 1) {
+    const g = new THREE.Group();
+    const s = scale;
+    const logMat = mat(0x4a3020, 0, 0, false, 1, 0.9);
+    for (let i = 0; i < 6; i++) {
+        const log = new THREE.Mesh(new THREE.CylinderGeometry(0.12 * s, 0.15 * s, 1.2 * s, 5), logMat);
+        const a = (i / 6) * Math.PI * 2;
+        log.position.set(Math.cos(a) * 0.6 * s, 0.15 * s, Math.sin(a) * 0.6 * s);
+        log.rotation.z = Math.PI / 2;
+        log.rotation.y = a;
+        g.add(log);
+    }
+    // Outer flame (animated via flicker)
+    const fireMat = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.85 });
+    const fire = new THREE.Mesh(new THREE.ConeGeometry(0.35 * s, 1.2 * s, 6), fireMat);
+    fire.position.y = 0.6 * s;
+    fire.userData.isFlicker = true;
+    g.add(fire);
+    // Inner bright flame
+    const inner = new THREE.Mesh(
+        new THREE.ConeGeometry(0.2 * s, 0.8 * s, 5),
+        new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.95 })
+    );
+    inner.position.y = 0.5 * s;
+    inner.userData.isFlicker = true;
+    g.add(inner);
+    // Glow sprite for soft light bloom
+    const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xff8833, transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    glowSprite.scale.set(3 * s, 3 * s, 1);
+    glowSprite.position.y = 0.6 * s;
+    g.add(glowSprite);
+    // Point light (skipped on mobile for perf)
+    if (!isMobileDevice) {
+        const light = new THREE.PointLight(0xff6622, 3, 18 * s);
+        light.position.y = 0.8 * s;
+        g.add(light);
+    }
+    return g;
+}
+
+function _makeBeacon(scale = 1) {
+    const g = new THREE.Group();
+    const s = scale;
+    // Base
+    const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.8 * s, 1 * s, 0.5 * s, 8),
+        mat(0x444455, 0, 0, false, 1, 0.4)
+    );
+    base.position.y = 0.25 * s;
+    g.add(base);
+    // Pole
+    const pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06 * s, 0.08 * s, 4 * s, 6),
+        mat(0x666677, 0, 0, false, 1, 0.3)
+    );
+    pole.position.y = 2.5 * s;
+    g.add(pole);
+    // Top dish
+    const dish = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4 * s, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
+        mat(0x88aacc, 0, 0, false, 1, 0.4)
+    );
+    dish.position.y = 4.5 * s;
+    dish.rotation.x = Math.PI;
+    g.add(dish);
+    // Pulsing beacon bulb
+    const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18 * s, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+    );
+    bulb.position.y = 4.7 * s;
+    bulb.userData.isPulse = true;
+    g.add(bulb);
+    // Glow sprite
+    const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0x00ff88, transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    glowSprite.scale.set(1.5 * s, 1.5 * s, 1);
+    glowSprite.position.y = 4.7 * s;
+    glowSprite.userData.isPulse = true;
+    g.add(glowSprite);
+    if (!isMobileDevice) {
+        const light = new THREE.PointLight(0x00ff88, 1.5, 14 * s);
+        light.position.y = 4.7 * s;
+        g.add(light);
+    }
+    return g;
+}
+
+function _makeLightPost(scale = 1) {
+    const g = new THREE.Group();
+    const s = scale;
+    const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08 * s, 0.12 * s, 2 * s, 6),
+        mat(0x555555, 0, 0, false, 1, 0.4)
+    );
+    post.position.y = 1 * s;
+    g.add(post);
+    const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32 * s, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffffcc })
+    );
+    bulb.position.y = 2 * s;
+    g.add(bulb);
+    const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: textures.glow, color: 0xffffaa, transparent: true, opacity: 0.55,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    glowSprite.scale.set(2.2 * s, 2.2 * s, 1);
+    glowSprite.position.y = 2 * s;
+    g.add(glowSprite);
+    if (!isMobileDevice) {
+        const light = new THREE.PointLight(0xffffcc, 1.8, 12 * s);
+        light.position.y = 2.1 * s;
+        g.add(light);
+    }
+    return g;
+}
+
+function _makeBoulder(color, scale = 1) {
+    const g = new THREE.Group();
+    const baseGeo = new THREE.DodecahedronGeometry(scale * 1.6, 1);
+    const m = mat(color, 0, 0, false, 1, 0.95);
+    const main = new THREE.Mesh(baseGeo, m);
+    main.castShadow = !isMobileDevice;
+    main.scale.set(1, 0.7, 1.1);
+    g.add(main);
+    // Smaller cluster rock
+    const sub = new THREE.Mesh(new THREE.DodecahedronGeometry(scale * 0.7, 0), m);
+    sub.position.set(scale * 1.3, scale * 0.2, scale * 0.4);
+    sub.scale.set(1, 0.6, 1);
+    g.add(sub);
+    return g;
+}
+
+/**
+ * Choose ambient elements appropriate for a planet type.
+ * Returns counts: { campfires, beacons, lightPosts, hives, boulders }
+ */
+function _getAmbientCounts(planetType) {
+    const desktop = !isMobileDevice;
+    switch (planetType) {
+        case 'Terran':
+        case 'Continental':
+            return { campfires: desktop ? 2 : 1, beacons: 1, lightPosts: 0, hives: 0, boulders: desktop ? 6 : 3 };
+        case 'Desert':
+            return { campfires: desktop ? 3 : 1, beacons: desktop ? 2 : 1, lightPosts: 0, hives: 0, boulders: desktop ? 8 : 4 };
+        case 'Ice':
+        case 'Arctic':
+            return { campfires: 0, beacons: desktop ? 2 : 1, lightPosts: desktop ? 3 : 1, hives: 0, boulders: desktop ? 5 : 3 };
+        case 'Barren':
+            return { campfires: 0, beacons: desktop ? 3 : 1, lightPosts: desktop ? 2 : 1, hives: desktop ? 1 : 0, boulders: desktop ? 10 : 5 };
+        case 'Tomb':
+            return { campfires: 0, beacons: desktop ? 1 : 0, lightPosts: 0, hives: desktop ? 2 : 1, boulders: desktop ? 6 : 3 };
+        case 'Molten':
+            return { campfires: 0, beacons: desktop ? 1 : 0, lightPosts: 0, hives: desktop ? 1 : 0, boulders: desktop ? 8 : 4 };
+        case 'Ocean':
+            return { campfires: 0, beacons: desktop ? 2 : 1, lightPosts: desktop ? 1 : 0, hives: 0, boulders: desktop ? 4 : 2 };
+        default:
+            return { campfires: 0, beacons: desktop ? 1 : 0, lightPosts: 0, hives: 0, boulders: desktop ? 4 : 2 };
+    }
+}
+
 export function createPlanetProps(planetType, group, heightFn) {
     const props = [];
     const propColor = getPropColor(planetType);
@@ -477,6 +647,55 @@ export function createPlanetProps(planetType, group, heightFn) {
             group.add(vegMesh);
             props.push({ x, z, r: 1.5 * scale, topY: yBase + 4 * scale });
         }
+    }
+
+    // ── Ambient props: campfires, beacons, light posts, alien hives, boulders ──
+    const amb = _getAmbientCounts(planetType);
+
+    // Helper: place a single object at a random valid (non-lake, non-center) location
+    const _placeAmbient = (mesh, minR, maxR, collisionR, topYOffset) => {
+        let attempts = 0;
+        while (attempts < 12) {
+            const r = minR + Math.random() * (maxR - minR);
+            const theta = Math.random() * Math.PI * 2;
+            const x = r * Math.cos(theta);
+            const z = r * Math.sin(theta);
+            if (!_insideLake(x, z)) {
+                const y = heightFn(x, z);
+                mesh.position.set(x, y, z);
+                mesh.rotation.y = Math.random() * Math.PI * 2;
+                group.add(mesh);
+                props.push({ x, z, r: collisionR, topY: y + topYOffset });
+                return true;
+            }
+            attempts++;
+        }
+        return false;
+    };
+
+    // Campfires (warm, mostly outside the colony zone)
+    for (let i = 0; i < amb.campfires; i++) {
+        _placeAmbient(_makeCampfire(0.9 + Math.random() * 0.4), 50, 280, 1.2, 1.8);
+    }
+    // Beacons (tall, scattered widely)
+    for (let i = 0; i < amb.beacons; i++) {
+        _placeAmbient(_makeBeacon(0.8 + Math.random() * 0.4), 60, 290, 1.0, 5);
+    }
+    // Light posts (lit pathways for dark planets)
+    for (let i = 0; i < amb.lightPosts; i++) {
+        _placeAmbient(_makeLightPost(0.9 + Math.random() * 0.3), 45, 250, 0.5, 2.2);
+    }
+    // Alien hives (rare, large, far from colony)
+    for (let i = 0; i < amb.hives; i++) {
+        const hive = _buildAlienHiveMesh();
+        const hiveScale = 0.6 + Math.random() * 0.3;
+        hive.scale.setScalar(hiveScale);
+        _placeAmbient(hive, 120, 320, 6 * hiveScale, 4 * hiveScale);
+    }
+    // Boulders (scattered terrain detail)
+    for (let i = 0; i < amb.boulders; i++) {
+        const bScale = 0.8 + Math.random() * 0.7;
+        _placeAmbient(_makeBoulder(propColor, bScale), 35, 320, 2 * bScale, 1.2 * bScale);
     }
 
     return props;
