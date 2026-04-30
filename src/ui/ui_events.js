@@ -159,7 +159,11 @@ function _openModal() {
 function _closeModal() {
     if (!_modal) return;
 
-    // If there are queued events, show the next one instead of fully closing
+    // Always mark closed first so the next event can render
+    _cancelPendingClose();
+    _modalOpen = false;
+
+    // If there are queued events, show the next one instead of fully hiding
     if (_eventQueue.length > 0) {
         const next = _eventQueue.shift();
         if (next.type === 'pirate') {
@@ -169,9 +173,6 @@ function _closeModal() {
         }
         return;
     }
-
-    _cancelPendingClose();
-    _modalOpen = false;
 
     // Hide immediately — no delay so the modal always closes
     _modal.classList.add('hidden');
